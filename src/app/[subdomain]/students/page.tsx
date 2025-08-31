@@ -972,5 +972,6 @@ export default function StudentsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  </div>
   )
 }

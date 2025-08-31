@@ -730,5 +730,6 @@ export default function ApplicationsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  </div>
   )
 }
