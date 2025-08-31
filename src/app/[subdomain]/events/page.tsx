@@ -95,6 +95,10 @@ export default function EventsPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false)
+  const [isEditEventOpen, setIsEditEventOpen] = useState(false)
+  const [isPreviewEventOpen, setIsPreviewEventOpen] = useState(false)
+  const [isReportEventOpen, setIsReportEventOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -245,6 +249,82 @@ export default function EventsPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete event')
     }
+  }
+
+  const handlePreviewEvent = (event: Event) => {
+    // Open preview dialog or navigate to preview page
+    const previewUrl = event.virtualMeetingUrl || '#'
+    if (event.virtualMeetingUrl) {
+      window.open(previewUrl, '_blank')
+    } else {
+      alert('Event preview functionality would show detailed event information')
+    }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    // Populate form with event data and open edit dialog
+    setNewEvent({
+      title: event.title,
+      description: event.description || '',
+      type: event.type,
+      platform: event.platform,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location || '',
+      virtualMeetingUrl: event.virtualMeetingUrl || '',
+      maxAttendees: event.maxAttendees?.toString() || '',
+      isPublic: event.isPublic,
+      requiresRegistration: event.requiresRegistration,
+      tags: event.tags || []
+    })
+    setIsCreateEventOpen(true)
+  }
+
+  const handleExportReport = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/events?limit=1000&export=true`)
+      if (!response.ok) throw new Error('Failed to export report')
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `events-report-${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      alert('Failed to export report')
+    }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    setSelectedEvent(event)
+    setNewEvent({
+      title: event.title,
+      description: event.description || "",
+      type: event.type,
+      platform: event.platform,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      location: event.location || "",
+      virtualMeetingUrl: event.virtualMeetingUrl || "",
+      maxAttendees: event.maxAttendees?.toString() || "",
+      isPublic: event.isPublic,
+      requiresRegistration: event.requiresRegistration,
+      tags: event.tags || []
+    })
+    setIsEditEventOpen(true)
+  }
+
+  const handlePreviewEvent = (event: Event) => {
+    setSelectedEvent(event)
+    setIsPreviewEventOpen(true)
+  }
+
+  const handleGenerateReport = () => {
+    setIsReportEventOpen(true)
   }
 
   const getTypeIcon = (type: string) => {
@@ -518,6 +598,8 @@ export default function EventsPage() {
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="registrations">Registrations</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="events" className="space-y-6">
@@ -613,8 +695,21 @@ export default function EventsPage() {
                   </div>
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      View Details
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => handlePreviewEvent(event)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Preview
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditEvent(event)}
+                    >
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
@@ -661,7 +756,620 @@ export default function EventsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="reports" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Event Reports</h2>
+              <p className="text-muted-foreground">
+                Generate comprehensive reports for your events
+              </p>
+            </div>
+            <Button onClick={handleExportReport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </Button>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Event Performance
+                </CardTitle>
+                <CardDescription>
+                  Attendance and engagement metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Attendance Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Engagement Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Registration Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Time-based Reports
+                </CardTitle>
+                <CardDescription>
+                  Reports by time period
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Monthly Summary
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Quarterly Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Yearly Analysis
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Attendee Reports
+                </CardTitle>
+                <CardDescription>
+                  Reports about event attendees
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Demographics Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Feedback Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Follow-up Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Performance Reports
+                </CardTitle>
+                <CardDescription>
+                  Event success metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    ROI Analysis
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Conversion Report
+                  </Button>
+                  <Button variant="outline" size="sm" className="w-full justify-start">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Satisfaction Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Reports</CardTitle>
+              <CardDescription>Previously generated reports</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Monthly Event Summary - January 2024</p>
+                    <p className="text-sm text-muted-foreground">Generated 2 days ago</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Q4 2023 Event Performance</p>
+                    <p className="text-sm text-muted-foreground">Generated 1 week ago</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Attendee Demographics Report</p>
+                    <p className="text-sm text-muted-foreground">Generated 2 weeks ago</p>
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Event Analytics</h2>
+              <p className="text-muted-foreground">
+                Detailed analytics and insights for your events
+              </p>
+            </div>
+            <Select defaultValue="30">
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Total Events
+                </CardTitle>
+                <CardDescription>
+                  Events in selected period
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">24</div>
+                <p className="text-xs text-muted-foreground">+12% vs previous period</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Total Attendees
+                </CardTitle>
+                <CardDescription>
+                  Unique attendees
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">1,247</div>
+                <p className="text-xs text-muted-foreground">+23% vs previous period</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Attendance Rate
+                </CardTitle>
+                <CardDescription>
+                  Average attendance rate
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">78%</div>
+                <p className="text-xs text-muted-foreground">+5% vs previous period</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5" />
+                  Satisfaction Score
+                </CardTitle>
+                <CardDescription>
+                  Average satisfaction rating
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">4.6</div>
+                <p className="text-xs text-muted-foreground">Out of 5.0</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Type Performance</CardTitle>
+                <CardDescription>Performance by event type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Webinars</span>
+                      <span className="font-medium">85% attendance</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: '85%' }} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Workshops</span>
+                      <span className="font-medium">92% attendance</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '92%' }} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Info Sessions</span>
+                      <span className="font-medium">76% attendance</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-yellow-600 h-2 rounded-full" style={{ width: '76%' }} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Networking</span>
+                      <span className="font-medium">68% attendance</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: '68%' }} />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Performing Events</CardTitle>
+                <CardDescription>Events with highest engagement</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Study in USA Webinar</p>
+                      <p className="text-sm text-muted-foreground">245 attendees</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">UK University Workshop</p>
+                      <p className="text-sm text-muted-foreground">189 attendees</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 text-gray-300" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Canada Info Session</p>
+                      <p className="text-sm text-muted-foreground">167 attendees</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="h-4 w-4 text-gray-300" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
+
+      {/* Edit Event Dialog */}
+      <Dialog open={isEditEventOpen} onOpenChange={setIsEditEventOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Event</DialogTitle>
+            <DialogDescription>Update event information and settings</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-title">Event Title *</Label>
+                <Input 
+                  id="edit-title" 
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-type">Event Type</Label>
+                <Select value={newEvent.type} onValueChange={(value) => setNewEvent(prev => ({ ...prev, type: value as Event['type'] }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WEBINAR">Webinar</SelectItem>
+                    <SelectItem value="WORKSHOP">Workshop</SelectItem>
+                    <SelectItem value="INFO_SESSION">Info Session</SelectItem>
+                    <SelectItem value="NETWORKING">Networking</SelectItem>
+                    <SelectItem value="ORIENTATION">Orientation</SelectItem>
+                    <SelectItem value="TRAINING">Training</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea 
+                id="edit-description" 
+                value={newEvent.description}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsEditEventOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateEvent} disabled={submitting}>
+                {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Edit className="h-4 w-4 mr-2" />}
+                Update Event
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Event Dialog */}
+      <Dialog open={isPreviewEventOpen} onOpenChange={setIsPreviewEventOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Event Preview</DialogTitle>
+            <DialogDescription>Event details and information</DialogDescription>
+          </DialogHeader>
+          {selectedEvent && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xl font-semibold">{selectedEvent.title}</h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge className={getStatusColor(selectedEvent.status)}>
+                    {selectedEvent.status}
+                  </Badge>
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    {getTypeIcon(selectedEvent.type)}
+                    {selectedEvent.type.replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
+
+              {selectedEvent.description && (
+                <div>
+                  <Label>Description</Label>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedEvent.description}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Start Time</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(selectedEvent.startTime).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <Label>End Time</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(selectedEvent.endTime).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Platform</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedEvent.platform.replace('_', ' ')}
+                  </p>
+                </div>
+                <div>
+                  <Label>Attendees</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedEvent.currentAttendees} {selectedEvent.maxAttendees ? `/ ${selectedEvent.maxAttendees}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {selectedEvent.location && (
+                <div>
+                  <Label>Location</Label>
+                  <p className="text-sm text-muted-foreground">{selectedEvent.location}</p>
+                </div>
+              )}
+
+              {selectedEvent.virtualMeetingUrl && (
+                <div>
+                  <Label>Meeting URL</Label>
+                  <p className="text-sm text-muted-foreground break-all">{selectedEvent.virtualMeetingUrl}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsPreviewEventOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => {
+                  setIsPreviewEventOpen(false)
+                  handleEditEvent(selectedEvent)
+                }}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Event
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Event Report Dialog */}
+      <Dialog open={isReportEventOpen} onOpenChange={setIsReportEventOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Event Analytics Report</DialogTitle>
+            <DialogDescription>Comprehensive event performance metrics</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Report Summary */}
+            <div className="grid md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Total Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.totalEvents || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Total Registrations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.totalRegistrations || 0}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Attendance Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.averageAttendance || 0}%</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Active Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats?.upcomingEvents || 0}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Event Type Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Type Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {['WEBINAR', 'WORKSHOP', 'INFO_SESSION', 'NETWORKING'].map((type) => {
+                    const typeEvents = events.filter(e => e.type === type)
+                    const totalRegistrations = typeEvents.reduce((sum, e) => sum + e.currentAttendees, 0)
+                    return (
+                      <div key={type} className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {getTypeIcon(type)}
+                          <span className="text-sm">{type.replace('_', ' ')}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">{typeEvents.length} events</div>
+                          <div className="text-xs text-muted-foreground">{totalRegistrations} registrations</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Export Options */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Export Report</CardTitle>
+                <CardDescription>Download event analytics in different formats</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-3">
+                  <Button variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export as PDF
+                  </Button>
+                  <Button variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export as Excel
+                  </Button>
+                  <Button variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export as CSV
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsReportEventOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={() => setIsReportEventOpen(false)}>
+                <Download className="h-4 w-4 mr-2" />
+                Download Report
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

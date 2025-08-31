@@ -469,12 +469,14 @@ export default function AgencyDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-13">
+          <TabsList className="grid w-full grid-cols-15">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="universities">Universities</TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="workflows">Workflows</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="accounting">Accounting</TabsTrigger>
             <TabsTrigger value="marketing">Marketing</TabsTrigger>
@@ -2395,6 +2397,315 @@ export default function AgencyDashboard() {
                     <div className="flex justify-between text-sm">
                       <span>Cost per Lead</span>
                       <span className="font-medium">$11.50</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Branches Module */}
+          <TabsContent value="branches" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Branches Management</h2>
+                <p className="text-muted-foreground">
+                  Manage multi-location operations and branches
+                </p>
+              </div>
+              <Button onClick={() => window.location.href = '/branches'}>
+                <Building className="mr-2 h-4 w-4" />
+                Go to Branches
+              </Button>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building className="h-5 w-5" />
+                    Total Branches
+                  </CardTitle>
+                  <CardDescription>
+                    Across all locations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12</div>
+                  <p className="text-xs text-muted-foreground">3 countries</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Active Branches
+                  </CardTitle>
+                  <CardDescription>
+                    Currently operating
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">10</div>
+                  <p className="text-xs text-muted-foreground">83% utilization</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Branch Students
+                  </CardTitle>
+                  <CardDescription>
+                    Students across branches
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">245</div>
+                  <p className="text-xs text-muted-foreground">+12% this month</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Branch Staff
+                  </CardTitle>
+                  <CardDescription>
+                    Team members across branches
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">48</div>
+                  <p className="text-xs text-muted-foreground">Avg 4 per branch</p>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Branch Activity</CardTitle>
+                  <CardDescription>Latest updates across branches</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Downtown Office</p>
+                        <p className="text-sm text-muted-foreground">5 new students enrolled</p>
+                      </div>
+                      <Badge variant="secondary">2h ago</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">West Coast Branch</p>
+                        <p className="text-sm text-muted-foreground">Staff meeting completed</p>
+                      </div>
+                      <Badge variant="secondary">5h ago</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">European Office</p>
+                        <p className="text-sm text-muted-foreground">New partnership signed</p>
+                      </div>
+                      <Badge variant="secondary">1d ago</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Branch Performance</CardTitle>
+                  <CardDescription>Top performing branches</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Downtown Office</p>
+                        <p className="text-sm text-muted-foreground">89% capacity</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">West Coast Branch</p>
+                        <p className="text-sm text-muted-foreground">76% capacity</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 text-gray-300" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">European Office</p>
+                        <p className="text-sm text-muted-foreground">65% capacity</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <Star className="h-4 w-4 text-gray-300" />
+                        <Star className="h-4 w-4 text-gray-300" />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Workflows Module */}
+          <TabsContent value="workflows" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Workflows Automation</h2>
+                <p className="text-muted-foreground">
+                  Create and manage automated workflows
+                </p>
+              </div>
+              <Button onClick={() => window.location.href = '/workflows'}>
+                <Workflow className="mr-2 h-4 w-4" />
+                Go to Workflows
+              </Button>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Workflow className="h-5 w-5" />
+                    Total Workflows
+                  </CardTitle>
+                  <CardDescription>
+                    Automated processes
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">24</div>
+                  <p className="text-xs text-muted-foreground">8 categories</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Play className="h-5 w-5" />
+                    Active Workflows
+                  </CardTitle>
+                  <CardDescription>
+                    Currently running
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">18</div>
+                  <p className="text-xs text-muted-foreground">75% active rate</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Total Executions
+                  </CardTitle>
+                  <CardDescription>
+                    Workflow runs this month
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">1.2K</div>
+                  <p className="text-xs text-muted-foreground">+23% vs last month</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Success Rate
+                  </CardTitle>
+                  <CardDescription>
+                    Average success rate
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">94%</div>
+                  <p className="text-xs text-muted-foreground">Above target</p>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Workflow Executions</CardTitle>
+                  <CardDescription>Latest workflow runs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Student Onboarding</p>
+                        <p className="text-sm text-muted-foreground">Completed successfully</p>
+                      </div>
+                      <Badge variant="secondary">2m ago</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Lead Nurturing</p>
+                        <p className="text-sm text-muted-foreground">45 emails sent</p>
+                      </div>
+                      <Badge variant="secondary">15m ago</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Application Follow-up</p>
+                        <p className="text-sm text-muted-foreground">12 reminders sent</p>
+                      </div>
+                      <Badge variant="secondary">1h ago</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workflow Categories</CardTitle>
+                  <CardDescription>Workflows by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span className="text-sm">Student Onboarding</span>
+                      </div>
+                      <Badge variant="secondary">6</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        <span className="text-sm">Lead Nurturing</span>
+                      </div>
+                      <Badge variant="secondary">5</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        <span className="text-sm">Follow Up</span>
+                      </div>
+                      <Badge variant="secondary">4</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bell className="h-4 w-4" />
+                        <span className="text-sm">Notifications</span>
+                      </div>
+                      <Badge variant="secondary">3</Badge>
                     </div>
                   </div>
                 </CardContent>

@@ -26,7 +26,9 @@ import {
   User,
   Search,
   ChevronDown,
-  LogOut
+  LogOut,
+  Building,
+  Workflow
 } from "lucide-react"
 
 interface SubdomainLayoutProps {
@@ -61,6 +63,16 @@ const navigation = [
     name: 'Universities', 
     href: '/universities', 
     icon: GraduationCap 
+  },
+  { 
+    name: 'Branches', 
+    href: '/branches', 
+    icon: Building 
+  },
+  { 
+    name: 'Workflows', 
+    href: '/workflows', 
+    icon: Workflow 
   },
   { 
     name: 'Billing', 
