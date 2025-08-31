@@ -145,8 +145,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For demo purposes, we'll accept any password for real students
-    // In production, you would validate the password properly
+    // For real students, check if they have a password set
+    // In a real implementation, you would have a password field for students
+    // For now, we'll check if there's a user account associated with this student
+    const userAccount = await db.user.findFirst({
+      where: {
+        email: email,
+        agencyId: student.agencyId
+      }
+    })
+
+    if (userAccount && userAccount.password) {
+      // Validate password using bcrypt
+      const isPasswordValid = await bcrypt.compare(password, userAccount.password)
+      if (!isPasswordValid) {
+        return NextResponse.json(
+          { error: 'Invalid email or password' },
+          { status: 401 }
+        )
+      }
+    } else {
+      // If no user account exists, create one with the provided password
+      const hashedPassword = await bcrypt.hash(password, 12)
+      await db.user.create({
+        data: {
+          email: email,
+          password: hashedPassword,
+          name: `${student.firstName} ${student.lastName}`,
+          role: 'STUDENT',
+          agencyId: student.agencyId,
+          status: 'ACTIVE'
+        }
+      })
+    }
     return NextResponse.json({
       success: true,
       message: 'Login successful',

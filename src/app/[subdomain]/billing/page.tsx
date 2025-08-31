@@ -111,66 +111,160 @@ const statusColors = {
 }
 
 export default function BillingPage() {
-  const [subscription, setSubscription] = useState<Subscription>({
-    plan: 'PROFESSIONAL',
-    status: 'ACTIVE',
-    currentPeriodStart: '2024-01-01',
-    currentPeriodEnd: '2024-02-01'
-  })
-
-  const [usage, setUsage] = useState<Usage>({
-    studentCount: 45,
-    studentLimit: 200,
-    userCount: 4,
-    userLimit: 10,
-    storageUsed: 8500,
-    storageLimit: 20000
-  })
-
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    {
-      id: '1',
-      number: 'INV-2024-001',
-      amount: 299,
-      status: 'PAID',
-      date: '2024-01-01',
-      dueDate: '2024-01-15',
-      downloadUrl: '#'
-    },
-    {
-      id: '2',
-      number: 'INV-2024-002',
-      amount: 299,
-      status: 'PENDING',
-      date: '2024-02-01',
-      dueDate: '2024-02-15',
-      downloadUrl: '#'
-    }
-  ])
-
-  const [stats, setStats] = useState<BillingStats>({
-    monthlyRevenue: 299,
-    totalRevenue: 3588,
-    upcomingInvoice: 299,
-    lastPayment: '2024-01-01',
-    lastPaymentAmount: 299
-  })
-
+  const params = useParams()
+  const subdomain = params.subdomain as string
+  
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [usage, setUsage] = useState<Usage | null>(null)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [stats, setStats] = useState<BillingStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string>('')
+
+  // Fetch billing data
+  const fetchSubscriptionData = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/billing/subscription`)
+      if (!response.ok) throw new Error('Failed to fetch subscription')
+      
+      const data = await response.json()
+      setSubscription({
+        plan: data.subscription.plan,
+        status: data.subscription.status,
+        currentPeriodStart: data.subscription.currentPeriodStart,
+        currentPeriodEnd: data.subscription.currentPeriodEnd,
+        stripeSubscriptionId: data.subscription.stripeSubscriptionId
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch subscription')
+    }
+  }
+
+  const fetchUsageData = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/billing/usage`)
+      if (!response.ok) throw new Error('Failed to fetch usage')
+      
+      const data = await response.json()
+      setUsage({
+        studentCount: data.usage.students.used,
+        studentLimit: data.usage.students.limit,
+        userCount: data.usage.users.used,
+        userLimit: data.usage.users.limit,
+        storageUsed: data.usage.storage.used,
+        storageLimit: data.usage.storage.limit
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch usage')
+    }
+  }
+
+  const fetchInvoicesData = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/accounting/invoices?limit=50`)
+      if (!response.ok) throw new Error('Failed to fetch invoices')
+      
+      const data = await response.json()
+      const processedInvoices = data.invoices.map((invoice: any) => ({
+        id: invoice.id,
+        number: invoice.invoiceNumber,
+        amount: invoice.amount,
+        status: invoice.status,
+        date: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        downloadUrl: '#' // In real implementation, generate download URL
+      }))
+      setInvoices(processedInvoices)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch invoices')
+    }
+  }
+
+  const fetchStatsData = async () => {
+    try {
+      // Calculate stats from available data
+      if (subscription && invoices.length > 0) {
+        const monthlyRevenue = subscription ? planPrices[subscription.plan] : 0
+        const totalRevenue = invoices
+          .filter(inv => inv.status === 'PAID')
+          .reduce((sum, inv) => sum + inv.amount, 0)
+        
+        const upcomingInvoice = subscription ? planPrices[subscription.plan] : 0
+        
+        const lastPaidInvoice = invoices
+          .filter(inv => inv.status === 'PAID')
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+        
+        setStats({
+          monthlyRevenue,
+          totalRevenue,
+          upcomingInvoice,
+          lastPayment: lastPaidInvoice?.date || '',
+          lastPaymentAmount: lastPaidInvoice?.amount || 0
+        })
+      }
+    } catch (err) {
+      console.error('Error calculating stats:', err)
+    }
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        await Promise.all([
+          fetchSubscriptionData(),
+          fetchUsageData(),
+          fetchInvoicesData()
+        ])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchData()
+  }, [subdomain])
+
+  useEffect(() => {
+    if (subscription && invoices.length > 0) {
+      fetchStatsData()
+    }
+  }, [subscription, invoices])
 
   const handleUpgradePlan = (plan: string) => {
     setSelectedPlan(plan)
     setIsUpgradeDialogOpen(true)
   }
 
-  const confirmUpgrade = () => {
-    setSubscription({
-      ...subscription,
-      plan: selectedPlan as any,
-      status: 'PENDING'
-    })
-    setIsUpgradeDialogOpen(false)
+  const confirmUpgrade = async () => {
+    if (!selectedPlan || !subscription) return
+
+    try {
+      const response = await fetch(`/api/${subdomain}/billing/subscription`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan: selectedPlan,
+          // In real implementation, this would handle Stripe payment processing
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upgrade plan')
+      }
+
+      await fetchSubscriptionData()
+      setIsUpgradeDialogOpen(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upgrade plan')
+    }
   }
 
   const getUsagePercentage = (used: number, limit: number) => {
@@ -181,6 +275,37 @@ export default function BillingPage() {
     if (percentage > 90) return 'text-red-600'
     if (percentage > 70) return 'text-yellow-600'
     return 'text-green-600'
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (!subscription || !usage || !stats) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">No billing data available</p>
+        </div>
+      </div>
+    )
   }
 
   return (

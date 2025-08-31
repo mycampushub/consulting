@@ -81,38 +81,110 @@ export async function GET(request: NextRequest) {
 
     const outstandingInvoices = agency.invoices.filter(inv => inv.status === "UNPAID").length
 
-    // Generate mock revenue by month data
-    const revenueByMonth = [
-      { month: "Jan", revenue: Math.random() * 50000 + 30000 },
-      { month: "Feb", revenue: Math.random() * 50000 + 30000 },
-      { month: "Mar", revenue: Math.random() * 50000 + 30000 },
-      { month: "Apr", revenue: Math.random() * 50000 + 30000 },
-      { month: "May", revenue: Math.random() * 50000 + 30000 },
-      { month: "Jun", revenue: Math.random() * 50000 + 30000 }
-    ]
+    // Calculate real revenue by month data
+    const currentYear = new Date().getFullYear()
+    const revenueByMonth = []
+    
+    for (let month = 0; month < 12; month++) {
+      const startDate = new Date(currentYear, month, 1)
+      const endDate = new Date(currentYear, month + 1, 0)
+      
+      const monthRevenue = agency.transactions
+        .filter(t => {
+          const transactionDate = new Date(t.createdAt)
+          return t.type === "INCOME" && 
+                 t.status === "COMPLETED" && 
+                 transactionDate >= startDate && 
+                 transactionDate <= endDate
+        })
+        .reduce((sum, t) => sum + t.amount, 0)
+      
+      revenueByMonth.push({
+        month: new Date(currentYear, month).toLocaleString('default', { month: 'short' }),
+        revenue: monthRevenue
+      })
+    }
 
-    // Calculate performance metrics
-    const studentSatisfaction = Math.floor(Math.random() * 20) + 80 // 80-100%
-    const applicationProcessing = Math.floor(Math.random() * 15) + 85 // 85-100%
-    const teamEfficiency = Math.floor(Math.random() * 25) + 75 // 75-100%
-    const overall = Math.floor((studentSatisfaction + applicationProcessing + teamEfficiency) / 3)
+    // Calculate real performance metrics based on actual data
+    const completedApplications = agency.applications.filter(app => 
+      ["COMPLETED", "ACCEPTED"].includes(app.status)
+    ).length
+    
+    const totalApplications = agency.applications.length
+    const applicationSuccessRate = totalApplications > 0 ? 
+      Math.round((completedApplications / totalApplications) * 100) : 0
+
+    // Calculate average processing time for completed applications
+    const completedAppsWithDates = agency.applications
+      .filter(app => ["COMPLETED", "ACCEPTED"].includes(app.status) && app.createdAt)
+      .map(app => ({
+        ...app,
+        processingDays: Math.floor((new Date().getTime() - new Date(app.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+      }))
+    
+    const avgProcessingTime = completedAppsWithDates.length > 0 ?
+      Math.round(completedAppsWithDates.reduce((sum, app) => sum + app.processingDays, 0) / completedAppsWithDates.length) : 0
+
+    // Calculate student satisfaction based on application success rate and processing time
+    const studentSatisfaction = Math.min(100, Math.max(60, 
+      applicationSuccessRate * 0.7 + (100 - Math.min(avgProcessingTime * 2, 100)) * 0.3
+    ))
+
+    // Calculate application processing efficiency
+    const applicationProcessing = Math.min(100, Math.max(60,
+      avgProcessingTime > 0 ? Math.max(60, 100 - avgProcessingTime * 2) : 90
+    ))
+
+    // Calculate team efficiency based on applications per team member
+    const activeTeamMembers = await db.user.count({
+      where: { 
+        agencyId: agency.id, 
+        status: "ACTIVE",
+        role: { in: ["AGENCY_ADMIN", "CONSULTANT", "SUPPORT"] }
+      }
+    })
+    
+    const teamEfficiency = activeTeamMembers > 0 ? 
+      Math.min(100, Math.round((totalApplications / activeTeamMembers) * 10)) : 75
+
+    const overall = Math.round((studentSatisfaction + applicationProcessing + teamEfficiency) / 3)
+
+    // Calculate real new students this month
+    const currentMonth = new Date()
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+    const newThisMonth = agency.students.filter(student => 
+      new Date(student.createdAt) >= startOfMonth
+    ).length
+
+    // Calculate real student conversion rate
+    const convertedStudents = agency.students.filter(student => student.status === "ENROLLED").length
+    const conversionRate = agency.students.length > 0 ? 
+      Math.round((convertedStudents / agency.students.length) * 100) : 0
+
+    // Calculate students by country
+    const studentsByCountry = agency.students.reduce((acc, student) => {
+      if (student.nationality) {
+        acc[student.nationality] = (acc[student.nationality] || 0) + 1
+      }
+      return acc
+    }, {} as Record<string, number>)
 
     const analytics = {
       students: {
         total: agency.students.length,
         active: agency.students.filter(s => s.status === "ACTIVE").length,
-        newThisMonth: Math.floor(Math.random() * 10) + 5, // Mock data
-        conversionRate: Math.floor(Math.random() * 30) + 60, // Mock data
+        newThisMonth,
+        conversionRate,
         byStatus: studentsByStatus,
         byStage: studentsByStage,
-        byCountry: {} // Mock empty for now
+        byCountry: studentsByCountry
       },
       applications: {
         total: agency.applications.length,
         active: agency.applications.filter(app => ["PENDING", "UNDER_REVIEW", "IN_PROGRESS"].includes(app.status)).length,
         completed: agency.applications.filter(app => ["COMPLETED", "ACCEPTED"].includes(app.status)).length,
-        avgProcessingTime: Math.floor(Math.random() * 20) + 10, // Mock data in days
-        successRate: agency.applications.length > 0 ? Math.round((agency.applications.filter(app => ["COMPLETED", "ACCEPTED"].includes(app.status)).length / agency.applications.length) * 100) : 0,
+        avgProcessingTime,
+        successRate: applicationSuccessRate,
         byStatus: applicationsByStatus,
         byUniversity: applicationsByUniversity
       },

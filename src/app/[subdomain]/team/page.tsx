@@ -58,19 +58,55 @@ interface TeamStats {
   departments: { name: string; count: number }[]
 }
 
+interface Branch {
+  id: string
+  name: string
+  code: string
+  type: 'MAIN' | 'BRANCH' | 'FRANCHISE' | 'PARTNER'
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'CLOSED'
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  state?: string
+  country?: string
+  postalCode?: string
+  manager?: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
+  maxStudents?: number
+  maxStaff?: number
+  description?: string
+  features: string[]
+  settings: Record<string, any>
+  studentCount: number
+  userCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 export default function TeamPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [stats, setStats] = useState<TeamStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false)
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [branchSearchTerm, setBranchSearchTerm] = useState("")
+  const [branchTypeFilter, setBranchTypeFilter] = useState("all")
+  const [branchStatusFilter, setBranchStatusFilter] = useState("all")
 
   // Form state
   const [newMember, setNewMember] = useState({
@@ -80,6 +116,27 @@ export default function TeamPage() {
     title: "",
     department: "",
     phone: ""
+  })
+
+  // Branch form state
+  const [branchForm, setBranchForm] = useState({
+    name: "",
+    code: "",
+    type: "BRANCH" as Branch['type'],
+    status: "PENDING" as Branch['status'],
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
+    managerId: "",
+    maxStudents: "",
+    maxStaff: "",
+    description: "",
+    features: [] as string[],
+    settings: {}
   })
 
   useEffect(() => {
@@ -95,6 +152,12 @@ export default function TeamPage() {
       if (!membersResponse.ok) throw new Error('Failed to fetch team members')
       const membersData = await membersResponse.json()
       setTeamMembers(membersData.users || [])
+
+      // Fetch branches
+      const branchesResponse = await fetch(`/api/${subdomain}/branches?limit=50`)
+      if (!branchesResponse.ok) throw new Error('Failed to fetch branches')
+      const branchesData = await branchesResponse.json()
+      setBranches(branchesData.branches || [])
 
       // Calculate stats
       const teamStats: TeamStats = {
@@ -176,6 +239,146 @@ export default function TeamPage() {
     }
   }
 
+  // Branch management functions
+  const handleCreateBranch = async () => {
+    if (!branchForm.name || !branchForm.code) {
+      alert("Branch name and code are required")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/branches`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...branchForm,
+          maxStudents: branchForm.maxStudents ? parseInt(branchForm.maxStudents) : undefined,
+          maxStaff: branchForm.maxStaff ? parseInt(branchForm.maxStaff) : undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create branch')
+      }
+
+      await fetchTeamData()
+      setIsBranchModalOpen(false)
+      resetBranchForm()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create branch')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleUpdateBranch = async () => {
+    if (!editingBranch || !branchForm.name || !branchForm.code) {
+      alert("Branch name and code are required")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/branches/${editingBranch.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...branchForm,
+          maxStudents: branchForm.maxStudents ? parseInt(branchForm.maxStudents) : undefined,
+          maxStaff: branchForm.maxStaff ? parseInt(branchForm.maxStaff) : undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update branch')
+      }
+
+      await fetchTeamData()
+      setIsBranchModalOpen(false)
+      setEditingBranch(null)
+      resetBranchForm()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update branch')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteBranch = async (branchId: string) => {
+    if (!confirm('Are you sure you want to delete this branch? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/branches/${branchId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete branch')
+      }
+
+      await fetchTeamData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete branch')
+    }
+  }
+
+  const openEditBranchModal = (branch: Branch) => {
+    setEditingBranch(branch)
+    setBranchForm({
+      name: branch.name,
+      code: branch.code,
+      type: branch.type,
+      status: branch.status,
+      email: branch.email || "",
+      phone: branch.phone || "",
+      address: branch.address || "",
+      city: branch.city || "",
+      state: branch.state || "",
+      country: branch.country || "",
+      postalCode: branch.postalCode || "",
+      managerId: branch.manager?.id || "",
+      maxStudents: branch.maxStudents?.toString() || "",
+      maxStaff: branch.maxStaff?.toString() || "",
+      description: branch.description || "",
+      features: branch.features,
+      settings: branch.settings
+    })
+    setIsBranchModalOpen(true)
+  }
+
+  const resetBranchForm = () => {
+    setBranchForm({
+      name: "",
+      code: "",
+      type: "BRANCH",
+      status: "PENDING",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      country: "",
+      postalCode: "",
+      managerId: "",
+      maxStudents: "",
+      maxStaff: "",
+      description: "",
+      features: [],
+      settings: {}
+    })
+    setEditingBranch(null)
+  }
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case "AGENCY_ADMIN": return "bg-purple-100 text-purple-800"
@@ -195,6 +398,26 @@ export default function TeamPage() {
     }
   }
 
+  const getBranchTypeColor = (type: string) => {
+    switch (type) {
+      case "MAIN": return "bg-purple-100 text-purple-800"
+      case "BRANCH": return "bg-blue-100 text-blue-800"
+      case "FRANCHISE": return "bg-green-100 text-green-800"
+      case "PARTNER": return "bg-orange-100 text-orange-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getBranchStatusColor = (status: string) => {
+    switch (status) {
+      case "ACTIVE": return "bg-green-100 text-green-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "INACTIVE": return "bg-red-100 text-red-800"
+      case "CLOSED": return "bg-gray-100 text-gray-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
   const filteredMembers = teamMembers.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,6 +425,15 @@ export default function TeamPage() {
     const matchesRole = roleFilter === "all" || member.role === roleFilter
     const matchesStatus = statusFilter === "all" || member.status === statusFilter
     return matchesSearch && matchesRole && matchesStatus
+  })
+
+  const filteredBranches = branches.filter(branch => {
+    const matchesSearch = branch.name.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+                         branch.code.toLowerCase().includes(branchSearchTerm.toLowerCase()) ||
+                         branch.city?.toLowerCase().includes(branchSearchTerm.toLowerCase())
+    const matchesType = branchTypeFilter === "all" || branch.type === branchTypeFilter
+    const matchesStatus = branchStatusFilter === "all" || branch.status === branchStatusFilter
+    return matchesSearch && matchesType && matchesStatus
   })
 
   if (loading) {
@@ -362,6 +594,7 @@ export default function TeamPage() {
       <Tabs defaultValue="members" className="space-y-6">
         <TabsList>
           <TabsTrigger value="members">Team Members</TabsTrigger>
+          <TabsTrigger value="branches">Branches</TabsTrigger>
           <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
         </TabsList>
@@ -485,6 +718,345 @@ export default function TeamPage() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="branches" className="space-y-6">
+          {/* Branch Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Branch Management</h2>
+              <p className="text-muted-foreground">Manage your agency branches and locations</p>
+            </div>
+            <Dialog open={isBranchModalOpen} onOpenChange={(open) => {
+              setIsBranchModalOpen(open)
+              if (!open) resetBranchForm()
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Branch
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingBranch ? 'Edit Branch' : 'Create New Branch'}</DialogTitle>
+                  <DialogDescription>
+                    {editingBranch ? 'Update branch information and settings' : 'Add a new branch to your agency'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Branch Name *</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="Main Branch"
+                        value={branchForm.name}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="code">Branch Code *</Label>
+                      <Input 
+                        id="code" 
+                        placeholder="MAIN"
+                        value={branchForm.code}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="type">Branch Type</Label>
+                      <Select onValueChange={(value) => setBranchForm(prev => ({ ...prev, type: value as Branch['type'] }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="MAIN">Main Branch</SelectItem>
+                          <SelectItem value="BRANCH">Branch</SelectItem>
+                          <SelectItem value="FRANCHISE">Franchise</SelectItem>
+                          <SelectItem value="PARTNER">Partner</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select onValueChange={(value) => setBranchForm(prev => ({ ...prev, status: value as Branch['status'] }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
+                          <SelectItem value="CLOSED">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input 
+                        id="email" 
+                        type="email"
+                        placeholder="branch@agency.com"
+                        value={branchForm.email}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input 
+                        id="phone" 
+                        placeholder="+1 (555) 123-4567"
+                        value={branchForm.phone}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, phone: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <Input 
+                      id="address" 
+                      placeholder="123 Main Street"
+                      value={branchForm.address}
+                      onChange={(e) => setBranchForm(prev => ({ ...prev, address: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="city">City</Label>
+                      <Input 
+                        id="city" 
+                        placeholder="New York"
+                        value={branchForm.city}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, city: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="state">State</Label>
+                      <Input 
+                        id="state" 
+                        placeholder="NY"
+                        value={branchForm.state}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, state: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="postalCode">Postal Code</Label>
+                      <Input 
+                        id="postalCode" 
+                        placeholder="10001"
+                        value={branchForm.postalCode}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="country">Country</Label>
+                    <Input 
+                      id="country" 
+                      placeholder="USA"
+                      value={branchForm.country}
+                      onChange={(e) => setBranchForm(prev => ({ ...prev, country: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="maxStudents">Max Students</Label>
+                      <Input 
+                        id="maxStudents" 
+                        type="number"
+                        placeholder="1000"
+                        value={branchForm.maxStudents}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, maxStudents: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="maxStaff">Max Staff</Label>
+                      <Input 
+                        id="maxStaff" 
+                        type="number"
+                        placeholder="50"
+                        value={branchForm.maxStaff}
+                        onChange={(e) => setBranchForm(prev => ({ ...prev, maxStaff: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <textarea 
+                      id="description" 
+                      className="w-full p-2 border rounded-md"
+                      rows={3}
+                      placeholder="Branch description and additional information..."
+                      value={branchForm.description}
+                      onChange={(e) => setBranchForm(prev => ({ ...prev, description: e.target.value }))}
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={editingBranch ? handleUpdateBranch : handleCreateBranch} 
+                    disabled={submitting}
+                    className="w-full"
+                  >
+                    {submitting ? "Saving..." : (editingBranch ? "Update Branch" : "Create Branch")}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Branch Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search branches..."
+                  value={branchSearchTerm}
+                  onChange={(e) => setBranchSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Select value={branchTypeFilter} onValueChange={setBranchTypeFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="MAIN">Main</SelectItem>
+                  <SelectItem value="BRANCH">Branch</SelectItem>
+                  <SelectItem value="FRANCHISE">Franchise</SelectItem>
+                  <SelectItem value="PARTNER">Partner</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={branchStatusFilter} onValueChange={setBranchStatusFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Branches Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredBranches.map((branch) => (
+              <Card key={branch.id} className="relative">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg">{branch.name}</CardTitle>
+                      <CardDescription className="text-sm text-muted-foreground">
+                        Code: {branch.code}
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-1">
+                      <Badge className={getBranchTypeColor(branch.type)}>
+                        {branch.type}
+                      </Badge>
+                      <Badge className={getBranchStatusColor(branch.status)}>
+                        {branch.status}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {branch.city && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span>{branch.city}, {branch.state} {branch.country}</span>
+                      </div>
+                    )}
+                    
+                    {branch.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span>{branch.email}</span>
+                      </div>
+                    )}
+                    
+                    {branch.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span>{branch.phone}</span>
+                      </div>
+                    )}
+
+                    {branch.manager && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>Manager: {branch.manager.name}</span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">{branch.studentCount}</div>
+                        <div className="text-xs text-muted-foreground">Students</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-semibold">{branch.userCount}</div>
+                        <div className="text-xs text-muted-foreground">Staff</div>
+                      </div>
+                    </div>
+
+                    {branch.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {branch.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => openEditBranchModal(branch)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteBranch(branch.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredBranches.length === 0 && (
+            <Card>
+              <CardContent className="text-center py-8">
+                <p className="text-muted-foreground">No branches found. Create your first branch to get started.</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="departments" className="space-y-6">

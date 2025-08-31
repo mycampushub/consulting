@@ -120,73 +120,43 @@ export default function FormsPage() {
     webhookUrl: ""
   })
 
-  // Mock data for demonstration
-  const mockForms: Form[] = [
-    {
-      id: "1",
-      name: "Student Application",
-      description: "Main student application form",
-      fields: [
-        { id: "1", type: "text", label: "First Name", required: true },
-        { id: "2", type: "text", label: "Last Name", required: true },
-        { id: "3", type: "email", label: "Email", required: true },
-        { id: "4", type: "phone", label: "Phone", required: false },
-        { id: "5", type: "select", label: "Country of Interest", required: true, options: ["USA", "UK", "Canada", "Australia"] }
-      ],
-      submitButton: "Apply Now",
-      successMessage: "Thank you for your application! We'll contact you soon.",
-      facebookLeadId: "fb_lead_123",
-      googleLeadId: "google_lead_456",
-      submissionCount: 156,
-      status: "ACTIVE",
-      createdAt: "2024-01-10",
-      updatedAt: "2024-01-20",
-      submissions: []
-    },
-    {
-      id: "2",
-      name: "Scholarship Inquiry",
-      description: "Form for scholarship information requests",
-      fields: [
-        { id: "1", type: "text", label: "Full Name", required: true },
-        { id: "2", type: "email", label: "Email", required: true },
-        { id: "3", type: "textarea", label: "Tell us about yourself", required: true }
-      ],
-      submitButton: "Get Scholarship Info",
-      successMessage: "Scholarship information will be sent to your email.",
-      submissionCount: 89,
-      status: "ACTIVE",
-      createdAt: "2024-01-08",
-      updatedAt: "2024-01-18",
-      submissions: []
-    },
-    {
-      id: "3",
-      name: "Contact Us",
-      description: "General contact form",
-      fields: [
-        { id: "1", type: "text", label: "Name", required: true },
-        { id: "2", type: "email", label: "Email", required: true },
-        { id: "3", type: "textarea", label: "Message", required: true }
-      ],
-      submitButton: "Send Message",
-      successMessage: "Thank you for contacting us! We'll get back to you soon.",
-      webhookUrl: "https://hooks.zapier.com/hooks/catch/123456/abcde/",
-      submissionCount: 45,
-      status: "ACTIVE",
-      createdAt: "2024-01-05",
-      updatedAt: "2024-01-15",
-      submissions: []
-    }
-  ]
-
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setForms(mockForms)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    const fetchForms = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/${subdomain}/forms?limit=50`)
+        if (!response.ok) throw new Error('Failed to fetch forms')
+        
+        const data = await response.json()
+        const processedForms = data.forms.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          description: form.description,
+          fields: JSON.parse(form.fields || '[]'),
+          submitButton: form.submitButton,
+          successMessage: form.successMessage,
+          redirectUrl: form.redirectUrl,
+          facebookLeadId: form.facebookLeadId,
+          googleLeadId: form.googleLeadId,
+          webhookUrl: form.webhookUrl,
+          submissionCount: form.submissions?.length || 0,
+          status: form.status || 'ACTIVE',
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+          submissions: form.submissions || []
+        }))
+        setForms(processedForms)
+      } catch (err) {
+        console.error('Error fetching forms:', err)
+        // Fallback to empty array on error
+        setForms([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchForms()
+  }, [subdomain])
 
   const getStatusColor = (status: string) => {
     switch (status) {
