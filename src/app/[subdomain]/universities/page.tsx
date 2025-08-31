@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -247,7 +247,8 @@ export default function UniversitiesPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
-  const [universities, setUniversities] = useState<University[]>(mockUniversities)
+  const [universities, setUniversities] = useState<University[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [countryFilter, setCountryFilter] = useState<string>("all")
   const [partnershipFilter, setPartnershipFilter] = useState<string>("all")
@@ -258,30 +259,238 @@ export default function UniversitiesPage() {
   const [editingUniversity, setEditingUniversity] = useState<University | null>(null)
   const [activeTab, setActiveTab] = useState("universities")
 
-  // CRUD Operations
-  const addUniversity = (newUniversity: Omit<University, 'id' | 'createdAt' | 'lastUpdated'>) => {
-    const university: University = {
-      ...newUniversity,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      studentsPlaced: 0,
-      applications: 0,
-      successRate: 0
+  useEffect(() => {
+    const fetchUniversities = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/${subdomain}/universities?limit=100`)
+        if (!response.ok) throw new Error('Failed to fetch universities')
+        
+        const data = await response.json()
+        const processedUniversities = data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          website: university.website,
+          description: university.description,
+          worldRanking: university.worldRanking,
+          nationalRanking: university.nationalRanking,
+          accreditation: university.accreditation || [],
+          programs: university.programs || [],
+          requirements: university.requirements || {
+            academic: [],
+            language: [],
+            financial: [],
+            documents: []
+          },
+          isPartner: university.isPartner,
+          partnershipLevel: university.partnershipLevel,
+          commissionRate: university.commissionRate,
+          contactEmail: university.contactEmail,
+          contactPhone: university.contactPhone,
+          address: university.address,
+          createdAt: university.createdAt,
+          lastUpdated: university.updatedAt,
+          studentsPlaced: university.applications?.filter((app: any) => app.status === 'ACCEPTED').length || 0,
+          applications: university.applications?.length || 0,
+          successRate: university.applications?.length > 0 
+            ? Math.round((university.applications.filter((app: any) => app.status === 'ACCEPTED').length / university.applications.length) * 100)
+            : 0,
+          notes: university.notes
+        }))
+        setUniversities(processedUniversities)
+      } catch (err) {
+        console.error('Error fetching universities:', err)
+        setUniversities([])
+      } finally {
+        setLoading(false)
+      }
     }
-    setUniversities([...universities, university])
-    setIsAddDialogOpen(false)
+
+    fetchUniversities()
+  }, [subdomain])
+
+  // CRUD Operations
+  const addUniversity = async (newUniversity: Omit<University, 'id' | 'createdAt' | 'lastUpdated'>) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/universities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newUniversity.name,
+          country: newUniversity.country,
+          city: newUniversity.city,
+          website: newUniversity.website,
+          description: newUniversity.description,
+          worldRanking: newUniversity.worldRanking,
+          nationalRanking: newUniversity.nationalRanking,
+          accreditation: newUniversity.accreditation,
+          programs: newUniversity.programs,
+          requirements: JSON.stringify(newUniversity.requirements),
+          isPartner: newUniversity.isPartner,
+          partnershipLevel: newUniversity.partnershipLevel,
+          commissionRate: newUniversity.commissionRate,
+          contactEmail: newUniversity.contactEmail,
+          contactPhone: newUniversity.contactPhone,
+          address: newUniversity.address
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create university')
+      }
+
+      const createdUniversity = await response.json()
+      
+      // Refresh universities list
+      const fetchResponse = await fetch(`/api/${subdomain}/universities?limit=100`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedUniversities = data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          website: university.website,
+          description: university.description,
+          worldRanking: university.worldRanking,
+          nationalRanking: university.nationalRanking,
+          accreditation: university.accreditation || [],
+          programs: university.programs || [],
+          requirements: university.requirements || {
+            academic: [],
+            language: [],
+            financial: [],
+            documents: []
+          },
+          isPartner: university.isPartner,
+          partnershipLevel: university.partnershipLevel,
+          commissionRate: university.commissionRate,
+          contactEmail: university.contactEmail,
+          contactPhone: university.contactPhone,
+          address: university.address,
+          createdAt: university.createdAt,
+          lastUpdated: university.updatedAt,
+          studentsPlaced: university.applications?.filter((app: any) => app.status === 'ACCEPTED').length || 0,
+          applications: university.applications?.length || 0,
+          successRate: university.applications?.length > 0 
+            ? Math.round((university.applications.filter((app: any) => app.status === 'ACCEPTED').length / university.applications.length) * 100)
+            : 0,
+          notes: university.notes
+        }))
+        setUniversities(processedUniversities)
+      }
+
+      setIsAddDialogOpen(false)
+      alert('University added successfully!')
+    } catch (error) {
+      console.error('Error adding university:', error)
+      alert('Failed to add university. Please try again.')
+    }
   }
 
-  const updateUniversity = (updatedUniversity: University) => {
-    setUniversities(universities.map(u => u.id === updatedUniversity.id ? updatedUniversity : u))
-    setIsEditDialogOpen(false)
-    setEditingUniversity(null)
+  const updateUniversity = async (updatedUniversity: University) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/universities?id=${updatedUniversity.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: updatedUniversity.name,
+          country: updatedUniversity.country,
+          city: updatedUniversity.city,
+          website: updatedUniversity.website,
+          description: updatedUniversity.description,
+          worldRanking: updatedUniversity.worldRanking,
+          nationalRanking: updatedUniversity.nationalRanking,
+          accreditation: updatedUniversity.accreditation,
+          programs: updatedUniversity.programs,
+          requirements: JSON.stringify(updatedUniversity.requirements),
+          isPartner: updatedUniversity.isPartner,
+          partnershipLevel: updatedUniversity.partnershipLevel,
+          commissionRate: updatedUniversity.commissionRate,
+          contactEmail: updatedUniversity.contactEmail,
+          contactPhone: updatedUniversity.contactPhone,
+          address: updatedUniversity.address
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update university')
+      }
+
+      // Refresh universities list
+      const fetchResponse = await fetch(`/api/${subdomain}/universities?limit=100`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedUniversities = data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          website: university.website,
+          description: university.description,
+          worldRanking: university.worldRanking,
+          nationalRanking: university.nationalRanking,
+          accreditation: university.accreditation || [],
+          programs: university.programs || [],
+          requirements: university.requirements || {
+            academic: [],
+            language: [],
+            financial: [],
+            documents: []
+          },
+          isPartner: university.isPartner,
+          partnershipLevel: university.partnershipLevel,
+          commissionRate: university.commissionRate,
+          contactEmail: university.contactEmail,
+          contactPhone: university.contactPhone,
+          address: university.address,
+          createdAt: university.createdAt,
+          lastUpdated: university.updatedAt,
+          studentsPlaced: university.applications?.filter((app: any) => app.status === 'ACCEPTED').length || 0,
+          applications: university.applications?.length || 0,
+          successRate: university.applications?.length > 0 
+            ? Math.round((university.applications.filter((app: any) => app.status === 'ACCEPTED').length / university.applications.length) * 100)
+            : 0,
+          notes: university.notes
+        }))
+        setUniversities(processedUniversities)
+      }
+
+      setIsEditDialogOpen(false)
+      setEditingUniversity(null)
+      alert('University updated successfully!')
+    } catch (error) {
+      console.error('Error updating university:', error)
+      alert('Failed to update university. Please try again.')
+    }
   }
 
-  const deleteUniversity = (universityId: string) => {
-    if (confirm('Are you sure you want to delete this university?')) {
+  const deleteUniversity = async (universityId: string) => {
+    if (!confirm('Are you sure you want to delete this university? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/universities?id=${universityId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete university')
+      }
+
+      // Remove university from state
       setUniversities(universities.filter(u => u.id !== universityId))
+      alert('University deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting university:', error)
+      alert('Failed to delete university. Please try again.')
     }
   }
 
@@ -313,6 +522,17 @@ export default function UniversitiesPage() {
     totalStudents: universities.reduce((sum, u) => sum + u.studentsPlaced, 0),
     totalApplications: universities.reduce((sum, u) => sum + u.applications, 0),
     avgSuccessRate: Math.round(universities.reduce((sum, u) => sum + u.successRate, 0) / universities.length)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading universities...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

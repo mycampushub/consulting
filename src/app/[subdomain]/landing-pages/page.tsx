@@ -198,13 +198,61 @@ export default function LandingPagesPage() {
   ]
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setLandingPages(mockLandingPages)
-      setForms(mockForms)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    const fetchLandingPages = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/${subdomain}/landing-pages?limit=50`)
+        if (!response.ok) throw new Error('Failed to fetch landing pages')
+        
+        const data = await response.json()
+        const processedPages = data.landingPages.map((page: any) => ({
+          id: page.id,
+          name: page.name,
+          slug: page.slug,
+          title: page.title,
+          description: page.description,
+          status: page.status,
+          viewCount: page.viewCount,
+          conversionCount: page.conversionCount,
+          publishedAt: page.publishedAt,
+          form: page.form ? {
+            id: page.form.id,
+            name: page.form.name
+          } : undefined,
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt
+        }))
+        setLandingPages(processedPages)
+      } catch (err) {
+        console.error('Error fetching landing pages:', err)
+        setLandingPages([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const fetchForms = async () => {
+      try {
+        const response = await fetch(`/api/${subdomain}/forms?limit=50`)
+        if (!response.ok) throw new Error('Failed to fetch forms')
+        
+        const data = await response.json()
+        const processedForms = data.forms.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          submissionCount: form.submissions?.length || 0,
+          status: form.status || 'ACTIVE'
+        }))
+        setForms(processedForms)
+      } catch (err) {
+        console.error('Error fetching forms:', err)
+        setForms([])
+      }
+    }
+
+    fetchLandingPages()
+    fetchForms()
+  }, [subdomain])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -291,6 +339,166 @@ export default function LandingPagesPage() {
       case "video": return { width: 400, height: 225 }
       case "form": return { width: 400, height: 300 }
       default: return { width: 400, height: 100 }
+    }
+  }
+
+  const saveLandingPage = async () => {
+    if (!selectedPage || !selectedPage.name.trim()) {
+      alert('Page name is required')
+      return
+    }
+
+    try {
+      const pageData = {
+        name: selectedPage.name,
+        slug: selectedPage.slug,
+        title: selectedPage.title,
+        description: selectedPage.description,
+        content: builderElements,
+        formId: selectedPage.form?.id,
+        status: 'DRAFT'
+      }
+
+      let response
+      if (selectedPage.id) {
+        // Update existing page
+        response = await fetch(`/api/${subdomain}/landing-pages`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: selectedPage.id,
+            ...pageData
+          }),
+        })
+      } else {
+        // Create new page
+        response = await fetch(`/api/${subdomain}/landing-pages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(pageData),
+        })
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save landing page')
+      }
+
+      const savedPage = await response.json()
+      
+      // Refresh landing pages list
+      const fetchResponse = await fetch(`/api/${subdomain}/landing-pages?limit=50`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedPages = data.landingPages.map((page: any) => ({
+          id: page.id,
+          name: page.name,
+          slug: page.slug,
+          title: page.title,
+          description: page.description,
+          status: page.status,
+          viewCount: page.viewCount,
+          conversionCount: page.conversionCount,
+          publishedAt: page.publishedAt,
+          form: page.form ? {
+            id: page.form.id,
+            name: page.form.name
+          } : undefined,
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt
+        }))
+        setLandingPages(processedPages)
+      }
+
+      // Update selected page with saved data
+      setSelectedPage({
+        ...savedPage,
+        form: savedPage.form
+      })
+
+      alert('Landing page saved successfully!')
+    } catch (error) {
+      console.error('Error saving landing page:', error)
+      alert('Failed to save landing page. Please try again.')
+    }
+  }
+
+  const publishLandingPage = async () => {
+    if (!selectedPage) {
+      alert('Please save the page first')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/landing-pages`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedPage.id,
+          status: 'PUBLISHED'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to publish landing page')
+      }
+
+      alert('Landing page published successfully!')
+      
+      // Refresh landing pages list
+      const fetchResponse = await fetch(`/api/${subdomain}/landing-pages?limit=50`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedPages = data.landingPages.map((page: any) => ({
+          id: page.id,
+          name: page.name,
+          slug: page.slug,
+          title: page.title,
+          description: page.description,
+          status: page.status,
+          viewCount: page.viewCount,
+          conversionCount: page.conversionCount,
+          publishedAt: page.publishedAt,
+          form: page.form ? {
+            id: page.form.id,
+            name: page.form.name
+          } : undefined,
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt
+        }))
+        setLandingPages(processedPages)
+      }
+    } catch (error) {
+      console.error('Error publishing landing page:', error)
+      alert('Failed to publish landing page. Please try again.')
+    }
+  }
+
+  const deleteLandingPage = async (pageId: string) => {
+    if (!confirm('Are you sure you want to delete this landing page? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/landing-pages?id=${pageId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete landing page')
+      }
+
+      // Remove page from state
+      setLandingPages(landingPages.filter(page => page.id !== pageId))
+      alert('Landing page deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting landing page:', error)
+      alert('Failed to delete landing page. Please try again.')
     }
   }
 
@@ -633,6 +841,14 @@ export default function LandingPagesPage() {
                           <Button variant="outline" size="sm">
                             <BarChart3 className="h-4 w-4" />
                           </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => deleteLandingPage(page.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -685,6 +901,14 @@ export default function LandingPagesPage() {
                                 </Button>
                                 <Button variant="ghost" size="sm">
                                   <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => deleteLandingPage(page.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -931,11 +1155,11 @@ export default function LandingPagesPage() {
                     <Eye className="h-4 w-4 mr-2" />
                     {isPreviewMode ? 'Edit' : 'Preview'}
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={saveLandingPage}>
                     <Save className="h-4 w-4 mr-2" />
                     Save
                   </Button>
-                  <Button size="sm">
+                  <Button size="sm" onClick={publishLandingPage}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Publish
                   </Button>

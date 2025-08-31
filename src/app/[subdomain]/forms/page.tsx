@@ -370,6 +370,175 @@ export default function FormsPage() {
     }
   }
 
+  const saveForm = async () => {
+    if (!formSettings.name.trim()) {
+      alert('Form name is required')
+      return
+    }
+
+    if (builderFields.length === 0) {
+      alert('Please add at least one field to your form')
+      return
+    }
+
+    try {
+      const formData = {
+        name: formSettings.name,
+        description: formSettings.description,
+        fields: builderFields,
+        submitButton: formSettings.submitButton,
+        successMessage: formSettings.successMessage,
+        redirectUrl: formSettings.redirectUrl,
+        facebookLeadId: formSettings.facebookLeadId,
+        googleLeadId: formSettings.googleLeadId,
+        webhookUrl: formSettings.webhookUrl,
+        status: 'ACTIVE'
+      }
+
+      let response
+      if (selectedForm) {
+        // Update existing form
+        response = await fetch(`/api/${subdomain}/forms`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: selectedForm.id,
+            ...formData
+          }),
+        })
+      } else {
+        // Create new form
+        response = await fetch(`/api/${subdomain}/forms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save form')
+      }
+
+      const savedForm = await response.json()
+      
+      // Refresh forms list
+      const fetchResponse = await fetch(`/api/${subdomain}/forms?limit=50`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedForms = data.forms.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          description: form.description,
+          fields: JSON.parse(form.fields || '[]'),
+          submitButton: form.submitButton,
+          successMessage: form.successMessage,
+          redirectUrl: form.redirectUrl,
+          facebookLeadId: form.facebookLeadId,
+          googleLeadId: form.googleLeadId,
+          webhookUrl: form.webhookUrl,
+          submissionCount: form.submissions?.length || 0,
+          status: form.status || 'ACTIVE',
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+          submissions: form.submissions || []
+        }))
+        setForms(processedForms)
+      }
+
+      // Update selected form with saved data
+      setSelectedForm({
+        ...savedForm,
+        fields: builderFields,
+        submissions: savedForm.submissions || []
+      })
+
+      alert('Form saved successfully!')
+    } catch (error) {
+      console.error('Error saving form:', error)
+      alert('Failed to save form. Please try again.')
+    }
+  }
+
+  const publishForm = async () => {
+    if (!selectedForm) {
+      alert('Please save the form first')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/forms`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: selectedForm.id,
+          status: 'ACTIVE'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to publish form')
+      }
+
+      alert('Form published successfully!')
+      
+      // Refresh forms list
+      const fetchResponse = await fetch(`/api/${subdomain}/forms?limit=50`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedForms = data.forms.map((form: any) => ({
+          id: form.id,
+          name: form.name,
+          description: form.description,
+          fields: JSON.parse(form.fields || '[]'),
+          submitButton: form.submitButton,
+          successMessage: form.successMessage,
+          redirectUrl: form.redirectUrl,
+          facebookLeadId: form.facebookLeadId,
+          googleLeadId: form.googleLeadId,
+          webhookUrl: form.webhookUrl,
+          submissionCount: form.submissions?.length || 0,
+          status: form.status || 'ACTIVE',
+          createdAt: form.createdAt,
+          updatedAt: form.updatedAt,
+          submissions: form.submissions || []
+        }))
+        setForms(processedForms)
+      }
+    } catch (error) {
+      console.error('Error publishing form:', error)
+      alert('Failed to publish form. Please try again.')
+    }
+  }
+
+  const deleteForm = async (formId: string) => {
+    if (!confirm('Are you sure you want to delete this form? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/forms?id=${formId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete form')
+      }
+
+      // Remove form from state
+      setForms(forms.filter(form => form.id !== formId))
+      alert('Form deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting form:', error)
+      alert('Failed to delete form. Please try again.')
+    }
+  }
+
   const generateEmbedCode = (form: Form) => {
     return `<script src="https://${subdomain}.eduagency.com/forms/embed/${form.id}"></script>`
   }
@@ -627,6 +796,14 @@ export default function FormsPage() {
                         </Button>
                         <Button variant="outline" size="sm">
                           <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => deleteForm(form.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -986,11 +1163,11 @@ export default function FormsPage() {
                     <Eye className="h-4 w-4 mr-2" />
                     Preview
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={saveForm}>
                     <Save className="h-4 w-4 mr-2" />
                     Save
                   </Button>
-                  <Button size="sm">
+                  <Button size="sm" onClick={publishForm}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Publish
                   </Button>

@@ -189,3 +189,115 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const universityId = searchParams.get("id")
+
+    if (!universityId) {
+      return NextResponse.json({ error: "University ID required" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const validatedData = updateUniversitySchema.parse(body)
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
+    const university = await db.university.update({
+      where: { id: universityId, agencyId: agency.id },
+      data: {
+        name: validatedData.name,
+        country: validatedData.country,
+        city: validatedData.city,
+        website: validatedData.website,
+        description: validatedData.description,
+        worldRanking: validatedData.worldRanking,
+        nationalRanking: validatedData.nationalRanking,
+        accreditation: validatedData.accreditation ? JSON.stringify(validatedData.accreditation) : null,
+        programs: validatedData.programs ? JSON.stringify(validatedData.programs) : null,
+        requirements: validatedData.requirements,
+        isPartner: validatedData.isPartner,
+        partnershipLevel: validatedData.partnershipLevel,
+        commissionRate: validatedData.commissionRate,
+        contactEmail: validatedData.contactEmail,
+        contactPhone: validatedData.contactPhone,
+        address: validatedData.address
+      },
+      include: {
+        applications: {
+          select: {
+            id: true,
+            status: true,
+            studentId: true
+          }
+        }
+      }
+    })
+
+    // Parse JSON fields for response
+    const processedUniversity = {
+      ...university,
+      accreditation: university.accreditation ? JSON.parse(university.accreditation) : [],
+      programs: university.programs ? JSON.parse(university.programs) : [],
+      requirements: university.requirements ? JSON.parse(university.requirements) : null
+    }
+
+    return NextResponse.json(processedUniversity)
+  } catch (error) {
+    console.error("Error updating university:", error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.errors },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const universityId = searchParams.get("id")
+
+    if (!universityId) {
+      return NextResponse.json({ error: "University ID required" }, { status: 400 })
+    }
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
+    await db.university.delete({
+      where: { id: universityId, agencyId: agency.id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting university:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

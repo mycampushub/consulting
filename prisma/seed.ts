@@ -216,8 +216,6 @@ async function main() {
         state: 'CA',
         country: 'United States',
         postalCode: '94105',
-        timezone: 'America/Los_Angeles',
-        currency: 'USD',
         businessHours: JSON.stringify({
           monday: { open: '09:00', close: '18:00' },
           tuesday: { open: '09:00', close: '18:00' },
@@ -249,8 +247,6 @@ async function main() {
         state: 'NY',
         country: 'United States',
         postalCode: '10001',
-        timezone: 'America/New_York',
-        currency: 'USD',
         businessHours: JSON.stringify({
           monday: { open: '09:00', close: '18:00' },
           tuesday: { open: '09:00', close: '18:00' },
@@ -281,8 +277,6 @@ async function main() {
         state: 'England',
         country: 'United Kingdom',
         postalCode: 'W1D 1BS',
-        timezone: 'Europe/London',
-        currency: 'GBP',
         businessHours: JSON.stringify({
           monday: { open: '09:00', close: '17:00' },
           tuesday: { open: '09:00', close: '17:00' },

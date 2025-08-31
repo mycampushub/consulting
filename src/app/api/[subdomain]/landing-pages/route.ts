@@ -127,3 +127,115 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const {
+      id,
+      name,
+      slug,
+      title,
+      description,
+      content,
+      templateId,
+      customCss,
+      customJs,
+      metaTitle,
+      metaDescription,
+      metaKeywords,
+      formId,
+      status
+    } = body
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
+    // Check if slug is unique (excluding current page)
+    if (slug) {
+      const existingPage = await db.landingPage.findUnique({
+        where: {
+          agencyId_slug: {
+            agencyId: agency.id,
+            slug
+          }
+        }
+      })
+
+      if (existingPage && existingPage.id !== id) {
+        return NextResponse.json({ error: "Slug already exists" }, { status: 400 })
+      }
+    }
+
+    const landingPage = await db.landingPage.update({
+      where: { id, agencyId: agency.id },
+      data: {
+        name,
+        slug,
+        title,
+        description,
+        content: content ? JSON.stringify(content) : undefined,
+        templateId,
+        customCss,
+        customJs,
+        metaTitle,
+        metaDescription,
+        metaKeywords,
+        formId,
+        status,
+        publishedAt: status === 'PUBLISHED' ? new Date() : undefined
+      },
+      include: {
+        form: true
+      }
+    })
+
+    return NextResponse.json(landingPage)
+  } catch (error) {
+    console.error("Error updating landing page:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const pageId = searchParams.get("id")
+
+    if (!pageId) {
+      return NextResponse.json({ error: "Page ID required" }, { status: 400 })
+    }
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
+    await db.landingPage.delete({
+      where: { id: pageId, agencyId: agency.id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting landing page:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
