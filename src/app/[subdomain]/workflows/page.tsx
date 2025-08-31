@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,7 +47,11 @@ import {
   MessageSquare,
   Bell,
   Database,
-  RefreshCw
+  RefreshCw,
+  Save,
+  X,
+  Move,
+  GripVertical
 } from "lucide-react"
 
 interface Workflow {
@@ -128,6 +132,10 @@ export default function WorkflowsPage() {
   const [builderNodes, setBuilderNodes] = useState<WorkflowNode[]>([])
   const [builderEdges, setBuilderEdges] = useState<WorkflowEdge[]>([])
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null)
+  const [draggingNode, setDraggingNode] = useState<string | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectionStart, setConnectionStart] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchWorkflowsData()
@@ -340,6 +348,91 @@ export default function WorkflowsPage() {
     setBuilderNodes([...builderNodes, newNode])
   }
 
+  const saveWorkflowBuilder = async () => {
+    if (!selectedWorkflow) {
+      alert("Please save the workflow first")
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/workflows/${selectedWorkflow.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nodes: builderNodes,
+          edges: builderEdges
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save workflow')
+      }
+
+      alert('Workflow saved successfully!')
+      await fetchWorkflowsData()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save workflow')
+    }
+  }
+
+  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault()
+    setDraggingNode(nodeId)
+  }
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!draggingNode || !canvasRef.current) return
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    setBuilderNodes(nodes => 
+      nodes.map(node => 
+        node.id === draggingNode 
+          ? { ...node, position: { x, y } }
+          : node
+      )
+    )
+  }
+
+  const handleCanvasMouseUp = () => {
+    setDraggingNode(null)
+  }
+
+  const handleNodeClick = (node: WorkflowNode) => {
+    if (isConnecting) {
+      if (connectionStart && connectionStart !== node.id) {
+        // Create edge
+        const newEdge: WorkflowEdge = {
+          id: `edge-${connectionStart}-${node.id}`,
+          source: connectionStart,
+          target: node.id
+        }
+        setBuilderEdges([...builderEdges, newEdge])
+        setIsConnecting(false)
+        setConnectionStart(null)
+      }
+    } else {
+      setSelectedNode(node)
+    }
+  }
+
+  const startConnection = (nodeId: string) => {
+    setIsConnecting(true)
+    setConnectionStart(nodeId)
+  }
+
+  const deleteNode = (nodeId: string) => {
+    setBuilderNodes(nodes => nodes.filter(node => node.id !== nodeId))
+    setBuilderEdges(edges => edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId))
+    if (selectedNode?.id === nodeId) {
+      setSelectedNode(null)
+    }
+  }
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case "GENERAL": return <Workflow className="h-4 w-4" />
@@ -374,6 +467,20 @@ export default function WorkflowsPage() {
     }
   }
 
+  const getNodeColor = (type: string) => {
+    switch (type) {
+      case "trigger": return "bg-green-100 border-green-300 text-green-800"
+      case "action": return "bg-blue-100 border-blue-300 text-blue-800"
+      case "condition": return "bg-yellow-100 border-yellow-300 text-yellow-800"
+      case "delay": return "bg-orange-100 border-orange-300 text-orange-800"
+      case "notification": return "bg-purple-100 border-purple-300 text-purple-800"
+      case "email": return "bg-indigo-100 border-indigo-300 text-indigo-800"
+      case "api": return "bg-pink-100 border-pink-300 text-pink-800"
+      case "database": return "bg-gray-100 border-gray-300 text-gray-800"
+      default: return "bg-gray-100 border-gray-300 text-gray-800"
+    }
+  }
+
   const filteredWorkflows = workflows.filter(workflow => {
     const matchesSearch = workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          workflow.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -400,7 +507,7 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -480,34 +587,27 @@ export default function WorkflowsPage() {
                       <SelectItem value="0">Low</SelectItem>
                       <SelectItem value="1">Medium</SelectItem>
                       <SelectItem value="2">High</SelectItem>
-                      <SelectItem value="3">Critical</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={() => setIsCreateWorkflowOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateWorkflow} disabled={submitting}>
-                    {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Create Workflow
-                  </Button>
-                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsCreateWorkflowOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateWorkflow} disabled={submitting}>
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Create Workflow
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
-
-          <Button variant="outline" onClick={() => openWorkflowBuilder()}>
-            <GitBranch className="h-4 w-4 mr-2" />
-            Workflow Builder
-          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Workflows</CardTitle>
@@ -515,17 +615,9 @@ export default function WorkflowsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalWorkflows}</div>
-              <p className="text-xs text-muted-foreground">automated processes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Workflows</CardTitle>
-              <Play className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.activeWorkflows}</div>
-              <p className="text-xs text-muted-foreground">currently running</p>
+              <p className="text-xs text-muted-foreground">
+                {stats.activeWorkflows} active
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -534,8 +626,10 @@ export default function WorkflowsPage() {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalExecutions.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">workflow runs</p>
+              <div className="text-2xl font-bold">{stats.totalExecutions}</div>
+              <p className="text-xs text-muted-foreground">
+                Across all workflows
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -545,23 +639,30 @@ export default function WorkflowsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.successRate}%</div>
-              <p className="text-xs text-muted-foreground">avg. success rate</p>
+              <p className="text-xs text-muted-foreground">
+                Average success rate
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Execution Time</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.avgExecutionTime}s</div>
+              <p className="text-xs text-muted-foreground">
+                Per workflow
+              </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      <Tabs defaultValue="workflows" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="workflows">Workflows</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="executions">Executions</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="workflows" className="space-y-6">
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -573,48 +674,58 @@ export default function WorkflowsPage() {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="PAUSED">Paused</SelectItem>
-                  <SelectItem value="DRAFT">Draft</SelectItem>
-                  <SelectItem value="ARCHIVED">Archived</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="GENERAL">General</SelectItem>
-                  <SelectItem value="LEAD_NURTURING">Lead Nurturing</SelectItem>
-                  <SelectItem value="STUDENT_ONBOARDING">Student Onboarding</SelectItem>
-                  <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
-                  <SelectItem value="NOTIFICATION">Notification</SelectItem>
-                  <SelectItem value="INTEGRATION">Integration</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="PAUSED">Paused</SelectItem>
+                <SelectItem value="ARCHIVED">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="GENERAL">General</SelectItem>
+                <SelectItem value="LEAD_NURTURING">Lead Nurturing</SelectItem>
+                <SelectItem value="STUDENT_ONBOARDING">Student Onboarding</SelectItem>
+                <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
+                <SelectItem value="NOTIFICATION">Notification</SelectItem>
+                <SelectItem value="INTEGRATION">Integration</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Workflows Table */}
-          <div className="border rounded-lg">
+      {/* Workflow List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Workflow List</CardTitle>
+          <CardDescription>
+            Manage your automated workflows and processes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Workflow</TableHead>
+                  <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Executions</TableHead>
-                  <TableHead>Last Run</TableHead>
                   <TableHead>Priority</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>Last Executed</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -622,54 +733,58 @@ export default function WorkflowsPage() {
                   <TableRow key={workflow.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{workflow.name}</div>
+                        <p className="font-medium">{workflow.name}</p>
                         {workflow.description && (
-                          <div className="text-sm text-muted-foreground">{workflow.description}</div>
+                          <p className="text-sm text-muted-foreground">{workflow.description}</p>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getCategoryColor(workflow.category)}>
+                      <div className="flex items-center gap-2">
                         {getCategoryIcon(workflow.category)}
-                        <span className="ml-1">{workflow.category.replace('_', ' ')}</span>
-                      </Badge>
+                        <Badge className={getCategoryColor(workflow.category)}>
+                          {workflow.category.replace('_', ' ')}
+                        </Badge>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(workflow.status)}>
                         {workflow.status}
                       </Badge>
                     </TableCell>
+                    <TableCell>{workflow.executionCount}</TableCell>
                     <TableCell>
-                      <div className="text-sm font-medium">{workflow.executionCount.toLocaleString()}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {workflow.lastExecutedAt 
-                          ? new Date(workflow.lastExecutedAt).toLocaleDateString()
-                          : 'Never'
-                        }
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={workflow.priority > 2 ? "destructive" : workflow.priority > 1 ? "default" : "secondary"}>
-                        {workflow.priority === 0 ? 'Low' : 
-                         workflow.priority === 1 ? 'Medium' : 
-                         workflow.priority === 2 ? 'High' : 'Critical'}
+                      <Badge variant="outline">
+                        {workflow.priority === 0 ? 'Low' : workflow.priority === 1 ? 'Medium' : 'High'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                      {workflow.lastExecutedAt 
+                        ? new Date(workflow.lastExecutedAt).toLocaleDateString()
+                        : 'Never'
+                      }
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openWorkflowBuilder(workflow)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleToggleWorkflow(workflow.id, !workflow.isActive)}
                         >
                           {workflow.isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => openWorkflowBuilder(workflow)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteWorkflow(workflow.id)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteWorkflow(workflow.id)}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -679,396 +794,202 @@ export default function WorkflowsPage() {
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
-
-        <TabsContent value="templates" className="space-y-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-              setNewWorkflow({
-                name: "Student Onboarding",
-                description: "Automated student onboarding process with welcome emails and document collection",
-                category: "STUDENT_ONBOARDING",
-                triggers: [],
-                nodes: [],
-                edges: [],
-                isActive: false,
-                priority: 1
-              })
-              setIsCreateWorkflowOpen(true)
-            }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Student Onboarding
-                </CardTitle>
-                <CardDescription>
-                  Automated student onboarding with welcome emails and document collection
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">Popular</Badge>
-                  <Button variant="outline" size="sm">Use Template</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-              setNewWorkflow({
-                name: "Lead Nurturing Campaign",
-                description: "Automated lead nurturing with personalized email sequences",
-                category: "LEAD_NURTURING",
-                triggers: [],
-                nodes: [],
-                edges: [],
-                isActive: false,
-                priority: 1
-              })
-              setIsCreateWorkflowOpen(true)
-            }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Lead Nurturing
-                </CardTitle>
-                <CardDescription>
-                  Automated lead nurturing with personalized email sequences
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">Recommended</Badge>
-                  <Button variant="outline" size="sm">Use Template</Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-              setNewWorkflow({
-                name: "Application Follow-up",
-                description: "Automated follow-up emails for pending applications",
-                category: "FOLLOW_UP",
-                triggers: [],
-                nodes: [],
-                edges: [],
-                isActive: false,
-                priority: 2
-              })
-              setIsCreateWorkflowOpen(true)
-            }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Application Follow-up
-                </CardTitle>
-                <CardDescription>
-                  Automated follow-up emails for pending applications
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">Essential</Badge>
-                  <Button variant="outline" size="sm">Use Template</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="executions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Executions</CardTitle>
-              <CardDescription>Latest workflow runs and their status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {workflows.slice(0, 5).map((workflow) => (
-                  <div key={workflow.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full ${
-                        workflow.isActive ? 'bg-green-500' : 'bg-gray-300'
-                      }`} />
-                      <div>
-                        <div className="font-medium">{workflow.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {workflow.lastExecutedAt 
-                            ? `Last run: ${new Date(workflow.lastExecutedAt).toLocaleString()}`
-                            : 'Never executed'
-                          }
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={workflow.isActive ? "default" : "secondary"}>
-                        {workflow.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge variant="outline">
-                        {workflow.executionCount} runs
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Workflow Settings</CardTitle>
-              <CardDescription>Configure workflow automation settings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Enable workflow execution</Label>
-                    <p className="text-sm text-muted-foreground">Allow workflows to run automatically</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Execution logging</Label>
-                    <p className="text-sm text-muted-foreground">Log all workflow executions for debugging</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Error notifications</Label>
-                    <p className="text-sm text-muted-foreground">Send notifications when workflows fail</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Performance monitoring</Label>
-                    <p className="text-sm text-muted-foreground">Monitor workflow performance metrics</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Workflow Builder Dialog */}
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Workflow Builder</DialogTitle>
-            <DialogDescription>Design your workflow by dragging and connecting nodes</DialogDescription>
+            <DialogDescription>
+              Design your workflow by dragging and connecting nodes
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex h-[70vh] gap-4">
-            {/* Node Palette */}
+          
+          <div className="flex h-[70vh]">
+            {/* Sidebar */}
             <div className="w-64 border-r p-4 space-y-4">
-              <h3 className="font-medium">Node Types</h3>
-              <div className="space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('trigger')}
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Trigger
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('action')}
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  Action
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('condition')}
-                >
-                  <GitBranch className="h-4 w-4 mr-2" />
-                  Condition
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('delay')}
-                >
-                  <Clock className="h-4 w-4 mr-2" />
-                  Delay
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('email')}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Email
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('notification')}
-                >
-                  <Bell className="h-4 w-4 mr-2" />
-                  Notification
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('api')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  API Call
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full justify-start"
-                  onClick={() => addNodeToBuilder('database')}
-                >
-                  <Database className="h-4 w-4 mr-2" />
-                  Database
-                </Button>
+              <div>
+                <h3 className="font-medium mb-2">Node Types</h3>
+                <div className="space-y-2">
+                  {(['trigger', 'action', 'condition', 'delay', 'notification', 'email', 'api', 'database'] as const).map((type) => (
+                    <Button
+                      key={type}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => addNodeToBuilder(type, 50, 50 + Math.random() * 300)}
+                    >
+                      <div className={`w-3 h-3 rounded-full mr-2 ${
+                        type === 'trigger' ? 'bg-green-500' :
+                        type === 'action' ? 'bg-blue-500' :
+                        type === 'condition' ? 'bg-yellow-500' :
+                        type === 'delay' ? 'bg-orange-500' :
+                        type === 'notification' ? 'bg-purple-500' :
+                        type === 'email' ? 'bg-indigo-500' :
+                        type === 'api' ? 'bg-pink-500' : 'bg-gray-500'
+                      }`} />
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Canvas Area */}
-            <div className="flex-1 bg-gray-50 rounded-lg relative overflow-hidden">
-              <div className="absolute inset-0">
-                {builderNodes.map((node) => (
-                  <div
-                    key={node.id}
-                    className={`absolute p-3 bg-white border-2 rounded-lg shadow-sm cursor-move ${
-                      selectedNode?.id === node.id ? 'border-blue-500' : 'border-gray-300'
-                    }`}
-                    style={{ left: node.position.x, top: node.position.y }}
-                    onClick={() => setSelectedNode(node)}
+              <div>
+                <h3 className="font-medium mb-2">Tools</h3>
+                <div className="space-y-2">
+                  <Button
+                    variant={isConnecting ? "default" : "outline"}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setIsConnecting(!isConnecting)}
                   >
-                    <div className="flex items-center gap-2">
-                      {node.type === 'trigger' && <Play className="h-4 w-4" />}
-                      {node.type === 'action' && <Zap className="h-4 w-4" />}
-                      {node.type === 'condition' && <GitBranch className="h-4 w-4" />}
-                      {node.type === 'delay' && <Clock className="h-4 w-4" />}
-                      {node.type === 'email' && <Mail className="h-4 w-4" />}
-                      {node.type === 'notification' && <Bell className="h-4 w-4" />}
-                      {node.type === 'api' && <ExternalLink className="h-4 w-4" />}
-                      {node.type === 'database' && <Database className="h-4 w-4" />}
-                      <span className="text-sm font-medium">{node.data.label}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Properties Panel */}
-            <div className="w-64 border-l p-4">
-              <h3 className="font-medium mb-4">Properties</h3>
-              {selectedNode ? (
-                <div className="space-y-4">
-                  <div>
-                    <Label>Node Type</Label>
-                    <div className="text-sm text-muted-foreground">{selectedNode.type}</div>
-                  </div>
-                  <div>
-                    <Label htmlFor="node-label">Label</Label>
-                    <Input 
-                      id="node-label"
-                      value={selectedNode.data.label}
-                      onChange={(e) => {
-                        const updatedNodes = builderNodes.map(node => 
-                          node.id === selectedNode.id 
-                            ? { ...node, data: { ...node.data, label: e.target.value } }
-                            : node
-                        )
-                        setBuilderNodes(updatedNodes)
-                      }}
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">
-                    Configure Node
+                    <GitBranch className="h-4 w-4 mr-2" />
+                    {isConnecting ? 'Connecting...' : 'Connect Nodes'}
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
-                    className="w-full"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
                     onClick={() => {
-                      setBuilderNodes(builderNodes.filter(node => node.id !== selectedNode.id))
+                      setBuilderNodes([])
+                      setBuilderEdges([])
                       setSelectedNode(null)
                     }}
                   >
-                    Delete Node
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All
                   </Button>
                 </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  Select a node to view its properties
+              </div>
+
+              {selectedNode && (
+                <div>
+                  <h3 className="font-medium mb-2">Selected Node</h3>
+                  <div className="p-3 border rounded bg-muted/50">
+                    <p className="font-medium text-sm">{selectedNode.data.label}</p>
+                    <p className="text-xs text-muted-foreground">Type: {selectedNode.type}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => deleteNode(selectedNode.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Node
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setIsBuilderOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              if (selectedWorkflow) {
-                handleUpdateWorkflow()
-              } else {
-                handleCreateWorkflow()
-              }
-              setIsBuilderOpen(false)
-            }}>
-              Save Workflow
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Edit Workflow Dialog */}
-      <Dialog open={isEditWorkflowOpen} onOpenChange={setIsEditWorkflowOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Workflow</DialogTitle>
-            <DialogDescription>Update workflow configuration</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Workflow Name *</Label>
-              <Input 
-                id="edit-name" 
-                value={newWorkflow.name}
-                onChange={(e) => setNewWorkflow(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea 
-                id="edit-description" 
-                value={newWorkflow.description}
-                onChange={(e) => setNewWorkflow(prev => ({ ...prev, description: e.target.value }))}
-                rows={3}
-              />
-            </div>
+            {/* Canvas */}
+            <div className="flex-1 relative">
+              <div
+                ref={canvasRef}
+                className="w-full h-full bg-gray-50 border-2 border-dashed border-gray-300 relative overflow-hidden"
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+              >
+                {/* Render edges */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                  {builderEdges.map((edge) => {
+                    const sourceNode = builderNodes.find(n => n.id === edge.source)
+                    const targetNode = builderNodes.find(n => n.id === edge.target)
+                    if (!sourceNode || !targetNode) return null
 
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setIsEditWorkflowOpen(false)}>
+                    return (
+                      <line
+                        key={edge.id}
+                        x1={sourceNode.position.x + 60}
+                        y1={sourceNode.position.y + 30}
+                        x2={targetNode.position.x + 60}
+                        y2={targetNode.position.y + 30}
+                        stroke="#6B7280"
+                        strokeWidth="2"
+                        markerEnd="url(#arrowhead)"
+                      />
+                    )
+                  })}
+                  <defs>
+                    <marker
+                      id="arrowhead"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon
+                        points="0 0, 10 3.5, 0 7"
+                        fill="#6B7280"
+                      />
+                    </marker>
+                  </defs>
+                </svg>
+
+                {/* Render nodes */}
+                {builderNodes.map((node) => (
+                  <div
+                    key={node.id}
+                    className={`absolute border-2 rounded-lg p-3 cursor-move select-none ${getNodeColor(node.type)} ${
+                      selectedNode?.id === node.id ? 'ring-2 ring-blue-500' : ''
+                    }`}
+                    style={{
+                      left: node.position.x,
+                      top: node.position.y,
+                      width: 120,
+                      height: 60
+                    }}
+                    onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                    onClick={() => handleNodeClick(node)}
+                  >
+                    <div className="flex items-center justify-between h-full">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium truncate">{node.data.label}</p>
+                        <p className="text-xs opacity-75">{node.type}</p>
+                      </div>
+                      <GripVertical className="h-4 w-4 opacity-50" />
+                    </div>
+                    
+                    {/* Connection handle */}
+                    <div
+                      className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full cursor-crosshair"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        startConnection(node.id)
+                      }}
+                    />
+                  </div>
+                ))}
+
+                {/* Empty state */}
+                {builderNodes.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <Workflow className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Drag nodes from the sidebar to start building</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              {isConnecting && 'Click on nodes to connect them'}
+              {draggingNode && 'Dragging node...'}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsBuilderOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleUpdateWorkflow} disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Edit className="h-4 w-4 mr-2" />}
-                Update Workflow
+              <Button onClick={saveWorkflowBuilder}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Workflow
               </Button>
             </div>
           </div>

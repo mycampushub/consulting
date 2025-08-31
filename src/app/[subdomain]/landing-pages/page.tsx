@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   Plus,
   Search,
@@ -42,7 +41,9 @@ import {
   MousePointer2,
   Move,
   Save,
-  X
+  X,
+  GripVertical,
+  Loader2
 } from "lucide-react"
 
 interface LandingPage {
@@ -72,7 +73,7 @@ interface Form {
 
 interface PageElement {
   id: string
-  type: 'header' | 'text' | 'image' | 'video' | 'button' | 'form' | 'testimonial' | 'features' | 'cta'
+  type: 'header' | 'text' | 'image' | 'video' | 'button' | 'form' | 'testimonial' | 'features' | 'cta' | 'divider' | 'spacer'
   content: any
   styles: any
   position: { x: number; y: number }
@@ -97,6 +98,17 @@ export default function LandingPagesPage() {
   const [builderElements, setBuilderElements] = useState<PageElement[]>([])
   const [selectedElement, setSelectedElement] = useState<PageElement | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
+  const [draggingElement, setDraggingElement] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Form state for creating/editing pages
+  const [newPage, setNewPage] = useState({
+    name: "",
+    slug: "",
+    title: "",
+    description: "",
+    formId: ""
+  })
 
   // Mock data for demonstration
   const mockLandingPages: LandingPage[] = [
@@ -169,33 +181,6 @@ export default function LandingPagesPage() {
     }
   ]
 
-  const mockBuilderElements: PageElement[] = [
-    {
-      id: "1",
-      type: "header",
-      content: { text: "Welcome to Our Agency", level: 1 },
-      styles: { fontSize: 48, fontWeight: "bold", textAlign: "center" },
-      position: { x: 50, y: 50 },
-      size: { width: 600, height: 80 }
-    },
-    {
-      id: "2",
-      type: "text",
-      content: { text: "Start your educational journey with us today" },
-      styles: { fontSize: 18, textAlign: "center" },
-      position: { x: 50, y: 150 },
-      size: { width: 600, height: 40 }
-    },
-    {
-      id: "3",
-      type: "button",
-      content: { text: "Get Started", action: "submit" },
-      styles: { backgroundColor: "#3B82F6", color: "white", padding: "12px 24px" },
-      position: { x: 250, y: 220 },
-      size: { width: 200, height: 50 }
-    }
-  ]
-
   useEffect(() => {
     const fetchLandingPages = async () => {
       try {
@@ -224,7 +209,7 @@ export default function LandingPagesPage() {
         setLandingPages(processedPages)
       } catch (err) {
         console.error('Error fetching landing pages:', err)
-        setLandingPages([])
+        setLandingPages(mockLandingPages) // Fallback to mock data
       } finally {
         setLoading(false)
       }
@@ -245,7 +230,7 @@ export default function LandingPagesPage() {
         setForms(processedForms)
       } catch (err) {
         console.error('Error fetching forms:', err)
-        setForms([])
+        setForms(mockForms) // Fallback to mock data
       }
     }
 
@@ -266,18 +251,15 @@ export default function LandingPagesPage() {
     switch (type) {
       case "header": return <Type className="h-4 w-4" />
       case "text": return <FileText className="h-4 w-4" />
-      case "image": return (
-      <>
-        {/* eslint-disable-next-line jsx-a11y/alt-text */}
-        <Image className="h-4 w-4" />
-      </>
-    )
+      case "image": return <Image className="h-4 w-4" alt="" />
       case "video": return <Video className="h-4 w-4" />
       case "button": return <Square className="h-4 w-4" />
       case "form": return <FileText className="h-4 w-4" />
       case "testimonial": return <Star className="h-4 w-4" />
       case "features": return <Grid className="h-4 w-4" />
       case "cta": return <BarChart3 className="h-4 w-4" />
+      case "divider": return <Minus className="h-4 w-4" />
+      case "spacer": return <Spacer className="h-4 w-4" />
       default: return <Layout className="h-4 w-4" />
     }
   }
@@ -292,8 +274,58 @@ export default function LandingPagesPage() {
 
   const openBuilder = (page?: LandingPage) => {
     setSelectedPage(page || null)
-    setBuilderElements(page ? mockBuilderElements : [])
+    setBuilderElements(page ? getMockElements(page) : [])
     setIsBuilderOpen(true)
+  }
+
+  const getMockElements = (page: LandingPage): PageElement[] => {
+    // Return different mock elements based on page type
+    if (page.name.includes("Spring")) {
+      return [
+        {
+          id: "1",
+          type: "header",
+          content: { text: "Spring Intake 2024", level: 1 },
+          styles: { fontSize: 48, fontWeight: "bold", textAlign: "center", color: "#1F2937" },
+          position: { x: 50, y: 50 },
+          size: { width: 700, height: 80 }
+        },
+        {
+          id: "2",
+          type: "text",
+          content: { text: "Start your educational journey this spring semester" },
+          styles: { fontSize: 18, textAlign: "center", color: "#6B7280" },
+          position: { x: 50, y: 150 },
+          size: { width: 700, height: 40 }
+        },
+        {
+          id: "3",
+          type: "button",
+          content: { text: "Apply Now", action: "submit" },
+          styles: { backgroundColor: "#3B82F6", color: "white", padding: "12px 24px", borderRadius: "8px" },
+          position: { x: 300, y: 220 },
+          size: { width: 200, height: 50 }
+        }
+      ]
+    }
+    return [
+      {
+        id: "1",
+        type: "header",
+        content: { text: page.title || page.name, level: 1 },
+        styles: { fontSize: 48, fontWeight: "bold", textAlign: "center" },
+        position: { x: 50, y: 50 },
+        size: { width: 600, height: 80 }
+      },
+      {
+        id: "2",
+        type: "text",
+        content: { text: page.description || "Welcome to our page" },
+        styles: { fontSize: 18, textAlign: "center" },
+        position: { x: 50, y: 150 },
+        size: { width: 600, height: 40 }
+      }
+    ]
   }
 
   const addElement = (type: PageElement['type']) => {
@@ -302,7 +334,7 @@ export default function LandingPagesPage() {
       type,
       content: getDefaultContent(type),
       styles: getDefaultStyles(type),
-      position: { x: 50, y: 50 + builderElements.length * 100 },
+      position: { x: 50, y: 50 + builderElements.length * 80 },
       size: getDefaultSize(type)
     }
     setBuilderElements([...builderElements, newElement])
@@ -316,15 +348,18 @@ export default function LandingPagesPage() {
       case "testimonial": return { text: "Great service!", author: "Happy Client" }
       case "features": return { items: ["Feature 1", "Feature 2", "Feature 3"] }
       case "cta": return { title: "Call to Action", description: "Take action now!" }
+      case "divider": return { style: "solid" }
+      case "spacer": return { height: 50 }
       default: return {}
     }
   }
 
   const getDefaultStyles = (type: PageElement['type']) => {
     switch (type) {
-      case "header": return { fontSize: 32, fontWeight: "bold" }
-      case "text": return { fontSize: 16 }
-      case "button": return { backgroundColor: "#3B82F6", color: "white", padding: "10px 20px" }
+      case "header": return { fontSize: 32, fontWeight: "bold", color: "#1F2937" }
+      case "text": return { fontSize: 16, color: "#4B5563" }
+      case "button": return { backgroundColor: "#3B82F6", color: "white", padding: "10px 20px", borderRadius: "6px" }
+      case "divider": return { borderColor: "#E5E7EB", borderWidth: "1px" }
       default: return {}
     }
   }
@@ -337,6 +372,8 @@ export default function LandingPagesPage() {
       case "image": return { width: 300, height: 200 }
       case "video": return { width: 400, height: 225 }
       case "form": return { width: 400, height: 300 }
+      case "divider": return { width: 400, height: 2 }
+      case "spacer": return { width: 400, height: 50 }
       default: return { width: 400, height: 100 }
     }
   }
@@ -501,6 +538,44 @@ export default function LandingPagesPage() {
     }
   }
 
+  const handleElementMouseDown = (e: React.MouseEvent, elementId: string) => {
+    e.preventDefault()
+    setDraggingElement(elementId)
+  }
+
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (!draggingElement || !canvasRef.current) return
+
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = Math.max(0, Math.min(e.clientX - rect.left - 60, rect.width - 200))
+    const y = Math.max(0, Math.min(e.clientY - rect.top - 30, rect.height - 100))
+
+    setBuilderElements(elements => 
+      elements.map(element => 
+        element.id === draggingElement 
+          ? { ...element, position: { x, y } }
+          : element
+      )
+    )
+  }
+
+  const handleCanvasMouseUp = () => {
+    setDraggingElement(null)
+  }
+
+  const handleElementClick = (element: PageElement) => {
+    if (!isPreviewMode) {
+      setSelectedElement(element)
+    }
+  }
+
+  const deleteElement = (elementId: string) => {
+    setBuilderElements(elements => elements.filter(element => element.id !== elementId))
+    if (selectedElement?.id === elementId) {
+      setSelectedElement(null)
+    }
+  }
+
   const renderElement = (element: PageElement) => {
     const isSelected = selectedElement?.id === element.id
     const elementStyle = {
@@ -510,8 +585,9 @@ export default function LandingPagesPage() {
       top: `${element.position.y}px`,
       width: `${element.size.width}px`,
       height: `${element.size.height}px`,
-      border: isSelected ? '2px solid #3B82F6' : '1px dashed #ccc',
-      cursor: 'move'
+      border: isSelected && !isPreviewMode ? '2px solid #3B82F6' : isPreviewMode ? 'none' : '1px dashed #ccc',
+      cursor: isPreviewMode ? 'default' : 'move',
+      zIndex: isSelected ? 10 : 1
     }
 
     switch (element.type) {
@@ -520,7 +596,7 @@ export default function LandingPagesPage() {
         return (
           <HeaderTag 
             style={elementStyle}
-            onClick={() => setSelectedElement(element)}
+            onClick={() => handleElementClick(element)}
             className="select-none"
           >
             {element.content.text}
@@ -530,7 +606,7 @@ export default function LandingPagesPage() {
         return (
           <p 
             style={elementStyle}
-            onClick={() => setSelectedElement(element)}
+            onClick={() => handleElementClick(element)}
             className="select-none"
           >
             {element.content.text}
@@ -540,8 +616,8 @@ export default function LandingPagesPage() {
         return (
           <button 
             style={elementStyle}
-            onClick={() => setSelectedElement(element)}
-            className="select-none rounded"
+            onClick={() => handleElementClick(element)}
+            className="select-none"
           >
             {element.content.text}
           </button>
@@ -550,21 +626,101 @@ export default function LandingPagesPage() {
         return (
           <div 
             style={elementStyle}
-            onClick={() => setSelectedElement(element)}
+            onClick={() => handleElementClick(element)}
             className="bg-gray-200 flex items-center justify-center select-none"
           >
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image className="h-8 w-8 text-gray-400" />
+            <Image className="h-8 w-8 text-gray-400" alt="" />
+            <span className="ml-2 text-sm text-gray-500">Image</span>
           </div>
+        )
+      case "video":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="bg-gray-200 flex items-center justify-center select-none"
+          >
+            <Video className="h-8 w-8 text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">Video</span>
+          </div>
+        )
+      case "form":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center select-none"
+          >
+            <FileText className="h-8 w-8 text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">Form</span>
+          </div>
+        )
+      case "testimonial":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="bg-yellow-50 border border-yellow-200 p-3 rounded select-none"
+          >
+            <Star className="h-4 w-4 text-yellow-500 mb-1" />
+            <p className="text-sm italic">"{element.content.text}"</p>
+            <p className="text-xs text-gray-600 mt-1">- {element.content.author}</p>
+          </div>
+        )
+      case "features":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="select-none"
+          >
+            <h4 className="font-medium mb-2">Features:</h4>
+            <ul className="text-sm space-y-1">
+              {element.content.items?.map((item: string, index: number) => (
+                <li key={index} className="flex items-center">
+                  <Star className="h-3 w-3 text-blue-500 mr-1" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      case "cta":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="bg-blue-50 border border-blue-200 p-4 rounded text-center select-none"
+          >
+            <h3 className="font-medium text-blue-900">{element.content.title}</h3>
+            <p className="text-sm text-blue-700 mt-1">{element.content.description}</p>
+          </div>
+        )
+      case "divider":
+        return (
+          <hr 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="select-none"
+          />
+        )
+      case "spacer":
+        return (
+          <div 
+            style={elementStyle}
+            onClick={() => handleElementClick(element)}
+            className="select-none"
+          />
         )
       default:
         return (
           <div 
             style={elementStyle}
-            onClick={() => setSelectedElement(element)}
-            className="flex items-center justify-center bg-gray-100 select-none"
+            onClick={() => handleElementClick(element)}
+            className="bg-gray-100 flex items-center justify-center select-none"
           >
-            <span className="text-sm text-gray-500">{element.type}</span>
+            <Layout className="h-8 w-8 text-gray-400" />
+            <span className="ml-2 text-sm text-gray-500">Element</span>
           </div>
         )
     }
@@ -572,620 +728,437 @@ export default function LandingPagesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading landing pages...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="bg-background border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">EA</span>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Landing Pages</h1>
+          <p className="text-muted-foreground">Create and manage custom landing pages</p>
+        </div>
+        <div className="flex gap-2">
+          <Dialog open={isCreatePageOpen} onOpenChange={setIsCreatePageOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Page
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create New Landing Page</DialogTitle>
+                <DialogDescription>Set up a new landing page for your campaigns</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Page Name *</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="Spring Intake 2024"
+                    value={newPage.name}
+                    onChange={(e) => setNewPage(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="slug">URL Slug *</Label>
+                  <Input 
+                    id="slug" 
+                    placeholder="spring-intake-2024"
+                    value={newPage.slug}
+                    onChange={(e) => setNewPage(prev => ({ ...prev, slug: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="title">Page Title</Label>
+                  <Input 
+                    id="title" 
+                    placeholder="Apply for Spring Intake 2024"
+                    value={newPage.title}
+                    onChange={(e) => setNewPage(prev => ({ ...prev, title: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea 
+                    id="description" 
+                    placeholder="Page description..."
+                    value={newPage.description}
+                    onChange={(e) => setNewPage(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="form">Associated Form</Label>
+                  <Select onValueChange={(value) => setNewPage(prev => ({ ...prev, formId: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a form" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {forms.map((form) => (
+                        <SelectItem key={form.id} value={form.id}>
+                          {form.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold">Landing Page Builder</h1>
-                <p className="text-sm text-muted-foreground">{subdomain}.eduagency.com</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsCreatePageOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  setSelectedPage({
+                    id: "",
+                    name: newPage.name,
+                    slug: newPage.slug,
+                    title: newPage.title,
+                    description: newPage.description,
+                    status: "DRAFT",
+                    viewCount: 0,
+                    conversionCount: 0,
+                    form: forms.find(f => f.id === newPage.formId),
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  })
+                  setIsCreatePageOpen(false)
+                  openBuilder()
+                  setNewPage({ name: "", slug: "", title: "", description: "", formId: "" })
+                }}>
+                  Create & Build
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Dialog open={isCreatePageOpen} onOpenChange={setIsCreatePageOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Page
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Create New Landing Page</DialogTitle>
-                    <DialogDescription>Build a new landing page with drag-and-drop</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="pageName">Page Name</Label>
-                      <Input id="pageName" placeholder="Enter page name" />
-                    </div>
-                    <div>
-                      <Label htmlFor="pageSlug">URL Slug</Label>
-                      <Input id="pageSlug" placeholder="url-slug" />
-                    </div>
-                    <div>
-                      <Label htmlFor="pageTitle">Page Title</Label>
-                      <Input id="pageTitle" placeholder="SEO title" />
-                    </div>
-                    <div>
-                      <Label htmlFor="pageDescription">Description</Label>
-                      <Textarea id="pageDescription" placeholder="SEO description" />
-                    </div>
-                    <div>
-                      <Label htmlFor="pageForm">Associated Form (optional)</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select form" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {forms.map(form => (
-                            <SelectItem key={form.id} value={form.id}>
-                              {form.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button 
-                      className="w-full" 
-                      onClick={() => {
-                        setIsCreatePageOpen(false)
-                        openBuilder()
-                      }}
-                    >
-                      Create & Open Builder
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Overview Stats */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Pages</CardTitle>
-              <Layout className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{landingPages.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {landingPages.filter(p => p.status === 'PUBLISHED').length} published
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {landingPages.reduce((sum, p) => sum + p.viewCount, 0).toLocaleString()}
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search landing pages..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Across all pages
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversions</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {landingPages.reduce((sum, p) => sum + p.conversionCount, 0).toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total form submissions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-              <MousePointer2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {landingPages.length > 0 ? 
-                  ((landingPages.reduce((sum, p) => sum + p.conversionCount, 0) / 
-                    landingPages.reduce((sum, p) => sum + p.viewCount, 0)) * 100).toFixed(1) : 0}%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Average conversion rate
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="pages" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="pages">Landing Pages</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="pages" className="space-y-6">
-            {/* Page Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="flex gap-4 items-center">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search pages..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 w-64"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="PUBLISHED">Published</SelectItem>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="ARCHIVED">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                  >
-                    <Grid className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                  >
-                    <List className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <Button variant="outline">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Export Report
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="PUBLISHED">Published</SelectItem>
+                <SelectItem value="ARCHIVED">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === "grid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+              >
+                <Grid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            {/* Pages Grid/List */}
-            {viewMode === "grid" ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredLandingPages.map((page) => (
-                  <Card key={page.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
+      {/* Landing Pages Grid/List */}
+      {viewMode === "grid" ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredLandingPages.map((page) => (
+            <Card key={page.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{page.name}</CardTitle>
+                    <CardDescription className="text-sm">/{page.slug}</CardDescription>
+                  </div>
+                  <Badge className={getStatusColor(page.status)}>
+                    {page.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {page.title && (
+                    <p className="text-sm font-medium">{page.title}</p>
+                  )}
+                  {page.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{page.description}</p>
+                  )}
+                  
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{page.viewCount} views</span>
+                    <span>{page.conversionCount} conversions</span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => openBuilder(page)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(`/${page.slug}`, '_blank')}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteLandingPage(page.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-4">Name</th>
+                    <th className="text-left p-4">Slug</th>
+                    <th className="text-left p-4">Status</th>
+                    <th className="text-left p-4">Views</th>
+                    <th className="text-left p-4">Conversions</th>
+                    <th className="text-right p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredLandingPages.map((page) => (
+                    <tr key={page.id} className="border-b hover:bg-muted/50">
+                      <td className="p-4">
                         <div>
-                          <CardTitle className="text-lg">{page.name}</CardTitle>
-                          <CardDescription className="text-sm">
-                            /{page.slug}
-                          </CardDescription>
+                          <p className="font-medium">{page.name}</p>
+                          {page.title && (
+                            <p className="text-sm text-muted-foreground">{page.title}</p>
+                          )}
                         </div>
+                      </td>
+                      <td className="p-4">
+                        <code className="text-sm bg-muted px-2 py-1 rounded">/{page.slug}</code>
+                      </td>
+                      <td className="p-4">
                         <Badge className={getStatusColor(page.status)}>
                           {page.status}
                         </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Page Preview */}
-                        <div className="bg-muted rounded-lg p-4 h-32 flex items-center justify-center">
-                          <div className="text-center text-muted-foreground">
-                            <Layout className="h-8 w-8 mx-auto mb-2" />
-                            <p className="text-sm">Page Preview</p>
-                          </div>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Views</div>
-                            <div className="font-medium">{page.viewCount.toLocaleString()}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Conversions</div>
-                            <div className="font-medium">{page.conversionCount}</div>
-                          </div>
-                        </div>
-
-                        {/* Form Info */}
-                        {page.form && (
-                          <div className="text-xs text-muted-foreground">
-                            Form: {page.form.name}
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1"
+                      </td>
+                      <td className="p-4">{page.viewCount.toLocaleString()}</td>
+                      <td className="p-4">{page.conversionCount.toLocaleString()}</td>
+                      <td className="p-4">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => openBuilder(page)}
                           >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
+                            <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <ExternalLink className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(`/${page.slug}`, '_blank')}
+                          >
+                            <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm">
-                            <BarChart3 className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => deleteLandingPage(page.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Landing Pages</CardTitle>
-                  <CardDescription>Manage all your landing pages</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>URL</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Views</TableHead>
-                        <TableHead>Conversions</TableHead>
-                        <TableHead>Conversion Rate</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredLandingPages.map((page) => {
-                        const conversionRate = page.viewCount > 0 ? (page.conversionCount / page.viewCount) * 100 : 0
-                        return (
-                          <TableRow key={page.id}>
-                            <TableCell className="font-medium">{page.name}</TableCell>
-                            <TableCell>/{page.slug}</TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(page.status)}>
-                                {page.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{page.viewCount.toLocaleString()}</TableCell>
-                            <TableCell>{page.conversionCount}</TableCell>
-                            <TableCell>{conversionRate.toFixed(1)}%</TableCell>
-                            <TableCell>{new Date(page.createdAt).toLocaleDateString()}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => openBuilder(page)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm">
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => deleteLandingPage(page.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="templates" className="space-y-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { name: "Lead Generation", description: "Capture leads with forms", category: "Business" },
-                { name: "Webinar Landing", description: "Promote your online events", category: "Events" },
-                { name: "Product Launch", description: "Showcase new offerings", category: "Marketing" },
-                { name: "Contact Page", description: "Simple contact information", category: "Basic" },
-                { name: "Coming Soon", description: "Build anticipation", category: "Marketing" },
-                { name: "Thank You Page", description: "Post-conversion page", category: "Basic" }
-              ].map((template, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{template.name}</CardTitle>
-                    <CardDescription>{template.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="bg-muted rounded-lg p-4 h-32 flex items-center justify-center">
-                        <div className="text-center text-muted-foreground">
-                          <Layout className="h-8 w-8 mx-auto mb-2" />
-                          <p className="text-sm">Template Preview</p>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline">{template.category}</Badge>
-                        <Button size="sm">Use Template</Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </TabsContent>
+          </CardContent>
+        </Card>
+      )}
 
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Page Performance</CardTitle>
-                  <CardDescription>Views and conversions by page</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {landingPages.map((page) => {
-                      const conversionRate = page.viewCount > 0 ? (page.conversionCount / page.viewCount) * 100 : 0
-                      return (
-                        <div key={page.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                          <div>
-                            <div className="font-medium">{page.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {page.status} • /{page.slug}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">{page.conversionCount} conversions</div>
-                            <div className="text-xs text-muted-foreground">
-                              {conversionRate.toFixed(1)}% rate
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Performing Pages</CardTitle>
-                  <CardDescription>Pages with highest conversion rates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {landingPages
-                      .sort((a, b) => {
-                        const rateA = a.viewCount > 0 ? a.conversionCount / a.viewCount : 0
-                        const rateB = b.viewCount > 0 ? b.conversionCount / b.viewCount : 0
-                        return rateB - rateA
-                      })
-                      .slice(0, 5)
-                      .map((page, index) => {
-                        const conversionRate = page.viewCount > 0 ? (page.conversionCount / page.viewCount) * 100 : 0
-                        return (
-                          <div key={page.id} className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium">
-                              {index + 1}
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">{page.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {conversionRate.toFixed(1)}% conversion rate
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">{page.conversionCount}</div>
-                              <div className="text-xs text-muted-foreground">conversions</div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Page Builder Modal */}
+      {/* Page Builder Dialog */}
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-        <DialogContent className="max-w-7xl max-h-[90vh] p-0">
-          <div className="flex h-full">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Page Builder</DialogTitle>
+            <DialogDescription>
+              Design your landing page by dragging and dropping elements
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex h-[70vh]">
             {/* Sidebar */}
-            <div className="w-80 bg-muted border-r p-4 overflow-y-auto">
-              <div className="space-y-4">
+            <div className="w-64 border-r p-4 space-y-4 overflow-y-auto">
+              <div>
+                <h3 className="font-medium mb-2">Elements</h3>
+                <div className="space-y-2">
+                  {(['header', 'text', 'button', 'image', 'video', 'form', 'testimonial', 'features', 'cta', 'divider', 'spacer'] as const).map((type) => (
+                    <Button
+                      key={type}
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => addElement(type)}
+                    >
+                      {getElementIcon(type)}
+                      <span className="ml-2 capitalize">{type}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium mb-2">Actions</h3>
+                <div className="space-y-2">
+                  <Button
+                    variant={isPreviewMode ? "default" : "outline"}
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setIsPreviewMode(!isPreviewMode)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    {isPreviewMode ? 'Edit Mode' : 'Preview'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setBuilderElements([])
+                      setSelectedElement(null)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+
+              {selectedElement && !isPreviewMode && (
                 <div>
-                  <h3 className="font-medium mb-2">Page Elements</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { type: 'header', label: 'Header' },
-                      { type: 'text', label: 'Text' },
-                      { type: 'image', label: 'Image' },
-                      { type: 'video', label: 'Video' },
-                      { type: 'button', label: 'Button' },
-                      { type: 'form', label: 'Form' },
-                      { type: 'testimonial', label: 'Testimonial' },
-                      { type: 'features', label: 'Features' },
-                      { type: 'cta', label: 'CTA' }
-                    ].map((element) => (
-                      <Button
-                        key={element.type}
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={() => addElement(element.type as PageElement['type'])}
-                      >
-                        {getElementIcon(element.type)}
-                        <span className="ml-2">{element.label}</span>
-                      </Button>
-                    ))}
+                  <h3 className="font-medium mb-2">Selected Element</h3>
+                  <div className="p-3 border rounded bg-muted/50">
+                    <p className="font-medium text-sm capitalize">{selectedElement.type}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => deleteElement(selectedElement.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
                 </div>
+              )}
+            </div>
 
-                {selectedElement && (
-                  <div>
-                    <h3 className="font-medium mb-2">Element Settings</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <Label>Content</Label>
-                        <Input
-                          value={selectedElement.content.text || ''}
-                          onChange={(e) => {
-                            const updated = builderElements.map(el => 
-                              el.id === selectedElement.id 
-                                ? { ...el, content: { ...el.content, text: e.target.value } }
-                                : el
-                            )
-                            setBuilderElements(updated)
-                            setSelectedElement(updated.find(el => el.id === selectedElement.id) || null)
-                          }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label>Width</Label>
-                          <Input
-                            type="number"
-                            value={selectedElement.size.width}
-                            onChange={(e) => {
-                              const updated = builderElements.map(el => 
-                                el.id === selectedElement.id 
-                                  ? { ...el, size: { ...el.size, width: parseInt(e.target.value) } }
-                                  : el
-                              )
-                              setBuilderElements(updated)
-                              setSelectedElement(updated.find(el => el.id === selectedElement.id) || null)
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <Label>Height</Label>
-                          <Input
-                            type="number"
-                            value={selectedElement.size.height}
-                            onChange={(e) => {
-                              const updated = builderElements.map(el => 
-                                el.id === selectedElement.id 
-                                  ? { ...el, size: { ...el.size, height: parseInt(e.target.value) } }
-                                  : el
-                              )
-                              setBuilderElements(updated)
-                              setSelectedElement(updated.find(el => el.id === selectedElement.id) || null)
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => {
-                          setBuilderElements(builderElements.filter(el => el.id !== selectedElement.id))
-                          setSelectedElement(null)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Element
-                      </Button>
+            {/* Canvas */}
+            <div className="flex-1 relative bg-white">
+              <div
+                ref={canvasRef}
+                className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 relative overflow-auto"
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+              >
+                {/* Render elements */}
+                {builderElements.map((element) => (
+                  <div
+                    key={element.id}
+                    onMouseDown={(e) => !isPreviewMode && handleElementMouseDown(e, element.id)}
+                  >
+                    {renderElement(element)}
+                  </div>
+                ))}
+
+                {/* Empty state */}
+                {builderElements.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                      <Layout className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Drag elements from the sidebar to start building</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Main Builder Area */}
-            <div className="flex-1 flex flex-col">
-              {/* Builder Header */}
-              <div className="border-b p-4 flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold">
-                    {selectedPage ? `Editing: ${selectedPage.name}` : 'New Landing Page'}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">Drag and drop elements to build your page</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={isPreviewMode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setIsPreviewMode(!isPreviewMode)}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    {isPreviewMode ? 'Edit' : 'Preview'}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={saveLandingPage}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                  <Button size="sm" onClick={publishLandingPage}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Publish
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setIsBuilderOpen(false)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Builder Canvas */}
-              <div className="flex-1 p-8 overflow-auto bg-gray-50">
-                <div className="bg-white min-h-full shadow-lg relative" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                  {builderElements.map(renderElement)}
-                  {builderElements.length === 0 && (
-                    <div className="flex items-center justify-center h-64 text-muted-foreground">
-                      <div className="text-center">
-                        <Layout className="h-12 w-12 mx-auto mb-4" />
-                        <p>Drag elements from the sidebar to start building</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+          <div className="flex justify-between items-center pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              {isPreviewMode ? 'Preview mode - Click elements to select them in edit mode' : 
+               draggingElement ? 'Dragging element...' : 
+               `${builderElements.length} elements on page`}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsBuilderOpen(false)}>
+                Close
+              </Button>
+              <Button onClick={saveLandingPage}>
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+              {selectedPage?.id && (
+                <Button onClick={publishLandingPage}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Publish
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
   )
+}
+
+// Helper component for spacer
+function Spacer(props: any) {
+  return <div {...props} />
+}
+
+// Helper component for divider
+function Minus(props: any) {
+  return <div {...props} />
 }

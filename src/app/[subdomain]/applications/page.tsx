@@ -279,6 +279,7 @@ export default function ApplicationsPage() {
         </div>
       )}
 
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Applications</h1>
@@ -298,104 +299,105 @@ export default function ApplicationsPage() {
                 New Application
               </Button>
             </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create New Application</DialogTitle>
-              <DialogDescription>
-                Create a new university application for a student
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="student" className="text-right">
-                  Student
-                </Label>
-                <Select
-                  value={newApplication.studentId}
-                  onValueChange={(value) => setNewApplication({...newApplication, studentId: value})}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {students.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.firstName} {student.lastName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Create New Application</DialogTitle>
+                <DialogDescription>
+                  Create a new university application for a student
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="student" className="text-right">
+                    Student
+                  </Label>
+                  <Select
+                    value={newApplication.studentId}
+                    onValueChange={(value) => setNewApplication({...newApplication, studentId: value})}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students.map((student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.firstName} {student.lastName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="university" className="text-right">
+                    University
+                  </Label>
+                  <Select
+                    value={newApplication.universityId}
+                    onValueChange={(value) => setNewApplication({...newApplication, universityId: value})}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select university" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {universities.map((university) => (
+                        <SelectItem key={university.id} value={university.id}>
+                          {university.name} - {university.country}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="program" className="text-right">
+                    Program
+                  </Label>
+                  <Input
+                    id="program"
+                    value={newApplication.program}
+                    onChange={(e) => setNewApplication({...newApplication, program: e.target.value})}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="intake" className="text-right">
+                    Intake
+                  </Label>
+                  <Input
+                    id="intake"
+                    value={newApplication.intake}
+                    onChange={(e) => setNewApplication({...newApplication, intake: e.target.value})}
+                    className="col-span-3"
+                    placeholder="e.g., Fall 2024"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={newApplication.status}
+                    onValueChange={(value) => setNewApplication({...newApplication, status: value})}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DRAFT">Draft</SelectItem>
+                      <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                      <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="university" className="text-right">
-                  University
-                </Label>
-                <Select
-                  value={newApplication.universityId}
-                  onValueChange={(value) => setNewApplication({...newApplication, universityId: value})}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select university" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {universities.map((university) => (
-                      <SelectItem key={university.id} value={university.id}>
-                        {university.name} - {university.country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="program" className="text-right">
-                  Program
-                </Label>
-                <Input
-                  id="program"
-                  value={newApplication.program}
-                  onChange={(e) => setNewApplication({...newApplication, program: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="intake" className="text-right">
-                  Intake
-                </Label>
-                <Input
-                  id="intake"
-                  value={newApplication.intake}
-                  onChange={(e) => setNewApplication({...newApplication, intake: e.target.value})}
-                  className="col-span-3"
-                  placeholder="e.g., Fall 2024"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="status" className="text-right">
-                  Status
-                </Label>
-                <Select
-                  value={newApplication.status}
-                  onValueChange={(value) => setNewApplication({...newApplication, status: value})}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                    <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                    <SelectItem value="APPROVED">Approved</SelectItem>
-                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                    <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddApplication}>Create Application</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button onClick={handleAddApplication}>Create Application</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -467,7 +469,7 @@ export default function ApplicationsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -496,93 +498,95 @@ export default function ApplicationsPage() {
             </Select>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>University</TableHead>
-                <TableHead>Program</TableHead>
-                <TableHead>Intake</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredApplications.map((application) => (
-                <TableRow key={application.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {application.student.firstName} {application.student.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {application.student.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10">
-                        <GraduationCap className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{application.university.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {application.university.country}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{application.program}</TableCell>
-                  <TableCell>{application.intake}</TableCell>
-                  <TableCell>
-                    <Badge className={statusColors[application.status]}>
-                      {statusLabels[application.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="w-20">
-                      <Progress value={getWorkflowProgress(application.status)} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {getWorkflowProgress(application.status)}%
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(application.createdAt), 'MMM dd, yyyy')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedApplication(application)
-                          setIsViewDialogOpen(true)
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteApplication(application.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>University</TableHead>
+                  <TableHead>Program</TableHead>
+                  <TableHead>Intake</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredApplications.map((application) => (
+                  <TableRow key={application.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {application.student.firstName} {application.student.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {application.student.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10">
+                          <GraduationCap className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{application.university.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {application.university.country}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{application.program}</TableCell>
+                    <TableCell>{application.intake}</TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[application.status]}>
+                        {statusLabels[application.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="w-20">
+                        <Progress value={getWorkflowProgress(application.status)} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {getWorkflowProgress(application.status)}%
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(application.createdAt), 'MMM dd, yyyy')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedApplication(application)
+                            setIsViewDialogOpen(true)
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteApplication(application.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -649,25 +653,28 @@ export default function ApplicationsPage() {
                 <TabsContent value="workflow" className="space-y-4">
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-sm font-medium">Application Progress</Label>
+                      <Label className="text-sm font-medium">Progress</Label>
                       <Progress value={getWorkflowProgress(selectedApplication.status)} className="mt-2" />
-                      <p className="text-sm text-muted-foreground mt-2">
+                      <p className="text-sm text-muted-foreground mt-1">
                         {getWorkflowProgress(selectedApplication.status)}% Complete
                       </p>
                     </div>
-                    
-                    <div className="space-y-2">
+                    <div>
                       <Label className="text-sm font-medium">Workflow Steps</Label>
-                      <div className="space-y-2">
+                      <div className="mt-2 space-y-2">
                         {getWorkflowSteps(selectedApplication.status).map((step, index) => (
-                          <div key={step.key} className="flex items-center space-x-3">
-                            <div className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                              step.completed ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                          <div key={step.key} className="flex items-center space-x-2">
+                            <div className={`w-4 h-4 rounded-full border-2 ${
+                              step.completed 
+                                ? 'bg-green-500 border-green-500' 
+                                : 'border-gray-300'
                             }`}>
-                              {step.completed ? '✓' : index + 1}
+                              {step.completed && (
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              )}
                             </div>
                             <span className={`text-sm ${
-                              step.completed ? 'text-green-600 font-medium' : 'text-gray-500'
+                              step.completed ? 'text-foreground' : 'text-muted-foreground'
                             }`}>
                               {step.label}
                             </span>
@@ -679,32 +686,31 @@ export default function ApplicationsPage() {
                 </TabsContent>
                 
                 <TabsContent value="documents" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Submitted Documents</Label>
-                    {selectedApplication.documents.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedApplication.documents.map((doc, index) => (
+                  <div>
+                    <Label className="text-sm font-medium">Required Documents</Label>
+                    <div className="mt-2 space-y-2">
+                      {selectedApplication.documents?.length > 0 ? (
+                        selectedApplication.documents.map((doc, index) => (
                           <div key={index} className="flex items-center justify-between p-2 border rounded">
-                            <div className="flex items-center space-x-2">
-                              <FileText className="h-4 w-4" />
-                              <span className="text-sm">{doc}</span>
-                            </div>
-                            <Button variant="ghost" size="sm">View</Button>
+                            <span className="text-sm">{doc}</span>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No documents uploaded</p>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="communications" className="space-y-4">
-                  <div className="space-y-2">
+                  <div>
                     <Label className="text-sm font-medium">Communication History</Label>
-                    {selectedApplication.communications.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedApplication.communications.map((comm, index) => (
+                    <div className="mt-2 space-y-2">
+                      {selectedApplication.communications?.length > 0 ? (
+                        selectedApplication.communications.map((comm, index) => (
                           <div key={index} className="p-3 border rounded">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-sm font-medium">{comm.type}</span>
@@ -714,22 +720,18 @@ export default function ApplicationsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground">{comm.message}</p>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No communications recorded</p>
-                    )}
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No communications recorded</p>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>
             </div>
           )}
-          <DialogFooter>
-            <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  </div>
   )
 }

@@ -66,6 +66,12 @@ export async function middleware(request: NextRequest) {
       
       // Skip if it's the main localhost or www
       if (subdomain !== 'localhost' && subdomain !== 'www' && subdomain.length > 2) {
+        // Check if pathname already starts with the subdomain to avoid duplication
+        if (pathname.startsWith(`/${subdomain}/`) || pathname === `/${subdomain}`) {
+          // Path already contains subdomain, no rewrite needed
+          return NextResponse.next()
+        }
+        
         // Rewrite the URL to the subdomain route
         const url = request.nextUrl.clone()
         url.pathname = `/${subdomain}${pathname}`
