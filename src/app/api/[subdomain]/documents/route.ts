@@ -9,21 +9,12 @@ const documentSchema = z.object({
   type: z.enum(["IDENTITY", "ACADEMIC", "FINANCIAL", "VISA", "MEDICAL", "CUSTOM"]),
   category: z.string().min(1, "Category is required"),
   fileName: z.string().min(1, "File name is required"),
+  filePath: z.string().min(1, "File path is required"),
   fileSize: z.number().int().min(0),
-  fileType: z.string().min(1, "File type is required"),
-  fileUrl: z.string().url("File URL is required"),
-  thumbnailUrl: z.string().url("Thumbnail URL is required").optional(),
-  studentId: z.string().optional(),
-  leadId: z.string().optional(),
-  applicationId: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  isRequired: z.boolean().optional(),
-  isVerified: z.boolean().optional(),
-  verifiedBy: z.string().optional(),
-  verifiedAt: z.date().optional(),
-  expiresAt: z.date().optional(),
+  mimeType: z.string().min(1, "MIME type is required"),
   isPublic: z.boolean().optional(),
-  downloadCount: z.number().int().min(0).optional(),
+  accessLevel: z.enum(["VIEW", "DOWNLOAD", "EDIT", "ADMIN"]).optional(),
+  tags: z.array(z.string()).optional(),
   metadata: z.any().optional()
 })
 
@@ -41,11 +32,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20")
     const type = searchParams.get("type")
     const category = searchParams.get("category")
-    const studentId = searchParams.get("studentId")
-    const leadId = searchParams.get("leadId")
-    const applicationId = searchParams.get("applicationId")
-    const isRequired = searchParams.get("isRequired")
-    const isVerified = searchParams.get("isVerified")
+    const isPublic = searchParams.get("isPublic")
+    const accessLevel = searchParams.get("accessLevel")
     const tags = searchParams.get("tags")?.split(",")
     const search = searchParams.get("search")
 
@@ -61,11 +49,8 @@ export async function GET(request: NextRequest) {
       agencyId: agency.id,
       ...(type && { type: type }),
       ...(category && { category: category }),
-      ...(studentId && { studentId: studentId }),
-      ...(leadId && { leadId: leadId }),
-      ...(applicationId && { applicationId: applicationId }),
-      ...(isRequired !== null && { isRequired: isRequired === "true" }),
-      ...(isVerified !== null && { isVerified: isVerified === "true" })
+      ...(isPublic !== null && { isPublic: isPublic === "true" }),
+      ...(accessLevel && { accessLevel: accessLevel })
     }
 
     // Handle tags filter
@@ -88,38 +73,11 @@ export async function GET(request: NextRequest) {
       db.document.findMany({
         where,
         include: {
-          student: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              avatar: true
-            }
-          },
-          lead: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              avatar: true
-            }
-          },
-          application: {
-            select: {
-              id: true,
-              studentId: true,
-              universityId: true,
-              status: true
-            }
-          },
-          verifiedByUser: {
+          branch: {
             select: {
               id: true,
               name: true,
-              email: true,
-              avatar: true
+              code: true
             }
           }
         },

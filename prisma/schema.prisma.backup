@@ -178,7 +178,7 @@ model User {
   documentActivities DocumentActivity[]
   
   // Branch relations
-  managedBranches Branch[] @relation("managedBranches")
+  managedBranches Branch[]
   
   // Recommendation relations
   recommendationFeedbacks RecommendationFeedback[]
@@ -2973,6 +2973,10 @@ model Branch {
   // Management
   managerId       String? // User ID of branch manager
   manager         User?    @relation("managedBranches", fields: [managerId], references: [id])
+  
+  // Operational Details
+  timezone        String   @default("UTC")
+  currency        String   @default("USD")
   businessHours   String?  // JSON configuration of business hours
   
   // Capacity & Limits
