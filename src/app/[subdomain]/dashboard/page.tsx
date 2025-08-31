@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { 
   Users, 
+  User,
   TrendingUp, 
   DollarSign, 
   AlertTriangle, 
@@ -64,7 +65,7 @@ import {
   Play
 } from "lucide-react"
 
-interface User {
+interface UserData {
   id: string
   name: string
   email: string
@@ -111,7 +112,7 @@ interface DashboardStats {
   avgProcessingTime: number
 }
 
-const mockUsers: User[] = [
+const mockUsers: UserData[] = [
   {
     id: "1",
     name: "Sarah Johnson",
@@ -329,7 +330,7 @@ export default function AgencyDashboard() {
   const router = useRouter()
   const subdomain = params.subdomain as string
   
-  const [users] = useState<User[]>(mockUsers)
+  const [users] = useState<UserData[]>(mockUsers)
   const [students] = useState<Student[]>(mockStudents)
   const [universities] = useState<University[]>(mockUniversities)
   const [stats] = useState<DashboardStats>(mockStats)

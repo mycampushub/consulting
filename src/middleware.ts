@@ -14,8 +14,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/signup/success' ||
     pathname === '/admin' ||
     pathname === '/brand-studio' ||
-    pathname === '/setup' ||
-    pathname === '/'
+    pathname === '/setup'
   ) {
     return NextResponse.next()
   }
