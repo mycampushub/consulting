@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +10,7 @@ import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
 
 export default function Home() {
+  const router = useRouter()
   const features = [
     {
       icon: Users,
@@ -73,11 +75,11 @@ export default function Home() {
                 university partnerships, and visa processing - all in one place.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button size="lg" className="text-lg px-8 py-6" onClick={() => window.location.href = '/signup'}>
+                <Button size="lg" className="text-lg px-8 py-6" onClick={() => router.push('/signup')}>
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button variant="outline" size="lg" className="text-lg px-8 py-6" onClick={() => window.location.href = '/admin'}>
+                <Button variant="outline" size="lg" className="text-lg px-8 py-6" onClick={() => router.push('/admin')}>
                   Admin Login
                 </Button>
               </div>
@@ -228,7 +230,7 @@ export default function Home() {
               Join the hundreds of agencies already scaling with our platform
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="text-lg px-8 py-6" onClick={() => window.location.href = '/signup'}>
+              <Button size="lg" variant="secondary" className="text-lg px-8 py-6" onClick={() => router.push('/signup')}>
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

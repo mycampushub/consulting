@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   FileText, 
   Search, 
@@ -26,7 +28,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -88,6 +91,9 @@ const statusLabels = {
 }
 
 export default function ApplicationsPage() {
+  const params = useParams()
+  const subdomain = params.subdomain as string
+  
   const [applications, setApplications] = useState<Application[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [universities, setUniversities] = useState<University[]>([])
@@ -104,131 +110,48 @@ export default function ApplicationsPage() {
     intake: '',
     status: 'DRAFT'
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  // Mock data for demonstration
+  // Load data from API
   useEffect(() => {
-    const mockApplications: Application[] = [
-      {
-        id: '1',
-        studentId: 's',
-        student: {
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@email.com'
-        },
-        universityId: '1',
-        university: {
-          name: 'Harvard University',
-          country: 'USA'
-        },
-        program: 'Computer Science',
-        intake: 'Fall 2024',
-        status: 'UNDER_REVIEW',
-        documents: ['transcript.pdf', 'passport.pdf', 'essay.pdf'],
-        payments: [],
-        communications: [],
-        assignedTo: 'user1',
-        createdAt: '2024-01-15T10:30:00Z',
-        updatedAt: '2024-01-20T14:45:00Z'
-      },
-      {
-        id: '2',
-        studentId: '2',
-        student: {
-          firstName: 'Jane',
-          lastName: 'Smith',
-          email: 'jane.smith@email.com'
-        },
-        universityId: '2',
-        university: {
-          name: 'University of Oxford',
-          country: 'UK'
-        },
-        program: 'Business Administration',
-        intake: 'Spring 2024',
-        status: 'APPROVED',
-        documents: ['transcript.pdf', 'passport.pdf', 'recommendation.pdf'],
-        payments: [],
-        communications: [],
-        assignedTo: 'user2',
-        createdAt: '2024-01-10T09:15:00Z',
-        updatedAt: '2024-01-25T11:20:00Z'
-      },
-      {
-        id: '3',
-        studentId: '3',
-        student: {
-          firstName: 'Mike',
-          lastName: 'Johnson',
-          email: 'mike.johnson@email.com'
-        },
-        universityId: '3',
-        university: {
-          name: 'University of Toronto',
-          country: 'Canada'
-        },
-        program: 'Engineering',
-        intake: 'Fall 2024',
-        status: 'DRAFT',
-        documents: ['transcript.pdf'],
-        payments: [],
-        communications: [],
-        assignedTo: 'user1',
-        createdAt: '2024-01-18T16:20:00Z',
-        updatedAt: '2024-01-18T16:20:00Z'
-      }
-    ]
+    loadData()
+  }, [subdomain])
 
-    const mockStudents: Student[] = [
-      {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@email.com',
-        status: 'APPLIED'
-      },
-      {
-        id: '2',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@email.com',
-        status: 'ACCEPTED'
-      },
-      {
-        id: '3',
-        firstName: 'Mike',
-        lastName: 'Johnson',
-        email: 'mike.johnson@email.com',
-        status: 'PROSPECT'
+  const loadData = async () => {
+    setLoading(true)
+    setError('')
+    
+    try {
+      // Load applications
+      const applicationsResponse = await fetch(`/api/${subdomain}/applications`)
+      if (applicationsResponse.ok) {
+        const applicationsData = await applicationsResponse.json()
+        setApplications(applicationsData.applications || [])
+      } else {
+        setError('Failed to load applications')
       }
-    ]
 
-    const mockUniversities: University[] = [
-      {
-        id: '1',
-        name: 'Harvard University',
-        country: 'USA',
-        programs: ['Computer Science', 'Business', 'Medicine']
-      },
-      {
-        id: '2',
-        name: 'University of Oxford',
-        country: 'UK',
-        programs: ['Business Administration', 'Law', 'Philosophy']
-      },
-      {
-        id: '3',
-        name: 'University of Toronto',
-        country: 'Canada',
-        programs: ['Engineering', 'Computer Science', 'Medicine']
+      // Load students
+      const studentsResponse = await fetch(`/api/${subdomain}/students`)
+      if (studentsResponse.ok) {
+        const studentsData = await studentsResponse.json()
+        setStudents(studentsData.students || [])
       }
-    ]
 
-    setApplications(mockApplications)
-    setStudents(mockStudents)
-    setUniversities(mockUniversities)
-    setFilteredApplications(mockApplications)
-  }, [])
+      // Load universities
+      const universitiesResponse = await fetch(`/api/${subdomain}/universities`)
+      if (universitiesResponse.ok) {
+        const universitiesData = await universitiesResponse.json()
+        setUniversities(universitiesData.universities || [])
+      }
+    } catch (err) {
+      setError('Error loading data')
+      console.error('Error loading data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let filtered = applications
@@ -249,49 +172,71 @@ export default function ApplicationsPage() {
     setFilteredApplications(filtered)
   }, [applications, searchTerm, statusFilter])
 
-  const handleAddApplication = () => {
-    const student = students.find(s => s.id === newApplication.studentId)
-    const university = universities.find(u => u.id === newApplication.universityId)
-
-    if (!student || !university) return
-
-    const application: Application = {
-      id: Date.now().toString(),
-      studentId: newApplication.studentId,
-      student: {
-        firstName: student.firstName,
-        lastName: student.lastName,
-        email: student.email
-      },
-      universityId: newApplication.universityId,
-      university: {
-        name: university.name,
-        country: university.country
-      },
-      program: newApplication.program,
-      intake: newApplication.intake,
-      status: newApplication.status as any,
-      documents: [],
-      payments: [],
-      communications: [],
-      assignedTo: 'user1',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  const handleAddApplication = async () => {
+    if (!newApplication.studentId || !newApplication.universityId || !newApplication.program) {
+      setError('Please fill in all required fields')
+      return
     }
 
-    setApplications([...applications, application])
-    setNewApplication({
-      studentId: '',
-      universityId: '',
-      program: '',
-      intake: '',
-      status: 'DRAFT'
-    })
-    setIsAddDialogOpen(false)
+    try {
+      const response = await fetch(`/api/${subdomain}/applications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newApplication),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to create application')
+        return
+      }
+
+      const createdApplication = await response.json()
+      
+      // Add the new application to the list
+      setApplications([createdApplication, ...applications])
+      
+      // Reset form and close dialog
+      setNewApplication({
+        studentId: '',
+        universityId: '',
+        program: '',
+        intake: '',
+        status: 'DRAFT'
+      })
+      setIsAddDialogOpen(false)
+      setError('')
+    } catch (err) {
+      setError('Error creating application')
+      console.error('Error creating application:', err)
+    }
   }
 
-  const handleDeleteApplication = (id: string) => {
-    setApplications(applications.filter(app => app.id !== id))
+  const handleDeleteApplication = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this application?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/applications/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to delete application')
+        return
+      }
+
+      // Remove the application from the list
+      setApplications(applications.filter(app => app.id !== id))
+      setError('')
+    } catch (err) {
+      setError('Error deleting application')
+      console.error('Error deleting application:', err)
+    }
   }
 
   const getWorkflowProgress = (status: string) => {
@@ -318,6 +263,22 @@ export default function ApplicationsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Error Handling */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin mr-2" />
+          <span>Loading applications...</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Applications</h1>
@@ -325,13 +286,18 @@ export default function ApplicationsPage() {
             Manage student applications and track progress
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Application
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={loadData} disabled={loading}>
+            <Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Application
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Create New Application</DialogTitle>

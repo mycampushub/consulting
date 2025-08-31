@@ -236,18 +236,26 @@ export default function StudentRegisterPage() {
     setError("")
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // In real app, send data to backend
-      console.log("Registration data:", formData)
-      
+      const response = await fetch(`/api/${subdomain}/student/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Registration failed')
+      }
+
       setSuccess(true)
       setTimeout(() => {
         router.push(`/${subdomain}/student`)
       }, 3000)
     } catch (error) {
-      setError("Registration failed. Please try again.")
+      setError(error instanceof Error ? error.message : "Registration failed. Please try again.")
     } finally {
       setIsLoading(false)
     }

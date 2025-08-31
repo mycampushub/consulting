@@ -23,7 +23,7 @@ function SignupSuccessContent() {
         if (prev <= 1) {
           clearInterval(timer)
           // Redirect to the agency's dashboard
-          window.location.href = `http://${agency}.localhost:3000/dashboard`
+          window.location.replace(`http://${agency}.localhost:3000/dashboard`)
           return 0
         }
         return prev - 1
@@ -80,7 +80,7 @@ function SignupSuccessContent() {
             
             <Button 
               onClick={() => {
-                window.location.href = `http://${agency}.localhost:3000/dashboard`
+                window.location.replace(`http://${agency}.localhost:3000/dashboard`)
               }}
               className="w-full"
             >

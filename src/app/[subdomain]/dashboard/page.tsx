@@ -59,7 +59,9 @@ import {
   Chrome,
   Video,
   RefreshCw,
-  Plug
+  Plug,
+  Building,
+  Play
 } from "lucide-react"
 
 interface User {
@@ -2116,7 +2118,7 @@ export default function AgencyDashboard() {
                   Manage your agency's finances, invoices, and transactions
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/accounting'}>
+              <Button onClick={() => router.push(`/${subdomain}/accounting`)}>
                 <DollarSign className="mr-2 h-4 w-4" />
                 Go to Accounting
               </Button>
@@ -2242,7 +2244,7 @@ export default function AgencyDashboard() {
                   Create campaigns, build workflows, and track leads
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/marketing'}>
+              <Button onClick={() => router.push(`/${subdomain}/marketing`)}>
                 <Target className="mr-2 h-4 w-4" />
                 Go to Marketing
               </Button>
@@ -2368,7 +2370,7 @@ export default function AgencyDashboard() {
                   Create and manage landing pages with drag-and-drop builder
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/landing-pages'}>
+              <Button onClick={() => router.push(`/${subdomain}/landing-pages`)}>
                 <Layout className="mr-2 h-4 w-4" />
                 Go to Landing Pages
               </Button>
@@ -2494,7 +2496,7 @@ export default function AgencyDashboard() {
                   Create forms with Facebook/Google lead ads integration
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/forms'}>
+              <Button onClick={() => router.push(`/${subdomain}/forms`)}>
                 <FileText className="mr-2 h-4 w-4" />
                 Go to Forms
               </Button>
@@ -2620,7 +2622,7 @@ export default function AgencyDashboard() {
                   Manage multi-location operations and branches
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/branches'}>
+              <Button onClick={() => router.push(`/${subdomain}/branches`)}>
                 <Building className="mr-2 h-4 w-4" />
                 Go to Branches
               </Button>
@@ -2780,7 +2782,7 @@ export default function AgencyDashboard() {
                   Create and manage automated workflows
                 </p>
               </div>
-              <Button onClick={() => window.location.href = '/workflows'}>
+              <Button onClick={() => router.push(`/${subdomain}/workflows`)}>
                 <Workflow className="mr-2 h-4 w-4" />
                 Go to Workflows
               </Button>

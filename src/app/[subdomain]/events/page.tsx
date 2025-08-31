@@ -33,7 +33,13 @@ import {
   Loader2,
   ExternalLink,
   UserPlus,
-  MessageSquare
+  MessageSquare,
+  Eye,
+  Download,
+  BarChart3,
+  FileText,
+  TrendingUp,
+  Target
 } from "lucide-react"
 
 interface Event {
