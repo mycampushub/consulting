@@ -56,7 +56,10 @@ import {
   MousePointer2,
   Grid,
   Facebook,
-  Chrome
+  Chrome,
+  Video,
+  RefreshCw,
+  Plug
 } from "lucide-react"
 
 interface User {
@@ -339,6 +342,32 @@ export default function AgencyDashboard() {
     { id: 3, type: 'warning', title: 'Document pending', message: 'James Wilson needs to upload passport', time: '1 day ago', read: true },
   ])
 
+  // Form states
+  const [newStudent, setNewStudent] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    nationality: '',
+    assignedTo: ''
+  })
+
+  const [newUniversity, setNewUniversity] = useState({
+    name: '',
+    country: '',
+    city: '',
+    website: '',
+    partnershipLevel: 'NONE' as 'NONE' | 'BASIC' | 'PREMIUM' | 'STRATEGIC'
+  })
+
+  const [newMember, setNewMember] = useState({
+    email: '',
+    role: 'CONSULTANT' as 'AGENCY_ADMIN' | 'CONSULTANT' | 'SUPPORT',
+    title: '',
+    department: ''
+  })
+
+  const [loading, setLoading] = useState(false)
+
   // Simulate real-time updates
   const [liveStats, setLiveStats] = useState({
     onlineUsers: Math.floor(Math.random() * 10) + 5,
@@ -397,6 +426,107 @@ export default function AgencyDashboard() {
       case "NONE": return "bg-gray-100 text-gray-800"
       default: return "bg-gray-100 text-gray-800"
     }
+  }
+
+  // Handle Add Student
+  const handleAddStudent = async () => {
+    if (!newStudent.firstName || !newStudent.lastName || !newStudent.email) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newStudent),
+      })
+
+      if (!response.ok) throw new Error('Failed to add student')
+
+      // Reset form and close dialog
+      setNewStudent({ firstName: '', lastName: '', email: '', nationality: '', assignedTo: '' })
+      setIsAddStudentOpen(false)
+      
+      // Show success message
+      alert('Student added successfully!')
+    } catch (error) {
+      alert('Failed to add student. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Add University
+  const handleAddUniversity = async () => {
+    if (!newUniversity.name || !newUniversity.country) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/universities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUniversity),
+      })
+
+      if (!response.ok) throw new Error('Failed to add university')
+
+      // Reset form and close dialog
+      setNewUniversity({ name: '', country: '', city: '', website: '', partnershipLevel: 'NONE' })
+      setIsAddUniversityOpen(false)
+      
+      // Show success message
+      alert('University added successfully!')
+    } catch (error) {
+      alert('Failed to add university. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Invite Member
+  const handleInviteMember = async () => {
+    if (!newMember.email || !newMember.role) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newMember),
+      })
+
+      if (!response.ok) throw new Error('Failed to invite member')
+
+      // Reset form and close dialog
+      setNewMember({ email: '', role: 'CONSULTANT', title: '', department: '' })
+      setIsInviteMemberOpen(false)
+      
+      // Show success message
+      alert('Invitation sent successfully!')
+    } catch (error) {
+      alert('Failed to send invitation. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle Create Application
+  const handleCreateApplication = () => {
+    router.push(`/${subdomain}/applications`)
   }
 
   return (
@@ -469,14 +599,16 @@ export default function AgencyDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-15">
+          <TabsList className="grid w-full grid-cols-17">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="students">Students</TabsTrigger>
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="universities">Universities</TabsTrigger>
             <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="accounting">Accounting</TabsTrigger>
             <TabsTrigger value="marketing">Marketing</TabsTrigger>
@@ -625,24 +757,45 @@ export default function AgencyDashboard() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="firstName">First Name</Label>
-                            <Input id="firstName" placeholder="Enter first name" />
+                            <Input 
+                              id="firstName" 
+                              placeholder="Enter first name"
+                              value={newStudent.firstName}
+                              onChange={(e) => setNewStudent(prev => ({ ...prev, firstName: e.target.value }))}
+                            />
                           </div>
                           <div>
                             <Label htmlFor="lastName">Last Name</Label>
-                            <Input id="lastName" placeholder="Enter last name" />
+                            <Input 
+                              id="lastName" 
+                              placeholder="Enter last name"
+                              value={newStudent.lastName}
+                              onChange={(e) => setNewStudent(prev => ({ ...prev, lastName: e.target.value }))}
+                            />
                           </div>
                         </div>
                         <div>
                           <Label htmlFor="email">Email</Label>
-                          <Input id="email" type="email" placeholder="student@email.com" />
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="student@email.com"
+                            value={newStudent.email}
+                            onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <Label htmlFor="nationality">Nationality</Label>
-                          <Input id="nationality" placeholder="Country" />
+                          <Input 
+                            id="nationality" 
+                            placeholder="Country"
+                            value={newStudent.nationality}
+                            onChange={(e) => setNewStudent(prev => ({ ...prev, nationality: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <Label htmlFor="assignedTo">Assigned To</Label>
-                          <Select>
+                          <Select onValueChange={(value) => setNewStudent(prev => ({ ...prev, assignedTo: value }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select consultant" />
                             </SelectTrigger>
@@ -656,14 +809,20 @@ export default function AgencyDashboard() {
                           </Select>
                         </div>
                         <div className="flex gap-2 pt-4">
-                          <Button onClick={() => setIsAddStudentOpen(false)}>Cancel</Button>
-                          <Button className="flex-1">Add Student</Button>
+                          <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>Cancel</Button>
+                          <Button 
+                            className="flex-1" 
+                            onClick={handleAddStudent}
+                            disabled={loading}
+                          >
+                            {loading ? 'Adding...' : 'Add Student'}
+                          </Button>
                         </div>
                       </div>
                     </DialogContent>
                   </Dialog>
                   
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={handleCreateApplication}>
                     <FileText className="h-4 w-4 mr-2" />
                     Create Application
                   </Button>
@@ -683,25 +842,45 @@ export default function AgencyDashboard() {
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="universityName">University Name</Label>
-                          <Input id="universityName" placeholder="Enter university name" />
+                          <Input 
+                            id="universityName" 
+                            placeholder="Enter university name"
+                            value={newUniversity.name}
+                            onChange={(e) => setNewUniversity(prev => ({ ...prev, name: e.target.value }))}
+                          />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <Label htmlFor="country">Country</Label>
-                            <Input id="country" placeholder="Country" />
+                            <Input 
+                              id="country" 
+                              placeholder="Country"
+                              value={newUniversity.country}
+                              onChange={(e) => setNewUniversity(prev => ({ ...prev, country: e.target.value }))}
+                            />
                           </div>
                           <div>
                             <Label htmlFor="city">City</Label>
-                            <Input id="city" placeholder="City" />
+                            <Input 
+                              id="city" 
+                              placeholder="City"
+                              value={newUniversity.city}
+                              onChange={(e) => setNewUniversity(prev => ({ ...prev, city: e.target.value }))}
+                            />
                           </div>
                         </div>
                         <div>
                           <Label htmlFor="website">Website</Label>
-                          <Input id="website" placeholder="https://university.edu" />
+                          <Input 
+                            id="website" 
+                            placeholder="https://university.edu"
+                            value={newUniversity.website}
+                            onChange={(e) => setNewUniversity(prev => ({ ...prev, website: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <Label htmlFor="partnershipLevel">Partnership Level</Label>
-                          <Select>
+                          <Select onValueChange={(value) => setNewUniversity(prev => ({ ...prev, partnershipLevel: value as any }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select partnership level" />
                             </SelectTrigger>
@@ -715,7 +894,13 @@ export default function AgencyDashboard() {
                         </div>
                         <div className="flex gap-2 pt-4">
                           <Button variant="outline" onClick={() => setIsAddUniversityOpen(false)}>Cancel</Button>
-                          <Button className="flex-1">Add University</Button>
+                          <Button 
+                            className="flex-1" 
+                            onClick={handleAddUniversity}
+                            disabled={loading}
+                          >
+                            {loading ? 'Adding...' : 'Add University'}
+                          </Button>
                         </div>
                       </div>
                     </DialogContent>
@@ -839,11 +1024,17 @@ export default function AgencyDashboard() {
                       <div className="space-y-4">
                         <div>
                           <Label htmlFor="memberEmail">Email Address</Label>
-                          <Input id="memberEmail" type="email" placeholder="colleague@agency.com" />
+                          <Input 
+                            id="memberEmail" 
+                            type="email" 
+                            placeholder="colleague@agency.com"
+                            value={newMember.email}
+                            onChange={(e) => setNewMember(prev => ({ ...prev, email: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <Label htmlFor="memberRole">Role</Label>
-                          <Select>
+                          <Select onValueChange={(value) => setNewMember(prev => ({ ...prev, role: value as any }))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
@@ -856,15 +1047,31 @@ export default function AgencyDashboard() {
                         </div>
                         <div>
                           <Label htmlFor="memberTitle">Title</Label>
-                          <Input id="memberTitle" placeholder="Job title" />
+                          <Input 
+                            id="memberTitle" 
+                            placeholder="Job title"
+                            value={newMember.title}
+                            onChange={(e) => setNewMember(prev => ({ ...prev, title: e.target.value }))}
+                          />
                         </div>
                         <div>
                           <Label htmlFor="memberDepartment">Department</Label>
-                          <Input id="memberDepartment" placeholder="Department" />
+                          <Input 
+                            id="memberDepartment" 
+                            placeholder="Department"
+                            value={newMember.department}
+                            onChange={(e) => setNewMember(prev => ({ ...prev, department: e.target.value }))}
+                          />
                         </div>
                         <div className="flex gap-2 pt-4">
                           <Button variant="outline" onClick={() => setIsInviteMemberOpen(false)}>Cancel</Button>
-                          <Button className="flex-1">Send Invitation</Button>
+                          <Button 
+                            className="flex-1" 
+                            onClick={handleInviteMember}
+                            disabled={loading}
+                          >
+                            {loading ? 'Sending...' : 'Send Invitation'}
+                          </Button>
                         </div>
                       </div>
                     </DialogContent>
@@ -2707,6 +2914,221 @@ export default function AgencyDashboard() {
                       </div>
                       <Badge variant="secondary">3</Badge>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="events" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Events Management</h2>
+                <p className="text-muted-foreground">Create and manage events for your students</p>
+              </div>
+              <Button onClick={() => router.push(`/${subdomain}/events`)}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Manage Events
+              </Button>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">24</div>
+                  <p className="text-xs text-muted-foreground">events created</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">8</div>
+                  <p className="text-xs text-muted-foreground">this month</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Attendees</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">156</div>
+                  <p className="text-xs text-muted-foreground">total registered</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Events</CardTitle>
+                  <CardDescription>Latest events created</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Study in USA Webinar</p>
+                        <p className="text-sm text-muted-foreground">Jan 25, 2024</p>
+                      </div>
+                      <Badge>Webinar</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">University Fair</p>
+                        <p className="text-sm text-muted-foreground">Jan 20, 2024</p>
+                      </div>
+                      <Badge>In-Person</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">Application Workshop</p>
+                        <p className="text-sm text-muted-foreground">Jan 15, 2024</p>
+                      </div>
+                      <Badge>Workshop</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Types</CardTitle>
+                  <CardDescription>Events by category</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        <span className="text-sm">Webinars</span>
+                      </div>
+                      <Badge variant="secondary">12</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        <span className="text-sm">In-Person</span>
+                      </div>
+                      <Badge variant="secondary">8</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        <span className="text-sm">Workshops</span>
+                      </div>
+                      <Badge variant="secondary">4</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="integrations" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Integrations</h2>
+                <p className="text-muted-foreground">Connect and manage third-party services</p>
+              </div>
+              <Button onClick={() => router.push(`/${subdomain}/integrations`)}>
+                <Plug className="h-4 w-4 mr-2" />
+                Manage Integrations
+              </Button>
+            </div>
+            
+            <div className="grid md:grid-cols-4 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Connected</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">12</div>
+                  <p className="text-xs text-muted-foreground">active integrations</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Available</CardTitle>
+                  <Database className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">48</div>
+                  <p className="text-xs text-muted-foreground">in marketplace</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Syncing</CardTitle>
+                  <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">3</div>
+                  <p className="text-xs text-muted-foreground">currently syncing</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Errors</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">0</div>
+                  <p className="text-xs text-muted-foreground">sync errors</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    QuickBooks
+                  </CardTitle>
+                  <CardDescription>Accounting software</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                    <p className="text-sm text-muted-foreground">Last sync: 2 hours ago</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Slack
+                  </CardTitle>
+                  <CardDescription>Team communication</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Badge className="bg-green-100 text-green-800">Connected</Badge>
+                    <p className="text-sm text-muted-foreground">Last sync: 5 minutes ago</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Mailchimp
+                  </CardTitle>
+                  <CardDescription>Email marketing</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                    <p className="text-sm text-muted-foreground">Setup required</p>
                   </div>
                 </CardContent>
               </Card>
