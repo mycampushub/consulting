@@ -257,34 +257,7 @@ export default function EventsPage() {
     }
   }
 
-  const handlePreviewEvent = (event: Event) => {
-    // Open preview dialog or navigate to preview page
-    const previewUrl = event.virtualMeetingUrl || '#'
-    if (event.virtualMeetingUrl) {
-      window.open(previewUrl, '_blank')
-    } else {
-      alert('Event preview functionality would show detailed event information')
-    }
-  }
 
-  const handleEditEvent = (event: Event) => {
-    // Populate form with event data and open edit dialog
-    setNewEvent({
-      title: event.title,
-      description: event.description || '',
-      type: event.type,
-      platform: event.platform,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      location: event.location || '',
-      virtualMeetingUrl: event.virtualMeetingUrl || '',
-      maxAttendees: event.maxAttendees?.toString() || '',
-      isPublic: event.isPublic,
-      requiresRegistration: event.requiresRegistration,
-      tags: event.tags || []
-    })
-    setIsCreateEventOpen(true)
-  }
 
   const handleExportReport = async () => {
     try {
