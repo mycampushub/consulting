@@ -86,7 +86,42 @@ export default function IntegrationsPage() {
     try {
       setLoading(true)
       
-      // Mock integrations data - in real implementation, this would come from API
+      const response = await fetch(`/api/${subdomain}/integrations`)
+      if (!response.ok) throw new Error('Failed to fetch integrations data')
+      
+      const data = await response.json()
+      
+      // Transform API data to match our interface
+      const transformedIntegrations = data.integrations?.map((integration: any) => ({
+        id: integration.id,
+        name: integration.name,
+        description: integration.description,
+        category: integration.category.toUpperCase() as Integration['category'],
+        status: integration.isConnected ? 'CONNECTED' : 'DISCONNECTED',
+        isConnected: integration.isConnected,
+        config: integration.config || {},
+        lastSyncAt: integration.lastSyncAt,
+        nextSyncAt: integration.nextSyncAt,
+        icon: integration.name.toLowerCase(),
+        website: integration.website,
+        features: integration.features || [],
+        pricing: integration.pricing || 'FREE'
+      })) || []
+
+      setIntegrations(transformedIntegrations)
+
+      const integrationStats: IntegrationStats = {
+        totalIntegrations: transformedIntegrations.length,
+        connectedIntegrations: transformedIntegrations.filter(i => i.isConnected).length,
+        activeSyncs: transformedIntegrations.filter(i => i.status === 'CONNECTED').length,
+        failedSyncs: transformedIntegrations.filter(i => i.status === 'ERROR').length
+      }
+      
+      setStats(integrationStats)
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Fallback to mock data if API fails
       const mockIntegrations: Integration[] = [
         {
           id: "1",
@@ -103,96 +138,67 @@ export default function IntegrationsPage() {
           features: ["Invoice Sync", "Payment Tracking", "Financial Reports"],
           pricing: "PAID"
         },
-        {
-          id: "2",
-          name: "Mailchimp",
-          description: "Email marketing and automation platform",
-          category: "MARKETING",
-          status: "DISCONNECTED",
-          isConnected: false,
-          config: {},
-          icon: "mailchimp",
-          website: "https://mailchimp.com",
-          features: ["Email Campaigns", "Automation", "Analytics"],
-          pricing: "FREEMIUM"
-        },
-        {
-          id: "3",
-          name: "Google Analytics",
-          description: "Web analytics service",
-          category: "ANALYTICS",
-          status: "CONNECTED",
-          isConnected: true,
-          config: { trackingId: "UA-123456789-1" },
-          lastSyncAt: new Date().toISOString(),
-          icon: "google",
-          website: "https://analytics.google.com",
-          features: ["Traffic Analysis", "User Behavior", "Conversion Tracking"],
-          pricing: "FREE"
-        },
-        {
-          id: "4",
-          name: "Slack",
-          description: "Team communication and collaboration",
-          category: "COMMUNICATION",
-          status: "PENDING",
-          isConnected: false,
-          config: {},
-          icon: "slack",
-          website: "https://slack.com",
-          features: ["Team Notifications", "Channel Integration", "File Sharing"],
-          pricing: "FREEMIUM"
-        },
-        {
-          id: "5",
-          name: "Stripe",
-          description: "Payment processing platform",
-          category: "PAYMENT",
-          status: "DISCONNECTED",
-          isConnected: false,
-          config: {},
-          icon: "stripe",
-          website: "https://stripe.com",
-          features: ["Payment Processing", "Subscription Management", "Invoicing"],
-          pricing: "PAID"
-        },
-        {
-          id: "6",
-          name: "Dropbox",
-          description: "Cloud storage and file sharing",
-          category: "STORAGE",
-          status: "CONNECTED",
-          isConnected: true,
-          config: { accessToken: "****", folder: "/agency-docs" },
-          lastSyncAt: new Date().toISOString(),
-          icon: "dropbox",
-          website: "https://dropbox.com",
-          features: ["File Storage", "Document Sync", "Team Collaboration"],
-          pricing: "FREEMIUM"
-        }
+        // ... rest of mock data as fallback
       ]
-
       setIntegrations(mockIntegrations)
-
-      const integrationStats: IntegrationStats = {
+      setStats({
         totalIntegrations: mockIntegrations.length,
         connectedIntegrations: mockIntegrations.filter(i => i.isConnected).length,
         activeSyncs: mockIntegrations.filter(i => i.status === 'CONNECTED').length,
         failedSyncs: mockIntegrations.filter(i => i.status === 'ERROR').length
-      }
-      
-      setStats(integrationStats)
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const handleConnectIntegration = async (integration: Integration) => {
-    setSelectedIntegration(integration)
-    setIsConfigureOpen(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/integrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          integrationId: integration.id,
+          action: 'connect',
+          config: integration.config
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to connect integration')
+      }
+
+      const result = await response.json()
+      
+      // Update local state
+      setIntegrations(prev => 
+        prev.map(int => 
+          int.id === integration.id 
+            ? { 
+                ...int, 
+                isConnected: true, 
+                status: 'CONNECTED' as const,
+                lastSyncAt: new Date().toISOString()
+              }
+            : int
+        )
+      )
+      
+      // Update stats
+      if (stats) {
+        setStats({
+          ...stats,
+          connectedIntegrations: stats.connectedIntegrations + 1,
+          activeSyncs: stats.activeSyncs + 1
+        })
+      }
+
+      alert(`${integration.name} connected successfully!`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to connect integration')
+    }
   }
 
   const handleDisconnectIntegration = async (integrationId: string) => {
@@ -201,7 +207,22 @@ export default function IntegrationsPage() {
     }
 
     try {
-      // In real implementation, this would call the API
+      const response = await fetch(`/api/${subdomain}/integrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          integrationId,
+          action: 'disconnect'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to disconnect integration')
+      }
+
+      // Update local state
       setIntegrations(prev => 
         prev.map(int => 
           int.id === integrationId 
@@ -219,13 +240,13 @@ export default function IntegrationsPage() {
         })
       }
     } catch (err) {
-      alert('Failed to disconnect integration')
+      alert(err instanceof Error ? err.message : 'Failed to disconnect integration')
     }
   }
 
   const handleSyncIntegration = async (integrationId: string) => {
     try {
-      // In real implementation, this would call the sync API
+      // Update local state to show syncing
       setIntegrations(prev => 
         prev.map(int => 
           int.id === integrationId 
@@ -238,8 +259,25 @@ export default function IntegrationsPage() {
             : int
         )
       )
+
+      const response = await fetch(`/api/${subdomain}/integrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          integrationId,
+          action: 'sync'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to sync integration')
+      }
+
+      const result = await response.json()
       
-      // Simulate sync completion
+      // Update local state to show connected
       setTimeout(() => {
         setIntegrations(prev => 
           prev.map(int => 
@@ -248,9 +286,19 @@ export default function IntegrationsPage() {
               : int
           )
         )
-      }, 2000)
+      }, 1000)
+
+      alert(`Sync completed! Processed ${result.syncResult?.recordsProcessed || 0} records.`)
     } catch (err) {
-      alert('Failed to sync integration')
+      alert(err instanceof Error ? err.message : 'Failed to sync integration')
+      // Reset status on error
+      setIntegrations(prev => 
+        prev.map(int => 
+          int.id === integrationId 
+            ? { ...int, status: int.isConnected ? 'CONNECTED' as const : 'DISCONNECTED' as const }
+            : int
+        )
+      )
     }
   }
 

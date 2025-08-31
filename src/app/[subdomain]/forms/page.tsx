@@ -28,7 +28,7 @@ import {
   Code,
   ExternalLink,
   FileText,
-  Input as InputIcon,
+  Type,
   Mail,
   Phone,
   MessageSquare,
@@ -169,7 +169,7 @@ export default function FormsPage() {
 
   const getFieldTypeIcon = (type: string) => {
     switch (type) {
-      case "text": return <InputIcon className="h-4 w-4" />
+      case "text": return <Type className="h-4 w-4" />
       case "email": return <Mail className="h-4 w-4" />
       case "phone": return <Phone className="h-4 w-4" />
       case "textarea": return <MessageSquare className="h-4 w-4" />
@@ -178,8 +178,8 @@ export default function FormsPage() {
       case "radio": return <Radio className="h-4 w-4" />
       case "date": return <Calendar className="h-4 w-4" />
       case "file": return <File className="h-4 w-4" />
-      case "number": return <InputIcon className="h-4 w-4" />
-      default: return <InputIcon className="h-4 w-4" />
+      case "number": return <Type className="h-4 w-4" />
+      default: return <Type className="h-4 w-4" />
     }
   }
 

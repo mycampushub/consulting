@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Mail, 
   MessageSquare, 
@@ -33,7 +35,8 @@ import {
   Reply,
   Forward,
   Paperclip,
-  MoreHorizontal
+  MoreHorizontal,
+  Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -228,14 +231,20 @@ const notificationTypeColors = {
 }
 
 export default function CommunicationsPage() {
-  const [emails, setEmails] = useState<Email[]>(mockEmails)
-  const [templates, setTemplates] = useState<EmailTemplate[]>(mockTemplates)
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications)
-  const [smsMessages, setSmsMessages] = useState<SmsMessage[]>(mockSmsMessages)
+  const params = useParams()
+  const subdomain = params.subdomain as string
+  
+  const [emails, setEmails] = useState<Email[]>([])
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [smsMessages, setSmsMessages] = useState<SmsMessage[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isComposeDialogOpen, setIsComposeDialogOpen] = useState(false)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [newEmail, setNewEmail] = useState({
     to: '',
     subject: '',
@@ -250,33 +259,165 @@ export default function CommunicationsPage() {
     variables: ''
   })
 
-  const handleSendEmail = () => {
-    const email: Email = {
-      id: Date.now().toString(),
-      to: newEmail.to,
-      subject: newEmail.subject,
-      body: newEmail.body,
-      status: 'SENT',
-      sentAt: new Date().toISOString(),
-      attachments: []
+  useEffect(() => {
+    fetchCommunicationsData()
+  }, [subdomain])
+
+  const fetchCommunicationsData = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await fetch(`/api/${subdomain}/communications`)
+      if (!response.ok) throw new Error('Failed to fetch communications data')
+      
+      const data = await response.json()
+      
+      // Transform email templates to match our interface
+      const transformedTemplates = data.emailTemplates?.map((template: any) => ({
+        id: template.id,
+        name: template.name,
+        subject: template.subject,
+        body: template.content,
+        category: template.category,
+        variables: [] // Will be extracted from content
+      })) || []
+
+      // Transform email messages to match our interface
+      const transformedEmails = data.recentEmailMessages?.map((message: any) => ({
+        id: message.id,
+        to: message.student?.email || 'Unknown',
+        subject: message.subject || 'No Subject',
+        body: message.content || '',
+        status: message.status || 'SENT',
+        sentAt: message.sentAt,
+        deliveredAt: message.deliveredAt,
+        openedAt: message.openedAt,
+        attachments: message.attachments || [],
+        templateId: message.templateId
+      })) || []
+
+      // Transform SMS messages
+      const transformedSmsMessages = data.recentSmsMessages?.map((message: any) => ({
+        id: message.id,
+        to: message.student?.phone || 'Unknown',
+        message: message.content || '',
+        status: message.status || 'SENT',
+        sentAt: message.sentAt,
+        deliveredAt: message.deliveredAt,
+        templateId: message.templateId
+      })) || []
+
+      setTemplates(transformedTemplates)
+      setEmails(transformedEmails)
+      setSmsMessages(transformedSmsMessages)
+      
+      // Mock notifications for now - would need separate API
+      setNotifications(mockNotifications)
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Fallback to mock data if API fails
+      setEmails(mockEmails)
+      setTemplates(mockTemplates)
+      setSmsMessages(mockSmsMessages)
+      setNotifications(mockNotifications)
+    } finally {
+      setLoading(false)
     }
-    setEmails([email, ...emails])
-    setNewEmail({ to: '', subject: '', body: '', templateId: '' })
-    setIsComposeDialogOpen(false)
   }
 
-  const handleCreateTemplate = () => {
-    const template: EmailTemplate = {
-      id: Date.now().toString(),
-      name: newTemplate.name,
-      subject: newTemplate.subject,
-      body: newTemplate.body,
-      category: newTemplate.category,
-      variables: newTemplate.variables.split(',').map(v => v.trim())
+  const handleSendEmail = async () => {
+    if (!newEmail.to || !newEmail.subject || !newEmail.body) {
+      alert('Please fill in all required fields')
+      return
     }
-    setTemplates([...templates, template])
-    setNewTemplate({ name: '', subject: '', body: '', category: '', variables: '' })
-    setIsTemplateDialogOpen(false)
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/communications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'EMAIL',
+          name: 'Direct Email',
+          subject: newEmail.subject,
+          content: newEmail.body,
+          category: 'DIRECT'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send email')
+      }
+
+      // Add to local state
+      const email: Email = {
+        id: Date.now().toString(),
+        to: newEmail.to,
+        subject: newEmail.subject,
+        body: newEmail.body,
+        status: 'SENT',
+        sentAt: new Date().toISOString(),
+        attachments: []
+      }
+      setEmails([email, ...emails])
+      setNewEmail({ to: '', subject: '', body: '', templateId: '' })
+      setIsComposeDialogOpen(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to send email')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreateTemplate = async () => {
+    if (!newTemplate.name || !newTemplate.subject || !newTemplate.body) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/communications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'EMAIL',
+          name: newTemplate.name,
+          subject: newTemplate.subject,
+          content: newTemplate.body,
+          category: newTemplate.category || 'GENERAL'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create template')
+      }
+
+      const template = await response.json()
+      
+      // Transform to match our interface
+      const transformedTemplate: EmailTemplate = {
+        id: template.id,
+        name: template.name,
+        subject: template.subject,
+        body: template.content,
+        category: template.category,
+        variables: newTemplate.variables.split(',').map(v => v.trim()).filter(v => v)
+      }
+      
+      setTemplates([...templates, transformedTemplate])
+      setNewTemplate({ name: '', subject: '', body: '', category: '', variables: '' })
+      setIsTemplateDialogOpen(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to create template')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const applyTemplate = (templateId: string) => {
@@ -326,6 +467,23 @@ export default function CommunicationsPage() {
   }
 
   const stats = getEmailStats()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert className="max-w-md m-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -409,7 +567,16 @@ export default function CommunicationsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleSendEmail}>Send Email</Button>
+                <Button onClick={handleSendEmail} disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Email'
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -488,7 +655,16 @@ export default function CommunicationsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleCreateTemplate}>Create Template</Button>
+                <Button onClick={handleCreateTemplate} disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Template'
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

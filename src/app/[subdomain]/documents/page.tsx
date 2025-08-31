@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,7 +38,8 @@ import {
   MoreHorizontal,
   Share2,
   Lock,
-  Unlock
+  Unlock,
+  Loader2
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -234,15 +236,21 @@ const statusColors = {
 }
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments)
-  const [folders, setFolders] = useState<DocumentFolder[]>(mockFolders)
-  const [templates, setTemplates] = useState<DocumentTemplate[]>(mockTemplates)
+  const params = useParams()
+  const subdomain = params.subdomain as string
+  
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [folders, setFolders] = useState<DocumentFolder[]>(mockFolders) // Keep mock for now
+  const [templates, setTemplates] = useState<DocumentTemplate[]>(mockTemplates) // Keep mock for now
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [newDocument, setNewDocument] = useState({
     name: '',
     category: '',
@@ -255,24 +263,113 @@ export default function DocumentsPage() {
     isPublic: false
   })
 
-  const handleUploadDocument = () => {
-    const document: Document = {
-      id: Date.now().toString(),
-      name: newDocument.name,
-      type: 'PDF', // Default type
-      size: 1024000, // Default size
-      category: newDocument.category,
-      tags: newDocument.tags.split(',').map(tag => tag.trim()),
-      uploadedBy: 'Current User',
-      uploadedAt: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      status: 'ACTIVE',
-      isPublic: newDocument.isPublic,
-      downloadCount: 0
+  useEffect(() => {
+    fetchDocumentsData()
+  }, [subdomain])
+
+  const fetchDocumentsData = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await fetch(`/api/${subdomain}/documents`)
+      if (!response.ok) throw new Error('Failed to fetch documents')
+      
+      const data = await response.json()
+      
+      // Transform API data to match our interface
+      const transformedDocuments = data.documents?.map((doc: any) => ({
+        id: doc.id,
+        name: doc.name,
+        type: doc.fileType === 'application/pdf' ? 'PDF' : 
+              doc.fileType?.startsWith('image/') ? 'JPG' :
+              doc.fileType?.includes('word') ? 'DOC' :
+              doc.fileType?.includes('video') ? 'MP4' :
+              doc.fileType?.includes('zip') ? 'ZIP' : 'OTHER',
+        size: doc.fileSize || 0,
+        category: doc.category || 'General',
+        tags: doc.tags || [],
+        uploadedBy: doc.uploadedBy || 'System',
+        uploadedAt: doc.createdAt,
+        lastModified: doc.updatedAt,
+        status: doc.status || 'ACTIVE',
+        isPublic: doc.isPublic || false,
+        downloadCount: doc.downloadCount || 0,
+        studentId: doc.studentId,
+        universityId: doc.universityId,
+        applicationId: doc.applicationId
+      })) || []
+
+      setDocuments(transformedDocuments)
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Fallback to mock data if API fails
+      setDocuments(mockDocuments)
+    } finally {
+      setLoading(false)
     }
-    setDocuments([document, ...documents])
-    setNewDocument({ name: '', category: '', tags: '', isPublic: false })
-    setIsUploadDialogOpen(false)
+  }
+
+  const handleUploadDocument = async () => {
+    if (!newDocument.name || !newDocument.category) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      // Simulate file upload - in real implementation, this would handle actual file upload
+      const mockFileData = {
+        name: newDocument.name,
+        description: `Uploaded document: ${newDocument.name}`,
+        type: 'IDENTITY',
+        category: newDocument.category,
+        fileName: newDocument.name,
+        filePath: `/documents/${newDocument.name}`,
+        fileSize: 1024000, // 1MB default
+        mimeType: 'application/pdf',
+        isPublic: newDocument.isPublic,
+        tags: newDocument.tags ? newDocument.tags.split(',').map(t => t.trim()) : []
+      }
+
+      const response = await fetch(`/api/${subdomain}/documents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(mockFileData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload document')
+      }
+
+      const document = await response.json()
+      
+      // Transform to match our interface
+      const transformedDocument: Document = {
+        id: document.id,
+        name: document.name,
+        type: 'PDF', // Default type
+        size: document.fileSize,
+        category: document.category,
+        tags: document.tags || [],
+        uploadedBy: 'Current User',
+        uploadedAt: document.createdAt,
+        lastModified: document.updatedAt,
+        status: 'ACTIVE',
+        isPublic: document.isPublic,
+        downloadCount: 0
+      }
+      
+      setDocuments([transformedDocument, ...documents])
+      setNewDocument({ name: '', category: '', tags: '', isPublic: false })
+      setIsUploadDialogOpen(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upload document')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleCreateFolder = () => {
@@ -290,8 +387,24 @@ export default function DocumentsPage() {
     setIsCreateFolderDialogOpen(false)
   }
 
-  const handleDeleteDocument = (id: string) => {
-    setDocuments(documents.filter(doc => doc.id !== id))
+  const handleDeleteDocument = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/${subdomain}/documents/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document')
+      }
+
+      setDocuments(documents.filter(doc => doc.id !== id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete document')
+    }
   }
 
   const getFilteredDocuments = () => {
@@ -341,6 +454,23 @@ export default function DocumentsPage() {
   }
 
   const stats = getStorageStats()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert className="max-w-md m-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -444,7 +574,16 @@ export default function DocumentsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleUploadDocument}>Upload Document</Button>
+                <Button onClick={handleUploadDocument} disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    'Upload Document'
+                  )}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

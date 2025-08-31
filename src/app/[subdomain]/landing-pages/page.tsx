@@ -29,8 +29,7 @@ import {
   Type,
   Image,
   Video,
-  Button as ButtonIcon,
-  Input as InputIcon,
+  Square,
   FileText,
   MapPin,
   Mail,
@@ -274,8 +273,8 @@ export default function LandingPagesPage() {
       </>
     )
       case "video": return <Video className="h-4 w-4" />
-      case "button": return <ButtonIcon className="h-4 w-4" />
-      case "form": return <InputIcon className="h-4 w-4" />
+      case "button": return <Square className="h-4 w-4" />
+      case "form": return <FileText className="h-4 w-4" />
       case "testimonial": return <Star className="h-4 w-4" />
       case "features": return <Grid className="h-4 w-4" />
       case "cta": return <BarChart3 className="h-4 w-4" />

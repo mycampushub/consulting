@@ -252,18 +252,18 @@ function getLanguageValue(entity: any, field: string): any {
   switch (field) {
     case "englishProficiency":
       // This would typically come from test scores like TOEFL/IELTS
-      const testScores = entity.testScores ? JSON.parse(entity.testScores) : {}
-      return testScores.toefl || testScores.ielts || null
+      const scores1 = entity.testScores ? JSON.parse(entity.testScores) : {}
+      return scores1.toefl || scores1.ielts || null
     case "toeflScore":
-      const testScores = entity.testScores ? JSON.parse(entity.testScores) : {}
-      return testScores.toefl || null
+      const scores2 = entity.testScores ? JSON.parse(entity.testScores) : {}
+      return scores2.toefl || null
     case "ieltsScore":
-      const testScores2 = entity.testScores ? JSON.parse(entity.testScores) : {}
-      return testScores2.ielts || null
+      const scores3 = entity.testScores ? JSON.parse(entity.testScores) : {}
+      return scores3.ielts || null
     case "meetsLanguageRequirements":
-      const testScores3 = entity.testScores ? JSON.parse(entity.testScores) : {}
-      const toefl = testScores3.toefl || 0
-      const ielts = testScores3.ielts || 0
+      const scores4 = entity.testScores ? JSON.parse(entity.testScores) : {}
+      const toefl = scores4.toefl || 0
+      const ielts = scores4.ielts || 0
       return toefl >= 80 || ielts >= 6.5 // Example thresholds
     default:
       return entity[field]
