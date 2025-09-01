@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Handle frontend routes with subdomains
+  // Handle frontend routes with subdomains - optimized to prevent double loading
   if (hostname.includes('localhost')) {
     // Extract subdomain from hostname like "testagency.localhost:3000"
     const parts = hostname.split(':')
@@ -72,10 +72,16 @@ export async function middleware(request: NextRequest) {
           return NextResponse.next()
         }
         
-        // Rewrite the URL to the subdomain route
-        const url = request.nextUrl.clone()
-        url.pathname = `/${subdomain}${pathname}`
-        return NextResponse.rewrite(url)
+        // Only rewrite if pathname is root or doesn't start with known routes
+        const knownRoutes = ['api', 'signup', 'admin', 'brand-studio', 'setup', '_next', 'static']
+        const firstPathPart = pathname.split('/')[1]
+        
+        if (!firstPathPart || !knownRoutes.includes(firstPathPart)) {
+          // Rewrite the URL to the subdomain route
+          const url = request.nextUrl.clone()
+          url.pathname = `/${subdomain}${pathname}`
+          return NextResponse.rewrite(url)
+        }
       }
     }
     
@@ -87,18 +93,21 @@ export async function middleware(request: NextRequest) {
         const potentialSubdomain = pathParts[0]
         
         // If it's not a known route, treat it as a subdomain
-        const knownRoutes = ['api', 'signup', 'admin', 'brand-studio', 'setup']
+        const knownRoutes = ['api', 'signup', 'admin', 'brand-studio', 'setup', '_next', 'static']
         if (!knownRoutes.includes(potentialSubdomain) && potentialSubdomain.length > 2) {
-          // Rewrite to subdomain route
-          const url = request.nextUrl.clone()
-          url.pathname = `/${potentialSubdomain}${pathname.substring(potentialSubdomain.length + 1)}`
-          return NextResponse.rewrite(url)
+          // Only rewrite if not already in subdomain format
+          if (!pathname.startsWith(`/${potentialSubdomain}/`)) {
+            // Rewrite to subdomain route
+            const url = request.nextUrl.clone()
+            url.pathname = `/${potentialSubdomain}${pathname.substring(potentialSubdomain.length + 1)}`
+            return NextResponse.rewrite(url)
+          }
         }
       }
     }
   }
 
-  // Add RBAC security headers
+  // Add caching headers for better performance
   const response = NextResponse.next()
   
   // Add security headers
@@ -106,6 +115,11 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  // Add performance headers
+  response.headers.set('Cache-Control', 'no-store, must-revalidate')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Expires', '0')
   
   // Add Content Security Policy for production
   if (process.env.NODE_ENV === 'production') {

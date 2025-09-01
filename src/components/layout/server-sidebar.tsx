@@ -149,12 +149,6 @@ const menuItems = [
     url: "/billing",
     icon: BillingIcon,
     description: "Subscription & billing"
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-    description: "Agency settings"
   }
 ]
 
@@ -162,17 +156,10 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
   const params = useParams()
   const pathname = usePathname()
   const subdomain = params.subdomain as string
-  const [isLoading, setIsLoading] = useState(false)
   const [sidebarState, setSidebarState] = useState<"expanded" | "collapsed">("expanded")
 
   const isActive = (url: string) => {
     return pathname === `/${subdomain}${url}` || pathname.startsWith(`/${subdomain}${url}#`)
-  }
-
-  const handleNavigation = (url: string) => {
-    setIsLoading(true)
-    // Simulate navigation loading state
-    setTimeout(() => setIsLoading(false), 300)
   }
 
   return (
@@ -211,7 +198,6 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
                         <Link 
                           href={`/${subdomain}${item.url}`}
                           className="flex items-center gap-2 flex-1"
-                          onClick={() => handleNavigation(item.url)}
                         >
                           <item.icon className="h-4 w-4" />
                           <span>{item.title}</span>
@@ -249,10 +235,20 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Logout">
-                  <Link href="/logout" className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      // Clear any auth tokens or session data
+                      if (typeof window !== 'undefined') {
+                        localStorage.clear()
+                        sessionStorage.clear()
+                        window.location.href = '/login'
+                      }
+                    }}
+                    className="flex items-center gap-2 w-full"
+                  >
                     <LogOut className="h-4 w-4" />
                     <span>Logout</span>
-                  </Link>
+                  </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -265,30 +261,28 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
               <SidebarTrigger className="mr-4" />
               <div className="flex-1">
                 <h1 className="font-semibold">
-                  {menuItems.find(item => isActive(item.url))?.title || "Dashboard"}
+                  {menuItems.find(item => isActive(item.url))?.title || 
+                   (pathname.includes('/settings') ? 'Settings' : 
+                    pathname.includes('/support') ? 'Help & Support' : 'Dashboard')}
                 </h1>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm">
                   <Bell className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-4 w-4" />
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/${subdomain}/settings`}>
+                    <Settings className="h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </div>
           </header>
 
           <main className="flex-1 overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="p-6">
-                {children}
-              </div>
-            )}
+            <div className="p-6">
+              {children}
+            </div>
           </main>
         </div>
       </div>
