@@ -52,7 +52,8 @@ import {
   File,
   Plug,
   Users as TeamIcon,
-  User
+  User,
+  FileSignature
 } from "lucide-react"
 
 interface ServerSidebarProps {
