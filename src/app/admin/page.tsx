@@ -29,6 +29,8 @@ import {
   Mail,
   Phone,
   MapPin,
+  Percent,
+  Receipt,
   Star,
   Eye,
   Edit,
