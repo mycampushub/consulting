@@ -111,12 +111,6 @@ const menuItems = [
     description: "Marketing campaigns"
   },
   {
-    title: "Analytics",
-    url: "/analytics",
-    icon: BarChart3,
-    description: "Reports and insights"
-  },
-  {
     title: "Communications",
     url: "/communications",
     icon: MessageSquare,
@@ -139,6 +133,12 @@ const menuItems = [
     url: "/workflows",
     icon: Workflow,
     description: "Process automation"
+  },
+  {
+    title: "Analytics",
+    url: "/analytics",
+    icon: BarChart3,
+    description: "Reports and insights"
   },
   {
     title: "Integrations",

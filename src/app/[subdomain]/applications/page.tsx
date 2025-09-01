@@ -104,11 +104,44 @@ export default function ApplicationsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [newApplication, setNewApplication] = useState({
+    // Basic Information
     studentId: '',
     universityId: '',
     program: '',
     intake: '',
-    status: 'DRAFT'
+    status: 'DRAFT',
+    
+    // Academic Details
+    programLevel: '',
+    duration: '',
+    startDate: '',
+    endDate: '',
+    campus: '',
+    
+    // Financial Information
+    tuitionFee: '',
+    currency: 'USD',
+    scholarshipAmount: '',
+    scholarshipDetails: '',
+    paymentStatus: 'PENDING',
+    
+    // Application Details
+    applicationFee: '',
+    applicationFeePaid: false,
+    applicationMethod: 'ONLINE',
+    agentReference: '',
+    
+    // Document Requirements
+    requiredDocuments: [] as string[],
+    uploadedDocuments: [] as string[],
+    missingDocuments: [] as string[],
+    
+    // Additional Information
+    assignedTo: '',
+    priority: 'MEDIUM',
+    notes: '',
+    tags: [] as string[],
+    customFields: {} as Record<string, string>
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -179,12 +212,53 @@ export default function ApplicationsPage() {
     }
 
     try {
+      const applicationData = {
+        // Basic Information
+        studentId: newApplication.studentId,
+        universityId: newApplication.universityId,
+        program: newApplication.program,
+        intake: newApplication.intake,
+        status: newApplication.status,
+        
+        // Academic Details
+        programLevel: newApplication.programLevel || undefined,
+        duration: newApplication.duration || undefined,
+        startDate: newApplication.startDate || undefined,
+        endDate: newApplication.endDate || undefined,
+        campus: newApplication.campus || undefined,
+        
+        // Financial Information
+        tuitionFee: newApplication.tuitionFee ? parseFloat(newApplication.tuitionFee) : undefined,
+        currency: newApplication.currency || undefined,
+        scholarshipAmount: newApplication.scholarshipAmount ? parseFloat(newApplication.scholarshipAmount) : undefined,
+        scholarshipDetails: newApplication.scholarshipDetails || undefined,
+        paymentStatus: newApplication.paymentStatus || undefined,
+        applicationFee: newApplication.applicationFee ? parseFloat(newApplication.applicationFee) : undefined,
+        applicationFeePaid: newApplication.applicationFeePaid,
+        
+        // Application Details
+        applicationMethod: newApplication.applicationMethod || undefined,
+        agentReference: newApplication.agentReference || undefined,
+        
+        // Document Requirements
+        requiredDocuments: newApplication.requiredDocuments,
+        uploadedDocuments: newApplication.uploadedDocuments,
+        missingDocuments: newApplication.missingDocuments,
+        
+        // Additional Information
+        assignedTo: newApplication.assignedTo || undefined,
+        priority: newApplication.priority || undefined,
+        notes: newApplication.notes || undefined,
+        tags: newApplication.tags,
+        customFields: newApplication.customFields
+      }
+
       const response = await fetch(`/api/${subdomain}/applications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newApplication),
+        body: JSON.stringify(applicationData),
       })
 
       if (!response.ok) {
@@ -200,11 +274,44 @@ export default function ApplicationsPage() {
       
       // Reset form and close dialog
       setNewApplication({
+        // Basic Information
         studentId: '',
         universityId: '',
         program: '',
         intake: '',
-        status: 'DRAFT'
+        status: 'DRAFT',
+        
+        // Academic Details
+        programLevel: '',
+        duration: '',
+        startDate: '',
+        endDate: '',
+        campus: '',
+        
+        // Financial Information
+        tuitionFee: '',
+        currency: 'USD',
+        scholarshipAmount: '',
+        scholarshipDetails: '',
+        paymentStatus: 'PENDING',
+        
+        // Application Details
+        applicationFee: '',
+        applicationFeePaid: false,
+        applicationMethod: 'ONLINE',
+        agentReference: '',
+        
+        // Document Requirements
+        requiredDocuments: [],
+        uploadedDocuments: [],
+        missingDocuments: [],
+        
+        // Additional Information
+        assignedTo: '',
+        priority: 'MEDIUM',
+        notes: '',
+        tags: [],
+        customFields: {}
       })
       setIsAddDialogOpen(false)
       setError('')
@@ -299,99 +406,381 @@ export default function ApplicationsPage() {
                 New Application
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Application</DialogTitle>
                 <DialogDescription>
                   Create a new university application for a student
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="student" className="text-right">
-                    Student
-                  </Label>
-                  <Select
-                    value={newApplication.studentId}
-                    onValueChange={(value) => setNewApplication({...newApplication, studentId: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select student" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students.map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.firstName} {student.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="university" className="text-right">
-                    University
-                  </Label>
-                  <Select
-                    value={newApplication.universityId}
-                    onValueChange={(value) => setNewApplication({...newApplication, universityId: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select university" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {universities.map((university) => (
-                        <SelectItem key={university.id} value={university.id}>
-                          {university.name} - {university.country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="program" className="text-right">
-                    Program
-                  </Label>
-                  <Input
-                    id="program"
-                    value={newApplication.program}
-                    onChange={(e) => setNewApplication({...newApplication, program: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="intake" className="text-right">
-                    Intake
-                  </Label>
-                  <Input
-                    id="intake"
-                    value={newApplication.intake}
-                    onChange={(e) => setNewApplication({...newApplication, intake: e.target.value})}
-                    className="col-span-3"
-                    placeholder="e.g., Fall 2024"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
-                    Status
-                  </Label>
-                  <Select
-                    value={newApplication.status}
-                    onValueChange={(value) => setNewApplication({...newApplication, status: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DRAFT">Draft</SelectItem>
-                      <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                      <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                      <SelectItem value="APPROVED">Approved</SelectItem>
-                      <SelectItem value="REJECTED">Rejected</SelectItem>
-                      <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                  <TabsTrigger value="academic">Academic</TabsTrigger>
+                  <TabsTrigger value="financial">Financial</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="additional">Additional</TabsTrigger>
+                </TabsList>
+                
+                {/* Basic Information Tab */}
+                <TabsContent value="basic" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="student">Student *</Label>
+                      <Select
+                        value={newApplication.studentId}
+                        onValueChange={(value) => setNewApplication({...newApplication, studentId: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select student" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {students.map((student) => (
+                            <SelectItem key={student.id} value={student.id}>
+                              {student.firstName} {student.lastName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="university">University *</Label>
+                      <Select
+                        value={newApplication.universityId}
+                        onValueChange={(value) => setNewApplication({...newApplication, universityId: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select university" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {universities.map((university) => (
+                            <SelectItem key={university.id} value={university.id}>
+                              {university.name} - {university.country}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="program">Program *</Label>
+                      <Input
+                        id="program"
+                        value={newApplication.program}
+                        onChange={(e) => setNewApplication({...newApplication, program: e.target.value})}
+                        placeholder="e.g., Computer Science"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="intake">Intake *</Label>
+                      <Input
+                        id="intake"
+                        value={newApplication.intake}
+                        onChange={(e) => setNewApplication({...newApplication, intake: e.target.value})}
+                        placeholder="e.g., Fall 2024"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select
+                        value={newApplication.status}
+                        onValueChange={(value) => setNewApplication({...newApplication, status: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DRAFT">Draft</SelectItem>
+                          <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                          <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                          <SelectItem value="APPROVED">Approved</SelectItem>
+                          <SelectItem value="REJECTED">Rejected</SelectItem>
+                          <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select
+                        value={newApplication.priority}
+                        onValueChange={(value) => setNewApplication({...newApplication, priority: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="LOW">Low</SelectItem>
+                          <SelectItem value="MEDIUM">Medium</SelectItem>
+                          <SelectItem value="HIGH">High</SelectItem>
+                          <SelectItem value="URGENT">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                {/* Academic Details Tab */}
+                <TabsContent value="academic" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="programLevel">Program Level</Label>
+                      <Select
+                        value={newApplication.programLevel}
+                        onValueChange={(value) => setNewApplication({...newApplication, programLevel: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                          <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                          <SelectItem value="phd">PhD</SelectItem>
+                          <SelectItem value="diploma">Diploma</SelectItem>
+                          <SelectItem value="certificate">Certificate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="duration">Duration</Label>
+                      <Input
+                        id="duration"
+                        value={newApplication.duration}
+                        onChange={(e) => setNewApplication({...newApplication, duration: e.target.value})}
+                        placeholder="e.g., 4 years, 2 semesters"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={newApplication.startDate}
+                        onChange={(e) => setNewApplication({...newApplication, startDate: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={newApplication.endDate}
+                        onChange={(e) => setNewApplication({...newApplication, endDate: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="campus">Campus</Label>
+                    <Input
+                      id="campus"
+                      value={newApplication.campus}
+                      onChange={(e) => setNewApplication({...newApplication, campus: e.target.value})}
+                      placeholder="e.g., Main Campus, Downtown Campus"
+                    />
+                  </div>
+                </TabsContent>
+                
+                {/* Financial Information Tab */}
+                <TabsContent value="financial" className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="tuitionFee">Tuition Fee</Label>
+                      <Input
+                        id="tuitionFee"
+                        type="number"
+                        value={newApplication.tuitionFee}
+                        onChange={(e) => setNewApplication({...newApplication, tuitionFee: e.target.value})}
+                        placeholder="25000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select
+                        value={newApplication.currency}
+                        onValueChange={(value) => setNewApplication({...newApplication, currency: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="CAD">CAD</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="AUD">AUD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="applicationFee">Application Fee</Label>
+                      <Input
+                        id="applicationFee"
+                        type="number"
+                        value={newApplication.applicationFee}
+                        onChange={(e) => setNewApplication({...newApplication, applicationFee: e.target.value})}
+                        placeholder="100"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="scholarshipAmount">Scholarship Amount</Label>
+                      <Input
+                        id="scholarshipAmount"
+                        type="number"
+                        value={newApplication.scholarshipAmount}
+                        onChange={(e) => setNewApplication({...newApplication, scholarshipAmount: e.target.value})}
+                        placeholder="5000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="paymentStatus">Payment Status</Label>
+                      <Select
+                        value={newApplication.paymentStatus}
+                        onValueChange={(value) => setNewApplication({...newApplication, paymentStatus: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="PARTIAL">Partial</SelectItem>
+                          <SelectItem value="PAID">Paid</SelectItem>
+                          <SelectItem value="OVERDUE">Overdue</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="applicationFeePaid"
+                        checked={newApplication.applicationFeePaid}
+                        onChange={(e) => setNewApplication({...newApplication, applicationFeePaid: e.target.checked})}
+                        className="rounded border-gray-300"
+                      />
+                      <Label htmlFor="applicationFeePaid">Application Fee Paid</Label>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="scholarshipDetails">Scholarship Details</Label>
+                    <Textarea
+                      id="scholarshipDetails"
+                      value={newApplication.scholarshipDetails}
+                      onChange={(e) => setNewApplication({...newApplication, scholarshipDetails: e.target.value})}
+                      placeholder="Details about scholarship, grants, or financial aid..."
+                      rows={3}
+                    />
+                  </div>
+                </TabsContent>
+                
+                {/* Document Requirements Tab */}
+                <TabsContent value="documents" className="space-y-4">
+                  <div>
+                    <Label htmlFor="requiredDocuments">Required Documents</Label>
+                    <Textarea
+                      id="requiredDocuments"
+                      value={newApplication.requiredDocuments.join(', ')}
+                      onChange={(e) => setNewApplication({...newApplication, requiredDocuments: e.target.value.split(',').map(doc => doc.trim())})}
+                      placeholder="Passport, Transcripts, Letters of Recommendation, Personal Statement, Portfolio"
+                      rows={3}
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">Enter documents separated by commas</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="uploadedDocuments">Uploaded Documents</Label>
+                    <Textarea
+                      id="uploadedDocuments"
+                      value={newApplication.uploadedDocuments.join(', ')}
+                      onChange={(e) => setNewApplication({...newApplication, uploadedDocuments: e.target.value.split(',').map(doc => doc.trim())})}
+                      placeholder="Passport, Transcripts"
+                      rows={3}
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">Enter uploaded documents separated by commas</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="missingDocuments">Missing Documents</Label>
+                    <Textarea
+                      id="missingDocuments"
+                      value={newApplication.missingDocuments.join(', ')}
+                      onChange={(e) => setNewApplication({...newApplication, missingDocuments: e.target.value.split(',').map(doc => doc.trim())})}
+                      placeholder="Letters of Recommendation, Portfolio"
+                      rows={3}
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">Enter missing documents separated by commas</p>
+                  </div>
+                </TabsContent>
+                
+                {/* Additional Information Tab */}
+                <TabsContent value="additional" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="applicationMethod">Application Method</Label>
+                      <Select
+                        value={newApplication.applicationMethod}
+                        onValueChange={(value) => setNewApplication({...newApplication, applicationMethod: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ONLINE">Online</SelectItem>
+                          <SelectItem value="PAPER">Paper</SelectItem>
+                          <SelectItem value="AGENT">Through Agent</SelectItem>
+                          <SelectItem value="DIRECT">Direct</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="agentReference">Agent Reference</Label>
+                      <Input
+                        id="agentReference"
+                        value={newApplication.agentReference}
+                        onChange={(e) => setNewApplication({...newApplication, agentReference: e.target.value})}
+                        placeholder="Agent reference number"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="assignedTo">Assigned To</Label>
+                    <Select
+                      value={newApplication.assignedTo}
+                      onValueChange={(value) => setNewApplication({...newApplication, assignedTo: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Assign to team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user1">Sarah Johnson</SelectItem>
+                        <SelectItem value="user2">Michael Chen</SelectItem>
+                        <SelectItem value="user3">Emma Rodriguez</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="tags">Tags (comma-separated)</Label>
+                    <Input
+                      id="tags"
+                      value={newApplication.tags.join(',')}
+                      onChange={(e) => setNewApplication({...newApplication, tags: e.target.value.split(',').map(tag => tag.trim())})}
+                      placeholder="priority, STEM, scholarship"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={newApplication.notes}
+                      onChange={(e) => setNewApplication({...newApplication, notes: e.target.value})}
+                      placeholder="Additional notes about the application..."
+                      rows={3}
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
               <DialogFooter>
                 <Button onClick={handleAddApplication}>Create Application</Button>
               </DialogFooter>

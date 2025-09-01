@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Plus, 
@@ -133,19 +134,52 @@ export default function StudentsPage() {
   
   // Form state for adding student
   const [newStudent, setNewStudent] = useState({
+    // Personal Information
     firstName: "",
     lastName: "",
     email: "",
     phone: "",
     nationality: "",
     dateOfBirth: "",
+    gender: "",
+    maritalStatus: "",
+    passportNumber: "",
+    passportExpiry: "",
+    
+    // Contact Information
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    
+    // Education Background
     currentEducation: "",
+    institution: "",
+    graduationYear: "",
     gpa: "",
+    gpaScale: "4.0",
+    englishProficiency: "",
+    testScore: "",
+    testName: "",
+    
+    // Study Preferences
     budget: "",
+    budgetCurrency: "USD",
     preferredCountries: [] as string[],
     preferredCourses: [] as string[],
+    studyLevel: "",
+    preferredIntake: "",
+    startDate: "",
+    
+    // Additional Information
     assignedTo: "",
-    notes: ""
+    source: "",
+    notes: "",
+    tags: [] as string[],
+    customFields: {} as Record<string, string>
   })
 
   // Fetch students from API
@@ -228,19 +262,52 @@ export default function StudentsPage() {
     setSubmitting(true)
     try {
       const studentData = {
+        // Personal Information
         firstName: newStudent.firstName,
         lastName: newStudent.lastName,
         email: newStudent.email,
         phone: newStudent.phone || undefined,
         nationality: newStudent.nationality || undefined,
         dateOfBirth: newStudent.dateOfBirth || undefined,
+        gender: newStudent.gender || undefined,
+        maritalStatus: newStudent.maritalStatus || undefined,
+        passportNumber: newStudent.passportNumber || undefined,
+        passportExpiry: newStudent.passportExpiry || undefined,
+        
+        // Contact Information
+        address: newStudent.address || undefined,
+        city: newStudent.city || undefined,
+        state: newStudent.state || undefined,
+        country: newStudent.country || undefined,
+        postalCode: newStudent.postalCode || undefined,
+        emergencyContact: newStudent.emergencyContact || undefined,
+        emergencyPhone: newStudent.emergencyPhone || undefined,
+        
+        // Education Background
         currentEducation: newStudent.currentEducation || undefined,
+        institution: newStudent.institution || undefined,
+        graduationYear: newStudent.graduationYear || undefined,
         gpa: newStudent.gpa ? parseFloat(newStudent.gpa) : undefined,
+        gpaScale: newStudent.gpaScale || undefined,
+        englishProficiency: newStudent.englishProficiency || undefined,
+        testScore: newStudent.testScore || undefined,
+        testName: newStudent.testName || undefined,
+        
+        // Study Preferences
         budget: newStudent.budget ? parseFloat(newStudent.budget) : undefined,
+        budgetCurrency: newStudent.budgetCurrency || undefined,
         preferredCountries: newStudent.preferredCountries,
         preferredCourses: newStudent.preferredCourses,
+        studyLevel: newStudent.studyLevel || undefined,
+        preferredIntake: newStudent.preferredIntake || undefined,
+        startDate: newStudent.startDate || undefined,
+        
+        // Additional Information
         assignedTo: newStudent.assignedTo || undefined,
-        notes: newStudent.notes || undefined
+        source: newStudent.source || undefined,
+        notes: newStudent.notes || undefined,
+        tags: newStudent.tags,
+        customFields: newStudent.customFields
       }
 
       const response = await fetch(`/api/${subdomain}/students`, {
@@ -260,19 +327,52 @@ export default function StudentsPage() {
       setIsAddDialogOpen(false)
       // Reset form
       setNewStudent({
+        // Personal Information
         firstName: "",
         lastName: "",
         email: "",
         phone: "",
         nationality: "",
         dateOfBirth: "",
+        gender: "",
+        maritalStatus: "",
+        passportNumber: "",
+        passportExpiry: "",
+        
+        // Contact Information
+        address: "",
+        city: "",
+        state: "",
+        country: "",
+        postalCode: "",
+        emergencyContact: "",
+        emergencyPhone: "",
+        
+        // Education Background
         currentEducation: "",
+        institution: "",
+        graduationYear: "",
         gpa: "",
+        gpaScale: "4.0",
+        englishProficiency: "",
+        testScore: "",
+        testName: "",
+        
+        // Study Preferences
         budget: "",
+        budgetCurrency: "USD",
         preferredCountries: [],
         preferredCourses: [],
+        studyLevel: "",
+        preferredIntake: "",
+        startDate: "",
+        
+        // Additional Information
         assignedTo: "",
-        notes: ""
+        source: "",
+        notes: "",
+        tags: [],
+        customFields: {}
       })
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to create student')
@@ -463,126 +563,461 @@ export default function StudentsPage() {
                       Create a new student profile and add them to your pipeline
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
+                  <Tabs defaultValue="personal" className="w-full">
+                    <TabsList className="grid w-full grid-cols-5">
+                      <TabsTrigger value="personal">Personal</TabsTrigger>
+                      <TabsTrigger value="contact">Contact</TabsTrigger>
+                      <TabsTrigger value="education">Education</TabsTrigger>
+                      <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                      <TabsTrigger value="additional">Additional</TabsTrigger>
+                    </TabsList>
+                    
+                    {/* Personal Information Tab */}
+                    <TabsContent value="personal" className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="firstName">First Name *</Label>
+                          <Input 
+                            id="firstName" 
+                            placeholder="Enter first name"
+                            value={newStudent.firstName}
+                            onChange={(e) => handleInputChange('firstName', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="lastName">Last Name *</Label>
+                          <Input 
+                            id="lastName" 
+                            placeholder="Enter last name"
+                            value={newStudent.lastName}
+                            onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="email">Email *</Label>
+                          <Input 
+                            id="email" 
+                            type="email" 
+                            placeholder="student@email.com"
+                            value={newStudent.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input 
+                            id="phone" 
+                            placeholder="+1 (555) 123-4567"
+                            value={newStudent.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="nationality">Nationality</Label>
+                          <Input 
+                            id="nationality" 
+                            placeholder="e.g., Canadian"
+                            value={newStudent.nationality}
+                            onChange={(e) => handleInputChange('nationality', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                          <Input 
+                            id="dateOfBirth" 
+                            type="date"
+                            value={newStudent.dateOfBirth}
+                            onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="gender">Gender</Label>
+                          <Select value={newStudent.gender} onValueChange={(value) => handleInputChange('gender', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                              <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="maritalStatus">Marital Status</Label>
+                          <Select value={newStudent.maritalStatus} onValueChange={(value) => handleInputChange('maritalStatus', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="single">Single</SelectItem>
+                              <SelectItem value="married">Married</SelectItem>
+                              <SelectItem value="divorced">Divorced</SelectItem>
+                              <SelectItem value="widowed">Widowed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="passportNumber">Passport Number</Label>
+                          <Input 
+                            id="passportNumber" 
+                            placeholder="Passport number"
+                            value={newStudent.passportNumber}
+                            onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="passportExpiry">Passport Expiry</Label>
+                          <Input 
+                            id="passportExpiry" 
+                            type="date"
+                            value={newStudent.passportExpiry}
+                            onChange={(e) => handleInputChange('passportExpiry', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    {/* Contact Information Tab */}
+                    <TabsContent value="contact" className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="address">Address</Label>
+                          <Input 
+                            id="address" 
+                            placeholder="Street address"
+                            value={newStudent.address}
+                            onChange={(e) => handleInputChange('address', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="city">City</Label>
+                          <Input 
+                            id="city" 
+                            placeholder="City"
+                            value={newStudent.city}
+                            onChange={(e) => handleInputChange('city', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="state">State/Province</Label>
+                          <Input 
+                            id="state" 
+                            placeholder="State or province"
+                            value={newStudent.state}
+                            onChange={(e) => handleInputChange('state', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="country">Country</Label>
+                          <Input 
+                            id="country" 
+                            placeholder="Country"
+                            value={newStudent.country}
+                            onChange={(e) => handleInputChange('country', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="postalCode">Postal Code</Label>
+                          <Input 
+                            id="postalCode" 
+                            placeholder="Postal code"
+                            value={newStudent.postalCode}
+                            onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                          <Input 
+                            id="emergencyContact" 
+                            placeholder="Emergency contact name"
+                            value={newStudent.emergencyContact}
+                            onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="emergencyPhone">Emergency Phone</Label>
+                          <Input 
+                            id="emergencyPhone" 
+                            placeholder="Emergency contact phone"
+                            value={newStudent.emergencyPhone}
+                            onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    {/* Education Background Tab */}
+                    <TabsContent value="education" className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="currentEducation">Current Education</Label>
+                          <Input 
+                            id="currentEducation" 
+                            placeholder="e.g., High School Diploma"
+                            value={newStudent.currentEducation}
+                            onChange={(e) => handleInputChange('currentEducation', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="institution">Institution</Label>
+                          <Input 
+                            id="institution" 
+                            placeholder="School/College name"
+                            value={newStudent.institution}
+                            onChange={(e) => handleInputChange('institution', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="graduationYear">Graduation Year</Label>
+                          <Input 
+                            id="graduationYear" 
+                            type="number"
+                            placeholder="2024"
+                            value={newStudent.graduationYear}
+                            onChange={(e) => handleInputChange('graduationYear', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="gpa">GPA</Label>
+                          <Input 
+                            id="gpa" 
+                            type="number" 
+                            step="0.1" 
+                            min="0" 
+                            max="4"
+                            placeholder="3.8"
+                            value={newStudent.gpa}
+                            onChange={(e) => handleInputChange('gpa', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="gpaScale">GPA Scale</Label>
+                          <Select value={newStudent.gpaScale} onValueChange={(value) => handleInputChange('gpaScale', value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="4.0">4.0 Scale</SelectItem>
+                              <SelectItem value="5.0">5.0 Scale</SelectItem>
+                              <SelectItem value="10.0">10.0 Scale</SelectItem>
+                              <SelectItem value="100">100 Scale</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="englishProficiency">English Proficiency</Label>
+                          <Select value={newStudent.englishProficiency} onValueChange={(value) => handleInputChange('englishProficiency', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="native">Native</SelectItem>
+                              <SelectItem value="fluent">Fluent</SelectItem>
+                              <SelectItem value="advanced">Advanced</SelectItem>
+                              <SelectItem value="intermediate">Intermediate</SelectItem>
+                              <SelectItem value="beginner">Beginner</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="testName">English Test</Label>
+                          <Select value={newStudent.testName} onValueChange={(value) => handleInputChange('testName', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select test" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ielts">IELTS</SelectItem>
+                              <SelectItem value="toefl">TOEFL</SelectItem>
+                              <SelectItem value="pte">PTE</SelectItem>
+                              <SelectItem value="duolingo">Duolingo</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="testScore">Test Score</Label>
+                          <Input 
+                            id="testScore" 
+                            placeholder="e.g., 7.5 for IELTS"
+                            value={newStudent.testScore}
+                            onChange={(e) => handleInputChange('testScore', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    {/* Study Preferences Tab */}
+                    <TabsContent value="preferences" className="space-y-4">
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="budget">Budget</Label>
+                          <Input 
+                            id="budget" 
+                            type="number" 
+                            placeholder="50000"
+                            value={newStudent.budget}
+                            onChange={(e) => handleInputChange('budget', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="budgetCurrency">Currency</Label>
+                          <Select value={newStudent.budgetCurrency} onValueChange={(value) => handleInputChange('budgetCurrency', value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="CAD">CAD</SelectItem>
+                              <SelectItem value="GBP">GBP</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                              <SelectItem value="AUD">AUD</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="studyLevel">Study Level</Label>
+                          <Select value={newStudent.studyLevel} onValueChange={(value) => handleInputChange('studyLevel', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                              <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                              <SelectItem value="phd">PhD</SelectItem>
+                              <SelectItem value="diploma">Diploma</SelectItem>
+                              <SelectItem value="certificate">Certificate</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="preferredIntake">Preferred Intake</Label>
+                          <Select value={newStudent.preferredIntake} onValueChange={(value) => handleInputChange('preferredIntake', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select intake" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fall_2024">Fall 2024</SelectItem>
+                              <SelectItem value="spring_2025">Spring 2025</SelectItem>
+                              <SelectItem value="summer_2025">Summer 2025</SelectItem>
+                              <SelectItem value="fall_2025">Fall 2025</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="startDate">Preferred Start Date</Label>
+                          <Input 
+                            id="startDate" 
+                            type="date"
+                            value={newStudent.startDate}
+                            onChange={(e) => handleInputChange('startDate', e.target.value)}
+                          />
+                        </div>
+                      </div>
                       <div>
-                        <Label htmlFor="firstName">First Name *</Label>
-                        <Input 
-                          id="firstName" 
-                          placeholder="Enter first name"
-                          value={newStudent.firstName}
-                          onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        <Label htmlFor="preferredCountries">Preferred Countries</Label>
+                        <Select value={newStudent.preferredCountries.join(',')} onValueChange={(value) => handleInputChange('preferredCountries', value.split(','))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select countries" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map((country) => (
+                              <SelectItem key={country} value={country}>
+                                {country}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="preferredCourses">Preferred Courses</Label>
+                        <Select value={newStudent.preferredCourses.join(',')} onValueChange={(value) => handleInputChange('preferredCourses', value.split(','))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select courses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {courses.map((course) => (
+                              <SelectItem key={course} value={course}>
+                                {course}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TabsContent>
+                    
+                    {/* Additional Information Tab */}
+                    <TabsContent value="additional" className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="assignedTo">Assigned To</Label>
+                          <Select value={newStudent.assignedTo} onValueChange={(value) => handleInputChange('assignedTo', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select team member" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {users.map((user) => (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {user.name} - {user.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="source">Lead Source</Label>
+                          <Select value={newStudent.source} onValueChange={(value) => handleInputChange('source', value)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="website">Website</SelectItem>
+                              <SelectItem value="social_media">Social Media</SelectItem>
+                              <SelectItem value="referral">Referral</SelectItem>
+                              <SelectItem value="event">Event</SelectItem>
+                              <SelectItem value="advertisement">Advertisement</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="notes">Notes</Label>
+                        <Textarea 
+                          id="notes" 
+                          placeholder="Additional information about the student..."
+                          value={newStudent.notes}
+                          onChange={(e) => handleInputChange('notes', e.target.value)}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="lastName">Last Name *</Label>
+                        <Label htmlFor="tags">Tags (comma-separated)</Label>
                         <Input 
-                          id="lastName" 
-                          placeholder="Enter last name"
-                          value={newStudent.lastName}
-                          onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          id="tags" 
+                          placeholder="e.g., priority, STEM, scholarship"
+                          value={newStudent.tags.join(',')}
+                          onChange={(e) => handleInputChange('tags', e.target.value.split(',').map(tag => tag.trim()))}
                         />
                       </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">Email *</Label>
-                      <Input 
-                        id="email" 
-                        type="email" 
-                        placeholder="student@email.com"
-                        value={newStudent.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input 
-                        id="phone" 
-                        placeholder="+1 (555) 123-4567"
-                        value={newStudent.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="nationality">Nationality</Label>
-                      <Input 
-                        id="nationality" 
-                        placeholder="e.g., Canadian"
-                        value={newStudent.nationality}
-                        onChange={(e) => handleInputChange('nationality', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                      <Input 
-                        id="dateOfBirth" 
-                        type="date"
-                        value={newStudent.dateOfBirth}
-                        onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="currentEducation">Current Education</Label>
-                      <Input 
-                        id="currentEducation" 
-                        placeholder="e.g., High School Diploma"
-                        value={newStudent.currentEducation}
-                        onChange={(e) => handleInputChange('currentEducation', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gpa">GPA</Label>
-                      <Input 
-                        id="gpa" 
-                        type="number" 
-                        step="0.1" 
-                        min="0" 
-                        max="4"
-                        placeholder="3.8"
-                        value={newStudent.gpa}
-                        onChange={(e) => handleInputChange('gpa', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="budget">Budget ($)</Label>
-                      <Input 
-                        id="budget" 
-                        type="number" 
-                        placeholder="50000"
-                        value={newStudent.budget}
-                        onChange={(e) => handleInputChange('budget', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="assignedTo">Assigned To</Label>
-                    <Select value={newStudent.assignedTo} onValueChange={(value) => handleInputChange('assignedTo', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select team member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name} - {user.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea 
-                      id="notes" 
-                      placeholder="Additional information about the student..."
-                      value={newStudent.notes}
-                      onChange={(e) => handleInputChange('notes', e.target.value)}
-                    />
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                       Cancel
@@ -592,7 +1027,6 @@ export default function StudentsPage() {
                       Add Student
                     </Button>
                   </div>
-                </div>
               </DialogContent>
             </Dialog>
           </div>
