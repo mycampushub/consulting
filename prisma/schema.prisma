@@ -121,6 +121,16 @@ model Agency {
   eventAnalytics  EventAnalytics[]
   journeyEvents   JourneyEvent[]
   
+  // Missing relations that need to be added
+  segmentMembers  SegmentMember[]
+  tagAssignments  TagAssignment[]
+  appointmentNotes AppointmentNote[]
+  documentShares  DocumentShare[]
+  pipelines       Pipeline[]
+  pipelineEntries PipelineEntry[]
+  documentActivities DocumentActivity[]
+  branches        Branch[]
+  
   @@map("agencies")
 }
 
@@ -179,6 +189,7 @@ model User {
   taskTimeLogs   TaskTimeLog[]
   taskAttachments TaskAttachment[]
   taskAssignments TaskAssignment[] @relation("task_assignment_assigner")
+  assignedTaskAssignments TaskAssignment[] @relation("task_assignment_user")
   appointmentNotes AppointmentNote[]
   
   // Knowledge Base relations
@@ -311,6 +322,7 @@ model University {
   // Relations
   applications  Application[]
   campuses      Campus[]
+  tasks         Task[]
   
   @@map("universities")
 }
@@ -867,6 +879,8 @@ model Workflow {
   
   // Relations
   marketingCampaigns MarketingCampaign[]
+  tasks           Task[]
+  taskTemplates   TaskTemplate[]
   
   @@map("workflows")
 }
@@ -1588,7 +1602,7 @@ model TaskAssignment {
   
   // Assignment Details
   userId          String
-  user            User     @relation(fields: [userId], references: [id])
+  user            User     @relation("task_assignment_user", fields: [userId], references: [id])
   assignedBy      String
   assigner        User     @relation("task_assignment_assigner", fields: [assignedBy], references: [id])
   
@@ -1621,7 +1635,6 @@ model TaskTemplate {
   
   // Task Content
   title           String
-  description     String?
   estimatedHours  Float?
   
   // Default Values
