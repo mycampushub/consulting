@@ -34,7 +34,9 @@ import {
   Edit,
   Trash2,
   MoreHorizontal,
-  GraduationCap
+  GraduationCap,
+  Zap,
+  GitBranch
 } from "lucide-react"
 
 interface Agency {
@@ -274,9 +276,11 @@ export default function AdminConsole() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="agencies">Agencies</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="accounting">Accounting</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="compliance">Compliance</TabsTrigger>
           </TabsList>
@@ -522,6 +526,248 @@ export default function AdminConsole() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="subscriptions" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Subscription Management
+                  </CardTitle>
+                  <CardDescription>Manage subscription plans, features, and billing</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">4</div>
+                      <div className="text-sm text-muted-foreground">Active Plans</div>
+                    </div>
+                    <div className="text-center p-4 bg-muted rounded-lg">
+                      <div className="text-2xl font-bold">12</div>
+                      <div className="text-sm text-muted-foreground">Total Features</div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/subscriptions'}>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Manage Subscription Plans
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/subscriptions'}>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Configure Features
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/subscriptions'}>
+                      <Users className="h-4 w-4 mr-2" />
+                      View Agency Subscriptions
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/subscriptions'}>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Subscription Analytics
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/branch-features'}>
+                      <GitBranch className="h-4 w-4 mr-2" />
+                      Branch Features
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Revenue Overview
+                  </CardTitle>
+                  <CardDescription>Monthly recurring revenue and growth</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-700">$12.4K</div>
+                      <div className="text-sm text-green-600">MRR</div>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-700">142</div>
+                      <div className="text-sm text-blue-600">Active Subs</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Conversion Rate</span>
+                      <span className="font-medium">3.2%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Churn Rate</span>
+                      <span className="font-medium">2.1%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>ARPA</span>
+                      <span className="font-medium">$87.32</span>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="w-full" onClick={() => window.location.href = '/admin/subscriptions'}>
+                    View Detailed Analytics
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="accounting" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Financial Overview
+                  </CardTitle>
+                  <CardDescription>Key financial metrics across all agencies</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-700">$45.2K</div>
+                      <div className="text-sm text-green-600">Total Revenue</div>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-700">$3.8K</div>
+                      <div className="text-sm text-blue-600">Pending Commissions</div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Outstanding Invoices</span>
+                      <span className="font-medium">$8.3K</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Tax Collected</span>
+                      <span className="font-medium">$4.5K</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Commission Rate</span>
+                      <span className="font-medium">15.2%</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Percent className="h-5 w-5" />
+                    Commission Analytics
+                  </CardTitle>
+                  <CardDescription>University commission performance</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Total Commissions</span>
+                      <span className="font-medium">$12.4K</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Paid Commissions</span>
+                      <span className="font-medium text-green-600">$8.6K</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Pending Commissions</span>
+                      <span className="font-medium text-yellow-600">$3.8K</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Disputed Commissions</span>
+                      <span className="font-medium text-red-600">$0</span>
+                    </div>
+                  </div>
+                  <div className="pt-4">
+                    <Button variant="outline" className="w-full" onClick={() => window.location.href = '/admin/accounting'}>
+                      View Full Accounting Dashboard
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Top Universities
+                  </CardTitle>
+                  <CardDescription>Highest commission generators</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Oxford University</span>
+                      <span className="text-sm font-medium">$2,450</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Cambridge University</span>
+                      <span className="text-sm font-medium">$1,890</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Harvard University</span>
+                      <span className="text-sm font-medium">$1,650</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Invoice Status
+                  </CardTitle>
+                  <CardDescription>Current invoice breakdown</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Paid</span>
+                      <Badge className="bg-green-100 text-green-800">45</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Pending</span>
+                      <Badge className="bg-yellow-100 text-yellow-800">12</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Overdue</span>
+                      <Badge className="bg-red-100 text-red-800">3</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Recent Transactions
+                  </CardTitle>
+                  <CardDescription>Latest payment activities</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Bank Transfer</span>
+                      <span className="text-sm font-medium text-green-600">+$4,950</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Credit Card</span>
+                      <span className="text-sm font-medium text-green-600">+$1,500</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">PayPal</span>
+                      <span className="text-sm font-medium text-yellow-600">Processing</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">

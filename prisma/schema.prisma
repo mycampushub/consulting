@@ -108,6 +108,32 @@ model Agency {
   eventAnalytics  EventAnalytics[]
   journeyEvents   JourneyEvent[]
   
+  // Subscription Management Relations
+  subscription    AgencySubscription?
+  featureAccess   FeatureAccess[]
+  
+  // Enhanced Accounting Relations
+  payments        Payment[]
+  expenseReports  ExpenseReport[]
+  taxReports      TaxReport[]
+  financialReports FinancialReport[]
+  bankAccounts    BankAccount[]
+  paymentMethods  PaymentMethod[]
+  commissions     UniversityCommission[]
+  
+  // RBAC Relations
+  roles           Role[]
+  permissions     Permission[]
+  userPermissions UserPermission[]
+  rolePermissions RolePermission[]
+  userRoles       UserRoleAssignment[]
+  permissionChanges PermissionChange[]
+  accessPolicies  AccessPolicy[]
+  permissionTemplates PermissionTemplate[]
+  agencyTemplates AgencyTemplate[]
+  accessAuditLogs AccessAuditLog[]
+  resourceRestrictions ResourceRestriction[]
+  
   @@map("agencies")
 }
 
@@ -152,6 +178,11 @@ model User {
   emailVerified Boolean   @default(false)
   lastLoginAt   DateTime?
   
+  // Advanced Permissions
+  permissions   UserPermission[]
+  roleAssignments RoleAssignment[]
+  restrictions    UserRestriction[]
+  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -182,6 +213,11 @@ model User {
   
   // Recommendation relations
   recommendationFeedbacks RecommendationFeedback[]
+  
+  // RBAC Relations
+  roleAssignments UserRoleAssignment[]
+  userPermissions UserPermission[]
+  accessAuditLogs AccessAuditLog[]
   
   @@map("users")
 }
@@ -247,6 +283,7 @@ model Student {
   recommendations Recommendation[]
   chatConversations ChatConversation[]
   eventRegistrations EventRegistration[]
+  commissions     UniversityCommission[]
   
   @@map("students")
 }
@@ -287,6 +324,9 @@ model University {
   
   // Relations
   applications  Application[]
+  invoices      Invoice[]
+  transactions  Transaction[]
+  commissions   UniversityCommission[]
   
   @@map("universities")
 }
@@ -322,6 +362,7 @@ model Application {
   tasks           Task[]
   pipelineEntries PipelineEntry[]
   milestoneInstances MilestoneInstance[]
+  commissions     UniversityCommission[]
   
   @@map("applications")
 }
@@ -383,18 +424,34 @@ model Accounting {
   // Financial Settings
   currency        String   @default("USD")
   timezone        String   @default("UTC")
+  fiscalYear      String   @default("CALENDAR") // CALENDAR, FISCAL_APRIL, FISCAL_JULY, CUSTOM
   
   // Revenue Tracking
   totalRevenue    Float    @default(0)
   monthlyRevenue  Float    @default(0)
+  quarterlyRevenue Float  @default(0)
+  yearlyRevenue   Float    @default(0)
+  
+  // Commission Tracking
+  totalCommissions Float   @default(0)
+  pendingCommissions Float  @default(0)
+  paidCommissions Float    @default(0)
   
   // Expense Tracking
   totalExpenses   Float    @default(0)
   monthlyExpenses Float   @default(0)
+  quarterlyExpenses Float @default(0)
+  yearlyExpenses  Float    @default(0)
   
   // Profit/Loss
   netProfit       Float    @default(0)
   profitMargin    Float    @default(0)
+  grossMargin     Float    @default(0)
+  
+  // Tax Management
+  taxRate         Float    @default(0)
+  taxCollected    Float    @default(0)
+  taxPaid         Float    @default(0)
   
   // Accounting Software Integration
   accountingProvider AccountingProvider?
@@ -403,11 +460,21 @@ model Accounting {
   lastSyncAt      DateTime?
   syncStatus      SyncStatus @default(NOT_CONNECTED)
   
-  // Invoices
-  invoices        Invoice[]
+  // Advanced Features
+  autoReconciliation Boolean @default(false)
+  multiCurrency    Boolean  @default(false)
+  enableInventory  Boolean  @default(false)
   
-  // Transactions
+  // Relations
+  invoices        Invoice[]
   transactions    Transaction[]
+  commissions     UniversityCommission[]
+  expenseReports  ExpenseReport[]
+  taxReports      TaxReport[]
+  financialReports FinancialReport[]
+  bankAccounts    BankAccount[]
+  paymentMethods  PaymentMethod[]
+  payments        Payment[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -424,10 +491,19 @@ model Invoice {
   
   // Invoice Details
   invoiceNumber   String   @unique
+  invoiceType     InvoiceType @default(STANDARD)
   studentId       String?
   student         Student? @relation(fields: [studentId], references: [id])
+  universityId    String?
+  university      University? @relation(fields: [universityId], references: [id])
   
-  amount          Float
+  // Financial Details
+  subtotal        Float    @default(0)
+  taxRate         Float    @default(0)
+  taxAmount       Float    @default(0)
+  discountAmount  Float    @default(0)
+  totalAmount     Float
+  
   currency        String   @default("USD")
   status          InvoiceStatus @default(DRAFT)
   
@@ -435,19 +511,30 @@ model Invoice {
   issueDate       DateTime
   dueDate         DateTime
   paidDate        DateTime?
+  cancelledDate   DateTime?
   
   // Items
-  items           String   // JSON array of invoice items
+  items           InvoiceItem[]
   
   // Payment Info
   paymentMethod   String?
   transactionId   String?
+  recurringInvoiceId String?
   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // Advanced Features
+  notes           String?
+  terms           String?
+  customFields    String?  // JSON custom fields
+  tags            String?  // JSON array of tags
   
   // Relations
   transactions    Transaction[]
+  payments        Payment[]
+  reminders       InvoiceReminder[]
+  commissions     UniversityCommission[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   
   @@map("invoices")
 }
@@ -461,8 +548,10 @@ model Transaction {
   
   // Transaction Details
   type            TransactionType
+  category        TransactionCategory?
   amount          Float
   currency        String   @default("USD")
+  exchangeRate    Float    @default(1)
   description     String?
   
   // References
@@ -470,6 +559,8 @@ model Transaction {
   invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   studentId       String?
   student         Student? @relation(fields: [studentId], references: [id])
+  universityId    String?
+  university      University? @relation(fields: [universityId], references: [id])
   
   // Status
   status          TransactionStatus @default(COMPLETED)
@@ -477,6 +568,22 @@ model Transaction {
   // Payment Info
   paymentMethod   String?
   transactionId   String?
+  referenceNumber String?
+  
+  // Accounting
+  accountId       String?
+  categoryId      String?
+  taxId           String?
+  
+  // Advanced Features
+  notes           String?
+  tags            String?  // JSON array of tags
+  customFields    String?  // JSON custom fields
+  reconciled      Boolean  @default(false)
+  reconciledAt    DateTime?
+  
+  // Relations
+  payments        Payment[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -511,6 +618,345 @@ model InvoiceTemplate {
   updatedAt       DateTime @updatedAt
   
   @@map("invoice_templates")
+}
+
+// Enhanced Accounting Models
+
+model UniversityCommission {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // University Details
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  
+  // Commission Structure
+  commissionType  CommissionType @default(PERCENTAGE)
+  commissionRate  Float    @default(0)
+  fixedAmount    Float    @default(0)
+  tieredRates    String?  // JSON array of tiered commission rates
+  
+  // Application Details
+  applicationId   String?
+  application     Application? @relation(fields: [applicationId], references: [id])
+  studentId       String?
+  student         Student? @relation(fields: [studentId], references: [id])
+  
+  // Financial Details
+  invoiceAmount   Float
+  commissionAmount Float
+  currency        String   @default("USD")
+  
+  // Status
+  status          CommissionStatus @default(PENDING)
+  
+  // Payment Info
+  paymentTerm     PaymentTerm @default(NET_30)
+  dueDate         DateTime?
+  paidDate        DateTime?
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  
+  // Advanced Features
+  notes           String?
+  terms           String?
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("university_commissions")
+}
+
+model InvoiceItem {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  // Item Details
+  description     String
+  quantity        Float    @default(1)
+  unitPrice       Float
+  discountRate    Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxRate         Float    @default(0)
+  taxAmount       Float    @default(0)
+  totalAmount     Float
+  
+  // Categorization
+  category        String?
+  serviceType     String?
+  
+  // Advanced Features
+  notes           String?
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("invoice_items")
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Payment Details
+  invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  transactionId   String?
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  
+  amount          Float
+  currency        String   @default("USD")
+  paymentMethod   PaymentMethodType
+  status          PaymentStatus @default(PENDING)
+  
+  // Payment Info
+  referenceNumber String?
+  description     String?
+  
+  // Dates
+  paymentDate     DateTime
+  processedAt     DateTime?
+  
+  // Advanced Features
+  notes           String?
+  customFields    String?  // JSON custom fields
+  reconciliationId String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("payments")
+}
+
+model InvoiceReminder {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  // Reminder Details
+  reminderType    ReminderType
+  daysBefore      Int
+  message         String?
+  
+  // Status
+  status          ReminderStatus @default(PENDING)
+  sentAt          DateTime?
+  
+  // Advanced Features
+  customMessage   String?
+  emailTemplate   String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("invoice_reminders")
+}
+
+model ExpenseReport {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Report Details
+  title           String
+  description     String?
+  reportPeriod    String   // JSON date range
+  totalAmount     Float
+  currency        String   @default("USD")
+  status          ExpenseReportStatus @default(DRAFT)
+  
+  // Submission
+  submittedBy     String?  // User ID
+  submittedAt     DateTime?
+  approvedBy      String?  // User ID
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  
+  // Advanced Features
+  attachments     String?  // JSON array of attachment URLs
+  notes           String?
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("expense_reports")
+}
+
+model TaxReport {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Report Details
+  taxYear         Int
+  taxQuarter     Int?
+  taxType         TaxType
+  totalIncome     Float
+  totalExpenses   Float
+  taxableIncome  Float
+  taxAmount      Float
+  currency        String   @default("USD")
+  status          TaxReportStatus @default(DRAFT)
+  
+  // Filing
+  filedAt         DateTime?
+  filedBy         String?  // User ID
+  filingReference String?
+  
+  // Advanced Features
+  attachments     String?  // JSON array of attachment URLs
+  notes           String?
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("tax_reports")
+}
+
+model FinancialReport {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Report Details
+  reportType      FinancialReportType
+  title           String
+  description     String?
+  reportPeriod    String   // JSON date range
+  currency        String   @default("USD")
+  status          FinancialReportStatus @default(DRAFT)
+  
+  // Data
+  reportData      String   // JSON report data
+  charts          String?  // JSON chart configurations
+  
+  // Generation
+  generatedAt     DateTime?
+  generatedBy     String?  // User ID
+  
+  // Advanced Features
+  templateId      String?
+  isScheduled     Boolean  @default(false)
+  scheduleConfig  String?  // JSON schedule configuration
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("financial_reports")
+}
+
+model BankAccount {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Account Details
+  accountName     String
+  accountNumber   String
+  bankName        String
+  bankBranch      String?
+  accountType     AccountType @default(CHECKING)
+  currency        String   @default("USD")
+  
+  // Status
+  status          BankAccountStatus @default(ACTIVE)
+  isDefault       Boolean  @default(false)
+  
+  // Balance
+  currentBalance  Float    @default(0)
+  availableBalance Float   @default(0)
+  lastUpdated     DateTime?
+  
+  // Integration
+  plaidAccountId  String?
+  isSynced        Boolean  @default(false)
+  lastSyncAt      DateTime?
+  
+  // Advanced Features
+  notes           String?
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("bank_accounts")
+}
+
+model PaymentMethod {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  accountingId    String
+  accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
+  
+  // Method Details
+  name            String
+  type            PaymentMethodCategory
+  description     String?
+  
+  // Configuration
+  config          String?  // JSON configuration
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)
+  
+  // Integration
+  provider        String?
+  providerId      String?
+  
+  // Advanced Features
+  fees            PaymentFee[]
+  customFields    String?  // JSON custom fields
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("payment_methods")
+}
+
+model PaymentFee {
+  id              String   @id @default(cuid())
+  paymentMethodId String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
+  
+  // Fee Details
+  name            String
+  type            FeeType
+  amount          Float
+  currency        String   @default("USD")
+  
+  // Configuration
+  isPercentage    Boolean  @default(false)
+  minAmount       Float?
+  maxAmount       Float?
+  
+  // Conditions
+  conditions      String?  // JSON conditions for applying fee
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("payment_fees")
 }
 
 // Marketing Automation Module
@@ -2992,6 +3438,1554 @@ model Branch {
   students        Student[]
   applications    Application[]
   documents       Document[]
+  featureAccess   FeatureAccess[]
+  userRoleAssignments UserRoleAssignment[]
+  roles           Role[]
+  userPermissions UserPermission[]
+  rolePermissions RolePermission[]
+  userRestrictions UserRestriction[]
+  roleRestrictions RoleRestriction[]
+  resourceRestrictions ResourceRestriction[]
   
   @@map("branches")
+}
+
+// Subscription Management System
+
+model SubscriptionPlan {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  slug            String   @unique
+  status          PlanStatus @default(ACTIVE)
+  
+  // Pricing
+  basePrice       Float    @default(0)
+  currency        String   @default("USD")
+  billingCycle    BillingCycle @default(MONTHLY)
+  trialDays       Int      @default(0)
+  
+  // Capacity Limits
+  maxUsers        Int      @default(1)
+  maxStudents     Int      @default(0)
+  maxStorage      Int      @default(1000) // in MB
+  maxBranches     Int      @default(1)
+  
+  // Features
+  features        PlanFeature[]
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  sortOrder       Int      @default(0)
+  isPopular       Boolean  @default(false)
+  isVisible       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  subscriptions   AgencySubscription[]
+  
+  @@map("subscription_plans")
+}
+
+model SubscriptionFeature {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  slug            String   @unique
+  category        FeatureCategory
+  type            FeatureType
+  
+  // Configuration
+  config          String?  // JSON configuration for the feature
+  defaultValue    String?  // JSON default value
+  isToggleable    Boolean  @default(true)
+  
+  // Dependencies
+  dependencies    String?  // JSON array of feature slugs this depends on
+  
+  // Metadata
+  metadata        String?  // JSON additional metadata
+  sortOrder       Int      @default(0)
+  isVisible       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  planFeatures    PlanFeature[]
+  featureAccess   FeatureAccess[]
+  usage           SubscriptionUsage[]
+  featurePermissions FeaturePermission[]
+  
+  @@map("subscription_features")
+}
+
+model PlanFeature {
+  id              String   @id @default(cuid())
+  planId          String
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureId       String
+  feature         SubscriptionFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  
+  // Configuration
+  isEnabled       Boolean  @default(true)
+  config          String?  // JSON override configuration
+  limits          String?  // JSON usage limits
+  
+  // Metadata
+  metadata        String?  // JSON additional metadata
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([planId, featureId])
+  @@map("plan_features")
+}
+
+model AgencySubscription {
+  id              String   @id @default(cuid())
+  agencyId        String   @unique
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id])
+  
+  // Status
+  status          SubscriptionStatus @default(ACTIVE)
+  
+  // Billing
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialStart      DateTime?
+  trialEnd        DateTime?
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelReason    String?
+  
+  // Usage
+  usage           SubscriptionUsage[]
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  history         SubscriptionHistory[]
+  billing         SubscriptionBilling[]
+  
+  @@map("agency_subscriptions")
+}
+
+model SubscriptionUsage {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  subscription    AgencySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  featureId       String
+  feature         SubscriptionFeature @relation(fields: [featureId], references: [id])
+  
+  // Usage Metrics
+  currentUsage    Int      @default(0)
+  limit           Int?
+  resetPeriod     UsageResetPeriod @default(MONTHLY)
+  lastResetAt     DateTime?
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([subscriptionId, featureId])
+  @@map("subscription_usage")
+}
+
+model FeatureAccess {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  featureId       String
+  feature         SubscriptionFeature @relation(fields: [featureId], references: [id])
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  
+  // Access Control
+  isEnabled       Boolean  @default(true)
+  accessLevel     AccessLevel @default(ADMIN)
+  config          String?  // JSON override configuration
+  limits          String?  // JSON usage limits for this branch
+  
+  // Metadata
+  metadata        String?  // JSON additional metadata
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([agencyId, featureId, branchId])
+  @@map("feature_access")
+}
+
+model SubscriptionBilling {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  subscription    AgencySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  // Invoice Details
+  invoiceId       String?
+  amount          Float
+  currency        String   @default("USD")
+  status          BillingStatus @default(PENDING)
+  
+  // Period
+  periodStart     DateTime
+  periodEnd       DateTime
+  
+  // Payment
+  paymentMethod   String?
+  transactionId   String?
+  paidAt          DateTime?
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("subscription_billing")
+}
+
+model SubscriptionHistory {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  subscription    AgencySubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  // Change Details
+  changeType      SubscriptionChangeType
+  fromPlanId      String?
+  toPlanId        String?
+  fromStatus      SubscriptionStatus?
+  toStatus        SubscriptionStatus?
+  
+  // Reason
+  reason          String?
+  changedBy       String? // User ID
+  changedByType   ChangedByType @default(SYSTEM)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("subscription_history")
+}
+
+// Enums for Subscription Management
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  LIFETIME
+}
+
+enum FeatureCategory {
+  CORE
+  CRM
+  MARKETING
+  ACCOUNTING
+  COMMUNICATIONS
+  ANALYTICS
+  AUTOMATION
+  INTEGRATIONS
+  ENTERPRISE
+  CUSTOM
+}
+
+enum FeatureType {
+  BOOLEAN
+  NUMBER
+  STRING
+  JSON
+  TOGGLE
+  LIMIT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PENDING
+  TRIAL
+  SUSPENDED
+}
+
+enum UsageResetPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  NEVER
+}
+
+enum BillingStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum SubscriptionChangeType {
+  PLAN_CHANGE
+  STATUS_CHANGE
+  UPGRADE
+  DOWNGRADE
+  CANCELLATION
+  REACTIVATION
+  TRIAL_START
+  TRIAL_END
+}
+
+// Advanced Role-Based Access Control (RBAC) System
+
+model Role {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Role Details
+  name            String
+  description     String?
+  slug            String
+  level           Int      @default(0) // Higher number = higher privilege
+  isSystemRole    Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Hierarchy
+  parentId        String?
+  parent          Role?    @relation("role_hierarchy", fields: [parentId], references: [id])
+  children        Role[]   @relation("role_hierarchy")
+  
+  // Metadata
+  color           String?
+  icon            String?
+  customFields    String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  users           UserRoleAssignment[]
+  permissions     RolePermission[]
+  
+  @@unique([agencyId, slug])
+  @@map("roles")
+}
+
+model Permission {
+  id              String   @id @default(cuid())
+  
+  // Permission Details
+  name            String
+  slug            String   @unique
+  description     String?
+  category        PermissionCategory
+  resource        String   // e.g., "students", "invoices", "commissions"
+  action          String   // e.g., "create", "read", "update", "delete"
+  
+  // Configuration
+  isSystemPermission Boolean @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Dependencies
+  dependencies    String?  // JSON array of permission slugs this depends on
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+  featureAccess   FeaturePermission[]
+  
+  @@map("permissions")
+}
+
+model RolePermission {
+  id              String   @id @default(cuid())
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     RBACAccessLevel @default(FULL)
+  conditions      String?  // JSON conditions for this permission
+  restrictions    String?  // JSON restrictions (time, IP, etc.)
+  
+  // Status
+  isGranted       Boolean  @default(true)
+  expiresAt       DateTime?
+  
+  // Metadata
+  grantedBy       String?  // User ID who granted this permission
+  grantedAt       DateTime @default(now())
+  notes           String?
+  
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     RBACAccessLevel @default(FULL)
+  conditions      String?  // JSON conditions for this permission
+  restrictions    String?  // JSON restrictions (time, IP, etc.)
+  
+  // Status
+  isGranted       Boolean  @default(true)
+  expiresAt       DateTime?
+  
+  // Metadata
+  grantedBy       String?  // User ID who granted this permission
+  grantedAt       DateTime @default(now())
+  notes           String?
+  
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model UserRoleAssignment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  
+  // Assignment Details
+  isPrimary       Boolean  @default(false)
+  assignedBy       String?  // User ID who assigned this role
+  assignedAt       DateTime @default(now())
+  expiresAt       DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  customFields    String?  // JSON additional configuration
+  notes           String?
+  
+  @@unique([userId, roleId, branchId])
+  @@map("user_role_assignments")
+}
+
+model FeaturePermission {
+  id              String   @id @default(cuid())
+  featureId       String
+  feature         SubscriptionFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     RBACAccessLevel @default(FULL)
+  conditions      String?  // JSON conditions for this feature access
+  restrictions    String?  // JSON restrictions
+  
+  // Status
+  isGranted       Boolean  @default(true)
+  expiresAt       DateTime?
+  
+  // Metadata
+  grantedBy       String?  // User ID who granted this permission
+  grantedAt       DateTime @default(now())
+  notes           String?
+  
+  @@unique([featureId, permissionId])
+  @@map("feature_permissions")
+}
+
+model AccessPolicy {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Policy Details
+  name            String
+  description     String?
+  type            PolicyType
+  resource        String
+  action          String
+  
+  // Conditions
+  conditions      String?  // JSON conditions for policy evaluation
+  effect          PolicyEffect @default(ALLOW)
+  
+  // Priority
+  priority        Int      @default(0)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Time-based Restrictions
+  validFrom       DateTime?
+  validTo         DateTime?
+  
+  // Location/Device Restrictions
+  allowedIPs      String?  // JSON array of allowed IP addresses
+  allowedDevices  String?  // JSON array of allowed device IDs
+  allowedLocations String? // JSON array of allowed locations
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  policyAssignments AccessPolicyAssignment[]
+  
+  @@map("access_policies")
+}
+
+model AccessPolicyAssignment {
+  id              String   @id @default(cuid())
+  policyId        String
+  policy          AccessPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  
+  // Assignment Target
+  targetType      PolicyTargetType
+  targetId        String
+  
+  // Assignment Details
+  assignedBy       String?  // User ID who assigned this policy
+  assignedAt       DateTime @default(now())
+  expiresAt       DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Override Settings
+  overrideEffect  PolicyEffect?
+  conditions      String?  // JSON override conditions
+  
+  @@map("access_policy_assignments")
+}
+
+model AccessAuditLog {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // User Information
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  roleId          String?
+  role            Role?    @relation(fields: [roleId], references: [id])
+  
+  // Access Details
+  resource        String
+  action          String
+  resourceId      String?
+  accessLevel     RBACAccessLevel?
+  
+  // Request Details
+  ipAddress       String?
+  userAgent       String?
+  device          String?
+  location        String?
+  
+  // Authorization Result
+  isAuthorized    Boolean
+  decision        String?  // Reason for authorization decision
+  policyEvaluated String?  // JSON evaluated policies
+  
+  // Context
+  context         String?  // JSON additional context data
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("access_audit_logs")
+}
+
+// RBAC Enums
+
+enum PermissionCategory {
+  USERS
+  STUDENTS
+  UNIVERSITIES
+  APPLICATIONS
+  INVOICES
+  COMMISSIONS
+  PAYMENTS
+  REPORTS
+  ACCOUNTING
+  MARKETING
+  COMMUNICATIONS
+  WORKFLOWS
+  DOCUMENTS
+  EVENTS
+  ANALYTICS
+  SETTINGS
+  ADMIN
+  CUSTOM
+}
+
+enum RBACAccessLevel {
+  NONE        // No access
+  VIEW        // Read-only access
+  EDIT        // Edit access (create, update)
+  DELETE      // Delete access
+  FULL        // Full access (create, read, update, delete)
+  CUSTOM      // Custom access level with specific conditions
+}
+
+enum PolicyType {
+  ROLE_BASED
+  ATTRIBUTE_BASED
+  TIME_BASED
+  LOCATION_BASED
+  DEVICE_BASED
+  CUSTOM
+}
+
+enum PolicyEffect {
+  ALLOW
+  DENY
+}
+
+enum PolicyTargetType {
+  USER
+  ROLE
+  BRANCH
+  DEPARTMENT
+  CUSTOM
+}
+
+enum ChangedByType {
+  SYSTEM
+  ADMIN
+  USER
+  AUTOMATED
+}
+
+// Enhanced Accounting Enums
+
+enum InvoiceType {
+  STANDARD
+  RECURRING
+  CREDIT_NOTE
+  DEBIT_NOTE
+  PROFORMA
+  ESTIMATE
+  PURCHASE_ORDER
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+  TIERED
+  HYBRID
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+  DISPUTED
+}
+
+enum PaymentTerm {
+  NET_7
+  NET_15
+  NET_30
+  NET_60
+  NET_90
+  COD
+  PREPAID
+}
+
+enum TransactionCategory {
+  SERVICE_FEE
+  TUITION_FEE
+  COMMISSION
+  REFUND
+  DISCOUNT
+  TAX
+  LATE_FEE
+  OTHER
+}
+
+enum PaymentMethodType {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  STRIPE
+  CHECK
+  WIRE_TRANSFER
+  CRYPTOCURRENCY
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum ReminderType {
+  DUE_DATE
+  OVERDUE
+  PAYMENT_RECEIVED
+  CANCELLATION
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum ExpenseReportStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum TaxType {
+  INCOME_TAX
+  SALES_TAX
+  VAT
+  GST
+  PAYROLL_TAX
+  OTHER
+}
+
+enum TaxReportStatus {
+  DRAFT
+  SUBMITTED
+  FILED
+  APPROVED
+  REJECTED
+  AMENDED
+}
+
+enum FinancialReportType {
+  PROFIT_LOSS
+  BALANCE_SHEET
+  CASH_FLOW
+  TRIAL_BALANCE
+  AGED_RECEIVABLES
+  AGED_PAYABLES
+  COMMISSION_REPORT
+  CUSTOM
+}
+
+enum FinancialReportStatus {
+  DRAFT
+  GENERATING
+  COMPLETED
+  FAILED
+  ARCHIVED
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  MONEY_MARKET
+  CREDIT_CARD
+  LOAN
+  INVESTMENT
+  OTHER
+}
+
+enum BankAccountStatus {
+  ACTIVE
+  INACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum PaymentMethodCategory {
+  MANUAL
+  AUTOMATIC
+  INTEGRATED
+  THIRD_PARTY
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+  TIERED
+  HYBRID
+}
+
+// Advanced Role-Based Access Control (RBAC) Models
+
+model Permission {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  description     String?
+  slug            String   @unique
+  category        PermissionCategory
+  resource        String
+  action          PermissionAction
+  
+  // Hierarchy
+  parentId        String?
+  parent          Permission? @relation("permission_children", fields: [parentId], references: [id])
+  children        Permission[] @relation("permission_children")
+  
+  // Configuration
+  conditions      String?  // JSON conditions for permission
+  isSystem        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+  
+  @@map("permissions")
+}
+
+model Role {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  slug            String   @unique
+  category        RoleCategory
+  level           RoleLevel
+  
+  // Permissions
+  permissions     RolePermission[]
+  
+  // Hierarchy
+  parentId        String?
+  parent          Role? @relation("role_children", fields: [parentId], references: [id])
+  children        Role[] @relation("role_children")
+  
+  // Configuration
+  isSystem        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  isCustom        Boolean  @default(false)
+  
+  // Scope
+  scope           RoleScope @default(GLOBAL)
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Metadata
+  metadata        String?  // JSON role configuration
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  userRoles       UserRoleAssignment[]
+  
+  @@unique([slug, agencyId, branchId])
+  @@map("roles")
+}
+
+model UserPermission {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     AccessLevel @default(FULL)
+  restrictions    String?  // JSON restrictions
+  conditions      String?  // JSON conditions
+  
+  // Scope
+  scope           PermissionScope @default(GLOBAL)
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Time-based
+  expiresAt       DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, permissionId, agencyId, branchId])
+  @@map("user_permissions")
+}
+
+model RolePermission {
+  id              String   @id @default(cuid())
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     AccessLevel @default(FULL)
+  restrictions    String?  // JSON restrictions
+  conditions      String?  // JSON conditions
+  
+  // Scope
+  scope           PermissionScope @default(GLOBAL)
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([roleId, permissionId, agencyId, branchId])
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  // Assignment Details
+  assignedBy      String?  // User ID who assigned the role
+  assignedAt      DateTime @default(now())
+  expiresAt       DateTime?
+  
+  // Scope
+  scope           RoleScope @default(GLOBAL)
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, roleId, agencyId, branchId])
+  @@map("user_role_assignments")
+}
+
+model PermissionChange {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Change Details
+  changeType      PermissionChangeType
+  targetType      PermissionTargetType
+  targetId        String
+  action          PermissionAction
+  
+  // Before/After State
+  beforeState     String?  // JSON state before change
+  afterState      String?  // JSON state after change
+  
+  // Context
+  changedBy       String?  // User ID who made the change
+  changedByType   ChangedByType @default(SYSTEM)
+  reason          String?
+  
+  // Scope
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("permission_changes")
+}
+
+model AccessAuditLog {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Access Details
+  resource        String
+  action          PermissionAction
+  accessLevel     AccessLevel
+  granted        Boolean
+  
+  // Context
+  ipAddress       String?
+  userAgent       String?
+  deviceId        String?
+  
+  // Result
+  result          AccessResult @default(ALLOWED)
+  reason          String?
+  
+  // Scope
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("access_audit_logs")
+}
+
+model ResourceRestriction {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  resource        String
+  restrictionType RestrictionType
+  conditions      String   // JSON conditions
+  
+  // Scope
+  scope           RestrictionScope @default(GLOBAL)
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Configuration
+  isActive        Boolean  @default(true)
+  priority        Int      @default(0)
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  userRestrictions UserRestriction[]
+  roleRestrictions RoleRestriction[]
+  
+  @@map("resource_restrictions")
+}
+
+model UserRestriction {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restrictionId   String
+  restriction    ResourceRestriction @relation(fields: [restrictionId], references: [id], onDelete: Cascade)
+  
+  // Override Values
+  conditions      String?  // JSON override conditions
+  exceptions      String?  // JSON exceptions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Scope
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, restrictionId, agencyId, branchId])
+  @@map("user_restrictions")
+}
+
+model RoleRestriction {
+  id              String   @id @default(cuid())
+  roleId          String
+  role            Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  restrictionId   String
+  restriction    ResourceRestriction @relation(fields: [restrictionId], references: [id], onDelete: Cascade)
+  
+  // Override Values
+  conditions      String?  // JSON override conditions
+  exceptions      String?  // JSON exceptions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Scope
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
+  
+  // Metadata
+  metadata        String?  // JSON additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([roleId, restrictionId, agencyId, branchId])
+  @@map("role_restrictions")
+}
+
+// Enhanced RBAC Enums
+
+enum PermissionCategory {
+  CORE
+  CRM
+  MARKETING
+  ACCOUNTING
+  COMMUNICATIONS
+  ANALYTICS
+  AUTOMATION
+  INTEGRATIONS
+  ENTERPRISE
+  ADMIN
+  SECURITY
+  REPORTING
+  SETTINGS
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  EXECUTE
+  APPROVE
+  REJECT
+  EXPORT
+  IMPORT
+  SHARE
+  VIEW_ONLY
+  MANAGE
+  CONFIGURE
+}
+
+enum RoleCategory {
+  SYSTEM
+  AGENCY
+  BRANCH
+  DEPARTMENT
+  CUSTOM
+}
+
+enum RoleLevel {
+  SUPER_ADMIN
+  AGENCY_ADMIN
+  BRANCH_MANAGER
+  DEPARTMENT_HEAD
+  SENIOR_CONSULTANT
+  CONSULTANT
+  JUNIOR_CONSULTANT
+  SUPPORT_STAFF
+  INTERN
+  CUSTOM
+}
+
+enum RoleScope {
+  GLOBAL
+  AGENCY
+  BRANCH
+  DEPARTMENT
+  TEAM
+  INDIVIDUAL
+}
+
+enum PermissionScope {
+  GLOBAL
+  AGENCY
+  BRANCH
+  DEPARTMENT
+  RESOURCE_SPECIFIC
+}
+
+enum PermissionChangeType {
+  GRANTED
+  REVOKED
+  MODIFIED
+  EXPIRED
+  ASSIGNED
+  UNASSIGNED
+  RESTRICTION_ADDED
+  RESTRICTION_REMOVED
+}
+
+enum PermissionTargetType {
+  USER
+  ROLE
+  PERMISSION
+  RESTRICTION
+  RESOURCE
+}
+
+enum AccessResult {
+  ALLOWED
+  DENIED
+  RESTRICTED
+  EXPIRED
+  PENDING_APPROVAL
+}
+
+enum RestrictionType {
+  FIELD_BASED
+  RECORD_BASED
+  TIME_BASED
+  LOCATION_BASED
+  DATA_BASED
+  QUOTA_BASED
+  IP_BASED
+  DEVICE_BASED
+}
+
+enum RestrictionScope {
+  GLOBAL
+  AGENCY
+  BRANCH
+  DEPARTMENT
+  USER_SPECIFIC
+  ROLE_SPECIFIC
+}
+
+// Enhanced Permission Models
+
+model ResourceRestriction {
+  id              String   @id @default(cuid())
+  
+  // Restriction Details
+  name            String
+  description     String?
+  type            RestrictionType
+  scope           RestrictionScope @default(GLOBAL)
+  resource        String   // e.g., "students", "invoices", "commissions"
+  
+  // Configuration
+  conditions      String?  // JSON conditions for restriction
+  restrictions    String?  // JSON restriction rules
+  exceptions      String?  // JSON exceptions to restrictions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  isSystem        Boolean  @default(false)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  userRestrictions UserRestriction[]
+  roleRestrictions RoleRestriction[]
+  
+  @@map("resource_restrictions")
+}
+
+model PermissionTemplate {
+  id              String   @id @default(cuid())
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Template Details
+  name            String
+  description     String?
+  category        TemplateCategory @default(CUSTOM)
+  
+  // Template Content
+  permissions     PermissionTemplatePermission[]
+  roles           RoleTemplate[]
+  restrictions    RestrictionTemplate[]
+  
+  // Configuration
+  isSystem        Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  agencyTemplates AgencyTemplate[]
+  
+  @@map("permission_templates")
+}
+
+model PermissionTemplatePermission {
+  id              String   @id @default(cuid())
+  templateId      String
+  template        PermissionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     RBACAccessLevel @default(FULL)
+  conditions      String?  // JSON conditions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([templateId, permissionId])
+  @@map("permission_template_permissions")
+}
+
+model RoleTemplate {
+  id              String   @id @default(cuid())
+  templateId      String
+  template        PermissionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  // Role Details
+  name            String
+  description     String?
+  level           Int      @default(0)
+  
+  // Role Permissions
+  permissions     RoleTemplatePermission[]
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("role_templates")
+}
+
+model RoleTemplatePermission {
+  id              String   @id @default(cuid())
+  roleTemplateId   String
+  roleTemplate    RoleTemplate @relation(fields: [roleTemplateId], references: [id], onDelete: Cascade)
+  permissionId    String
+  permission      Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  // Access Control
+  accessLevel     RBACAccessLevel @default(FULL)
+  conditions      String?  // JSON conditions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([roleTemplateId, permissionId])
+  @@map("role_template_permissions")
+}
+
+model RestrictionTemplate {
+  id              String   @id @default(cuid())
+  templateId      String
+  template        PermissionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  // Restriction Details
+  name            String
+  description     String?
+  type            RestrictionType
+  scope           RestrictionScope @default(GLOBAL)
+  resource        String
+  
+  // Configuration
+  conditions      String?  // JSON conditions
+  restrictions    String?  // JSON restriction rules
+  exceptions      String?  // JSON exceptions
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  metadata        String?  // JSON additional configuration
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("restriction_templates")
+}
+
+model AgencyTemplate {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  templateId      String
+  template        PermissionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  // Assignment Details
+  assignedBy      String?  // User ID
+  assignedAt      DateTime @default(now())
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  // Metadata
+  customFields    String?  // JSON customizations
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([agencyId, templateId])
+  @@map("agency_templates")
+}
+
+model AccessAuditLog {
+  id              String   @id @default(cuid())
+  
+  // User Information
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id])
+  
+  // Access Details
+  resource        String   // e.g., "students", "invoices", "commissions"
+  action          String   // e.g., "create", "read", "update", "delete"
+  resourceId      String?  // ID of the resource being accessed
+  accessLevel     RBACAccessLevel?
+  
+  // Request Details
+  method          String?  // HTTP method
+  endpoint        String?  // API endpoint
+  ipAddress       String?
+  userAgent       String?
+  
+  // Access Result
+  result          AccessResult
+  reason          String?  // Reason for denial if access was denied
+  duration        Int?     // Request duration in milliseconds
+  
+  // Context
+  context         String?  // JSON additional context
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("access_audit_logs")
+}
+
+model PermissionChange {
+  id              String   @id @default(cuid())
+  
+  // Change Details
+  changeType      PermissionChangeType
+  targetType      PermissionTargetType
+  targetId        String
+  
+  // Old and New Values
+  oldValues       String?  // JSON old values
+  newValues       String?  // JSON new values
+  
+  // User Information
+  changedBy       String?  // User ID who made the change
+  changedByType   ChangedByType @default(USER)
+  
+  // Approval
+  approvedBy      String?  // User ID who approved the change
+  approvedAt      DateTime?
+  
+  // Status
+  status          ChangeStatus @default(PENDING)
+  
+  // Context
+  agencyId        String?
+  agency          Agency?   @relation(fields: [agencyId], references: [id])
+  
+  // Metadata
+  reason          String?
+  metadata        String?  // JSON additional context
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("permission_changes")
+}
+
+// Additional Enums for Enhanced Permission System
+
+enum TemplateCategory {
+  SYSTEM
+  INDUSTRY_SPECIFIC
+  ROLE_SPECIFIC
+  DEPARTMENT_SPECIFIC
+  CUSTOM
+}
+
+enum ChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
 }
