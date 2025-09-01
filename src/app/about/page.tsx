@@ -1,119 +1,7 @@
-"use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { 
-  Users, 
-  Globe, 
-  Target, 
-  Award, 
-  Building2, 
-  TrendingUp,
-  Star,
-  CheckCircle,
-  Lightbulb,
-  Heart,
-  Shield,
-  Zap,
-  Calendar,
-  MapPin,
-  Mail,
-  Phone,
-  Linkedin,
-  Twitter,
-  Facebook
-} from "lucide-react"
 import Header from "@/components/layout/header"
 import Footer from "@/components/layout/footer"
-import Link from "next/link"
 
 export default function AboutPage() {
-  const timeline = [
-    {
-      year: "2020",
-      title: "Founded",
-      description: "EduSaaS was founded with a mission to revolutionize education agency management"
-    },
-    {
-      year: "2021",
-      title: "Platform Launch",
-      description: "Launched our flagship SaaS platform with core CRM and workflow automation"
-    },
-    {
-      year: "2022",
-      title: "Global Expansion",
-      description: "Expanded to serve agencies in 15+ countries across North America and Europe"
-    },
-    {
-      year: "2023",
-      title: "AI Integration",
-      description: "Introduced AI-powered features for student matching and workflow optimization"
-    },
-    {
-      year: "2024",
-      title: "Market Leadership",
-      description: "Became the leading platform for education agencies with 500+ agency partners"
-    }
-  ]
-
-  const values = [
-    {
-      icon: Heart,
-      title: "Student-Centric",
-      description: "We put students at the center of everything we do, ensuring their success is our primary goal"
-    },
-    {
-      icon: Lightbulb,
-      title: "Innovation",
-      description: "We continuously innovate to provide cutting-edge solutions for modern education challenges"
-    },
-    {
-      icon: Shield,
-      title: "Integrity",
-      description: "We operate with transparency, honesty, and ethical business practices"
-    },
-    {
-      icon: Users,
-      title: "Collaboration",
-      description: "We believe in the power of partnership and work closely with our agency clients"
-    }
-  ]
-
-  const stats = [
-    { label: "Agencies Served", value: "500+", icon: Building2 },
-    { label: "Students Enrolled", value: "50K+", icon: Users },
-    { label: "University Partners", value: "1000+", icon: Globe },
-    { label: "Countries", value: "25+", icon: MapPin }
-  ]
-
-  const team = [
-    {
-      name: "Sarah Johnson",
-      role: "CEO & Founder",
-      bio: "Former education consultant with 15+ years of experience in international student recruitment",
-      image: "/placeholder-avatar.jpg"
-    },
-    {
-      name: "Michael Chen",
-      role: "CTO",
-      bio: "Technology leader with expertise in SaaS platforms and educational technology",
-      image: "/placeholder-avatar.jpg"
-    },
-    {
-      name: "Emma Rodriguez",
-      role: "Head of Customer Success",
-      bio: "Dedicated to ensuring agency success through exceptional support and training",
-      image: "/placeholder-avatar.jpg"
-    },
-    {
-      name: "David Kim",
-      role: "VP of Sales",
-      bio: "Brings extensive experience in SaaS sales and education industry partnerships",
-      image: "/placeholder-avatar.jpg"
-    }
-  ]
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -129,165 +17,24 @@ export default function AboutPage() {
           </div>
         </div>
 
-      <div className="container mx-auto px-4 py-16 space-y-16">
-        {/* Mission Statement */}
-        <div className="text-center max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            To revolutionize education agency management through cutting-edge technology, 
-            enabling agencies to focus on what matters most - helping students achieve their 
-            educational dreams. We're committed to providing the tools, support, and 
-            innovation needed to scale education businesses globally.
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
-            <Card key={index} className="text-center">
-              <CardContent className="p-6">
-                <stat.icon className="h-12 w-12 text-primary mx-auto mb-4" />
-                <div className="text-3xl font-bold text-primary mb-2">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Timeline */}
-        <div>
-          <h2 className="text-3xl font-bold text-center mb-12">Our Journey</h2>
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-1/2 transform -translate-x-px h-full w-0.5 bg-primary/20"></div>
-            
-            <div className="space-y-12">
-              {timeline.map((item, index) => (
-                <div key={index} className="relative flex items-center">
-                  <div className={`flex-1 ${index % 2 === 0 ? 'text-right pr-8' : 'order-2 pl-8'}`}>
-                    <Card className="inline-block">
-                      <CardContent className="p-6">
-                        <Badge className="mb-2">{item.year}</Badge>
-                        <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-primary rounded-full border-4 border-background"></div>
-                  
-                  <div className={`flex-1 ${index % 2 === 0 ? 'order-2' : ''}`}></div>
-                </div>
-              ))}
-            </div>
+        <div className="container mx-auto px-4 py-16 space-y-16">
+          {/* Mission Statement */}
+          <div className="text-center max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold mb-6">Our Mission</h2>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              To revolutionize education agency management through cutting-edge technology, 
+              enabling agencies to focus on what matters most - helping students achieve their 
+              educational dreams. We're committed to providing the tools, support, and 
+              innovation needed to scale education businesses globally.
+            </p>
           </div>
-        </div>
 
-        {/* Values */}
-        <div>
-          <h2 className="text-3xl font-bold text-center mb-12">Our Core Values</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {values.map((value, index) => (
-              <Card key={index} className="text-center">
-                <CardContent className="p-6">
-                  <value.icon className="h-12 w-12 text-primary mx-auto mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">{value.title}</h3>
-                  <p className="text-sm text-muted-foreground">{value.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Team */}
-        <div>
-          <h2 className="text-3xl font-bold text-center mb-12">Leadership Team</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {team.map((member, index) => (
-              <Card key={index} className="text-center">
-                <CardContent className="p-6">
-                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary">
-                      {member.name.split(' ').map(n => n[0]).join('')}
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
-                  <p className="text-muted-foreground mb-3">{member.role}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{member.bio}</p>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline" size="sm">
-                      <Linkedin className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Why Choose Us */}
-        <div>
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose EduSaaS?</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Zap,
-                title: "Lightning Fast Setup",
-                description: "Get your agency up and running in just 15 minutes with our intuitive onboarding process"
-              },
-              {
-                icon: Shield,
-                title: "Enterprise-Grade Security",
-                description: "SOC 2 Type II certified with GDPR compliance and advanced data protection"
-              },
-              {
-                icon: TrendingUp,
-                title: "Scalable Platform",
-                description: "Grow from 10 to 10,000 students without switching platforms"
-              },
-              {
-                icon: Target,
-                title: "Industry-Specific",
-                description: "Built specifically for education agencies with industry best practices"
-              },
-              {
-                icon: Users,
-                title: "Expert Support",
-                description: "24/7 dedicated support from education industry experts"
-              },
-              {
-                icon: Award,
-                title: "Proven Results",
-                description: "Join 500+ successful agencies using our platform worldwide"
-              }
-            ].map((feature, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <feature.icon className="h-12 w-12 text-primary mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="bg-primary text-primary-foreground rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Agency?</h2>
-          <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
-            Join hundreds of education agencies that have already revolutionized their operations with EduSaaS
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary">
-              Start Free Trial
-            </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary">
-              Schedule a Demo
-            </Button>
+          {/* CTA Section */}
+          <div className="bg-primary text-primary-foreground rounded-2xl p-12 text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Agency?</h2>
+            <p className="text-xl opacity-90 mb-8 max-w-2xl mx-auto">
+              Join hundreds of education agencies that have already revolutionized their operations with EduSaaS
+            </p>
           </div>
         </div>
       </div>

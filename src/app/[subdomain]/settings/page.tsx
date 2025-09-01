@@ -45,7 +45,7 @@ import {
   Copy,
   Trash2,
   Plus,
-  Progress
+  Activity
 } from "lucide-react"
 
 interface AgencySettings {
@@ -1712,21 +1712,21 @@ export default function SettingsPage() {
                           <span className="text-sm text-muted-foreground">Students</span>
                           <span className="text-sm">45/100</span>
                         </div>
-                        <Progress value={45} className="h-2" />
+                        <Activity value={45} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm text-muted-foreground">Team Members</span>
                           <span className="text-sm">4/10</span>
                         </div>
-                        <Progress value={40} className="h-2" />
+                        <Activity value={40} className="h-2" />
                       </div>
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm text-muted-foreground">Storage</span>
                           <span className="text-sm">2.3 GB/10 GB</span>
                         </div>
-                        <Progress value={23} className="h-2" />
+                        <Activity value={23} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
