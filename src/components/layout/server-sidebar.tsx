@@ -51,7 +51,8 @@ import {
   Globe,
   File,
   Plug,
-  Users as TeamIcon
+  Users as TeamIcon,
+  User
 } from "lucide-react"
 
 interface ServerSidebarProps {
@@ -103,6 +104,18 @@ const menuItems = [
     description: "Marketing campaigns"
   },
   {
+    title: "Forms",
+    url: "/forms",
+    icon: FileSignature,
+    description: "Form builder"
+  },
+  {
+    title: "Landing Pages",
+    url: "/landing-pages",
+    icon: Globe,
+    description: "Landing page builder"
+  },
+  {
     title: "Analytics",
     url: "/analytics",
     icon: BarChart3,
@@ -131,24 +144,6 @@ const menuItems = [
     url: "/workflows",
     icon: Workflow,
     description: "Process automation"
-  },
-  {
-    title: "Integrations",
-    url: "/integrations",
-    icon: Plug,
-    description: "Third-party integrations"
-  },
-  {
-    title: "Team",
-    url: "/team",
-    icon: TeamIcon,
-    description: "Team management"
-  },
-  {
-    title: "Billing",
-    url: "/billing",
-    icon: BillingIcon,
-    description: "Subscription & billing"
   }
 ]
 
@@ -239,8 +234,17 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
                     onClick={() => {
                       // Clear any auth tokens or session data
                       if (typeof window !== 'undefined') {
+                        // Clear all localStorage items
                         localStorage.clear()
+                        // Clear all sessionStorage items
                         sessionStorage.clear()
+                        // Clear any cookies
+                        document.cookie.split(';').forEach(cookie => {
+                          const eqPos = cookie.indexOf('=')
+                          const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim()
+                          document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+                        })
+                        // Redirect to login page
                         window.location.href = '/login'
                       }
                     }}
@@ -272,7 +276,7 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
                 </Button>
                 <Button variant="ghost" size="sm" asChild>
                   <Link href={`/${subdomain}/settings`}>
-                    <Settings className="h-4 w-4" />
+                    <User className="h-4 w-4" />
                   </Link>
                 </Button>
               </div>

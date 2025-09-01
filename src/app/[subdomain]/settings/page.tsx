@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Key,
   Users,
+  UserPlus,
   CreditCard,
   Palette,
   Zap,
@@ -43,7 +44,8 @@ import {
   EyeOff,
   Copy,
   Trash2,
-  Plus
+  Plus,
+  Progress
 } from "lucide-react"
 
 interface AgencySettings {
@@ -258,12 +260,14 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -509,6 +513,320 @@ export default function SettingsPage() {
                     <SelectItem value="IN">India</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-6">
+          {/* Personal Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Personal Information
+              </CardTitle>
+              <CardDescription>Manage your personal profile and preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src="/placeholder-avatar.jpg" />
+                  <AvatarFallback>
+                    {agencySettings.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <Button variant="outline" size="sm">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    JPG, PNG or GIF. Max size of 2MB.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    defaultValue="John"
+                    placeholder="Enter your first name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    defaultValue="Doe"
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="profileEmail">Email Address</Label>
+                <Input
+                  id="profileEmail"
+                  type="email"
+                  defaultValue="john.doe@agency.com"
+                  placeholder="Enter your email"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  defaultValue="+1 (555) 123-4567"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="title">Job Title</Label>
+                <Input
+                  id="title"
+                  defaultValue="Agency Administrator"
+                  placeholder="Enter your job title"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="department">Department</Label>
+                <Select defaultValue="administration">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="administration">Administration</SelectItem>
+                    <SelectItem value="consulting">Consulting</SelectItem>
+                    <SelectItem value="marketing">Marketing</SelectItem>
+                    <SelectItem value="operations">Operations</SelectItem>
+                    <SelectItem value="support">Support</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Account Preferences
+              </CardTitle>
+              <CardDescription>Customize your account experience</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="timezone">Timezone</Label>
+                <Select defaultValue="America/New_York">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                    <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="language">Language</Label>
+                <Select defaultValue="en">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Spanish</SelectItem>
+                    <SelectItem value="fr">French</SelectItem>
+                    <SelectItem value="de">German</SelectItem>
+                    <SelectItem value="zh">Chinese</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Email Notifications</div>
+                  <div className="text-sm text-muted-foreground">Receive email updates about your account</div>
+                </div>
+                <Switch defaultChecked />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">SMS Notifications</div>
+                  <div className="text-sm text-muted-foreground">Receive text message alerts</div>
+                </div>
+                <Switch />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Desktop Notifications</div>
+                  <div className="text-sm text-muted-foreground">Show browser notifications</div>
+                </div>
+                <Switch defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Security */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Security
+              </CardTitle>
+              <CardDescription>Manage your account security settings</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Two-Factor Authentication</div>
+                  <div className="text-sm text-muted-foreground">Add an extra layer of security to your account</div>
+                </div>
+                <Button variant="outline" size="sm">
+                  Enable
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Change Password</div>
+                  <div className="text-sm text-muted-foreground">Last changed 3 months ago</div>
+                </div>
+                <Button variant="outline" size="sm">
+                  Change
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Active Sessions</div>
+                  <div className="text-sm text-muted-foreground">2 active sessions</div>
+                </div>
+                <Button variant="outline" size="sm">
+                  View All
+                </Button>
+              </div>
+
+              <div className="pt-4 border-t">
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Account
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Once you delete your account, there is no going back. Please be certain.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-6">
+          {/* Team Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Management
+              </CardTitle>
+              <CardDescription>Manage your agency team members and their permissions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium">Team Members</h3>
+                  <p className="text-sm text-muted-foreground">Manage user roles and permissions</p>
+                </div>
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite Member
+                </Button>
+              </div>
+
+              {/* Team Members List */}
+              <div className="space-y-3">
+                {[
+                  { name: "Sarah Johnson", email: "sarah@agency.com", role: "AGENCY_ADMIN", status: "ACTIVE", lastLogin: "2 hours ago" },
+                  { name: "Michael Chen", email: "michael@agency.com", role: "CONSULTANT", status: "ACTIVE", lastLogin: "4 hours ago" },
+                  { name: "Emma Rodriguez", email: "emma@agency.com", role: "CONSULTANT", status: "ACTIVE", lastLogin: "1 day ago" },
+                  { name: "David Kim", email: "david@agency.com", role: "SUPPORT", status: "ACTIVE", lastLogin: "3 days ago" }
+                ].map((member, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{member.name}</div>
+                        <div className="text-sm text-muted-foreground">{member.email}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge className={
+                            member.role === "AGENCY_ADMIN" ? "bg-purple-100 text-purple-800" :
+                            member.role === "CONSULTANT" ? "bg-blue-100 text-blue-800" :
+                            "bg-green-100 text-green-800"
+                          }>
+                            {member.role.replace('_', ' ')}
+                          </Badge>
+                          <Badge className="bg-green-100 text-green-800">
+                            {member.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground">Last login</div>
+                      <div className="text-sm">{member.lastLogin}</div>
+                      <div className="flex gap-1 mt-2">
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">Permissions</Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Role Templates */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                Role Templates
+              </CardTitle>
+              <CardDescription>Pre-defined permission sets for different roles</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-3 gap-4">
+                {[
+                  { name: "Agency Admin", description: "Full access to all features", color: "bg-purple-100 text-purple-800" },
+                  { name: "Consultant", description: "Student and application management", color: "bg-blue-100 text-blue-800" },
+                  { name: "Support", description: "Customer support and help desk", color: "bg-green-100 text-green-800" }
+                ].map((role, index) => (
+                  <div key={index} className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className={role.color}>{role.name}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">{role.description}</p>
+                    <Button variant="outline" size="sm" className="w-full">
+                      View Permissions
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -1194,6 +1512,275 @@ export default function SettingsPage() {
                       Add Webhook
                     </Button>
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                User Profile
+              </CardTitle>
+              <CardDescription>Manage your personal information and preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src="/placeholder-avatar.jpg" />
+                  <AvatarFallback className="text-lg">JD</AvatarFallback>
+                </Avatar>
+                <div>
+                  <Button variant="outline" size="sm">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Photo
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG or GIF. Max size of 5MB.</p>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input id="firstName" defaultValue="John" />
+                </div>
+                <div>
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input id="lastName" defaultValue="Doe" />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <Input id="email" type="email" defaultValue="john.doe@agency.com" />
+              </div>
+              
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input id="phone" type="tel" defaultValue="+1 (555) 123-4567" />
+              </div>
+              
+              <div>
+                <Label htmlFor="title">Job Title</Label>
+                <Input id="title" defaultValue="Education Consultant" />
+              </div>
+              
+              <div>
+                <Label htmlFor="department">Department</Label>
+                <Input id="department" defaultValue="Consulting" />
+              </div>
+              
+              <div>
+                <Label htmlFor="timezone">Timezone</Label>
+                <Select defaultValue="America/New_York">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="team" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Management
+              </CardTitle>
+              <CardDescription>Manage your team members and their permissions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-medium">Team Members</h3>
+                  <p className="text-sm text-muted-foreground">Manage user roles and access</p>
+                </div>
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite Member
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {[
+                  { name: "Sarah Johnson", email: "sarah@agency.com", role: "Agency Admin", status: "Active" },
+                  { name: "Michael Chen", email: "michael@agency.com", role: "Consultant", status: "Active" },
+                  { name: "Emma Rodriguez", email: "emma@agency.com", role: "Consultant", status: "Active" },
+                  { name: "David Kim", email: "david@agency.com", role: "Support", status: "Active" }
+                ].map((member, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{member.name}</div>
+                        <div className="text-sm text-muted-foreground">{member.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{member.role}</Badge>
+                      <Badge className="bg-green-100 text-green-800">{member.status}</Badge>
+                      <Button variant="ghost" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6">
+                <h3 className="text-lg font-medium mb-4">Role Permissions</h3>
+                <div className="grid gap-4">
+                  {[
+                    { role: "Agency Admin", permissions: "Full access to all features and settings", users: 1 },
+                    { role: "Consultant", permissions: "Manage students, applications, and communications", users: 2 },
+                    { role: "Support", permissions: "View data and manage support tickets", users: 1 }
+                  ].map((role, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{role.role}</div>
+                        <div className="text-sm text-muted-foreground">{role.permissions}</div>
+                        <div className="text-xs text-muted-foreground">{role.users} user(s)</div>
+                      </div>
+                      <Button variant="outline" size="sm">Edit Permissions</Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="billing" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Billing & Subscription
+              </CardTitle>
+              <CardDescription>Manage your subscription, payment methods, and billing information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">Current Plan</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Plan</span>
+                        <Badge className="bg-blue-100 text-blue-800">Professional</Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Monthly Cost</span>
+                        <span className="font-medium">$99/month</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Next Billing Date</span>
+                        <span className="font-medium">Feb 15, 2024</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Status</span>
+                        <Badge className="bg-green-100 text-green-800">Active</Badge>
+                      </div>
+                    </div>
+                    <Button className="w-full mt-4">Upgrade Plan</Button>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">Usage Statistics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-muted-foreground">Students</span>
+                          <span className="text-sm">45/100</span>
+                        </div>
+                        <Progress value={45} className="h-2" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-muted-foreground">Team Members</span>
+                          <span className="text-sm">4/10</span>
+                        </div>
+                        <Progress value={40} className="h-2" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-muted-foreground">Storage</span>
+                          <span className="text-sm">2.3 GB/10 GB</span>
+                        </div>
+                        <Progress value={23} className="h-2" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Payment Methods</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-6 bg-blue-600 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">VISA</span>
+                      </div>
+                      <div>
+                        <div className="font-medium">•••• •••• •••• 4242</div>
+                        <div className="text-sm text-muted-foreground">Expires 12/25</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-100 text-green-800">Default</Badge>
+                      <Button variant="outline" size="sm">Edit</Button>
+                    </div>
+                  </div>
+                  
+                  <Button variant="outline" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Payment Method
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Billing History</h3>
+                <div className="space-y-2">
+                  {[
+                    { date: "Jan 15, 2024", amount: "$99.00", status: "Paid", invoice: "INV-2024-001" },
+                    { date: "Dec 15, 2023", amount: "$99.00", status: "Paid", invoice: "INV-2023-012" },
+                    { date: "Nov 15, 2023", amount: "$99.00", status: "Paid", invoice: "INV-2023-011" }
+                  ].map((invoice, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <div className="font-medium">{invoice.invoice}</div>
+                        <div className="text-sm text-muted-foreground">{invoice.date}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{invoice.amount}</span>
+                        <Badge className="bg-green-100 text-green-800">{invoice.status}</Badge>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
