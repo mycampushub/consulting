@@ -10,91 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Global University Database (accessible to all agencies)
-model GlobalUniversity {
-  id            String   @id @default(cuid())
-  
-  // Basic Info
-  name          String
-  country       String
-  city          String
-  state         String?
-  website       String?
-  description   String?
-  logo          String?
-  images        String? // JSON array of image URLs
-  
-  // Ranking & Accreditation
-  worldRanking  Int?
-  nationalRanking Int?
-  regionalRanking Int?
-  accreditation String? // JSON array
-  qsRanking     Int?
-  timesRanking  Int?
-  arwuRanking   Int?
-  
-  // University Details
-  type          String? // Public, Private, Community
-  establishedYear Int?
-  studentPopulation Int?
-  internationalStudentRatio Float?
-  studentFacultyRatio Float?
-  
-  // Programs & Subjects
-  programs      String? // JSON array of programs
-  subjects      String? // JSON array of available subjects
-  studyLevels   String? // JSON array (Undergraduate, Postgraduate, PhD, etc.)
-  faculties     String? // JSON array of faculties/departments
-  
-  // Requirements & Fees
-  requirements  String? // JSON
-  tuitionFeeRange String? // JSON with min, max, currency
-  scholarshipInfo String? // JSON
-  livingCost   String? // JSON with estimated costs
-  
-  // Campus Information
-  campusSize   String?
-  campusType   String? // Urban, Suburban, Rural
-  facilities   String? // JSON array of facilities
-  accommodation String? // JSON with accommodation info
-  
-  // Contact
-  contactEmail  String?
-  contactPhone  String?
-  address       String?
-  mailingAddress String?
-  
-  // Social Media
-  facebookUrl   String?
-  twitterUrl    String?
-  instagramUrl  String?
-  linkedinUrl   String?
-  youtubeUrl    String?
-  
-  // Metadata
-  tags          String? // JSON array for search and filtering
-  keywords      String? // JSON array for SEO and search
-  category      String? // Research University, Teaching University, etc.
-  specializations String? // JSON array of specializations
-  
-  // Search & Autocomplete
-  searchTerms   String? // JSON array of search terms for autocomplete
-  popularityScore Float? @default(0.0)
-  applicationCount Int @default(0)
-  acceptanceRate Float?
-  
-  // Verification
-  verified      Boolean  @default(false)
-  verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
-  verifiedAt    DateTime?
-  verifiedBy    String? // User ID
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("global_universities")
-}
-
 // Multi-tenant SaaS Platform for Education Agencies
 
 model Agency {
@@ -315,26 +230,11 @@ model Student {
   // Personal Info
   firstName     String
   lastName      String
-  email         String   @unique
+  email         String
   phone         String?
-  alternatePhone String?
   dateOfBirth   DateTime?
   nationality   String?
   passportNumber String?
-  gender        String?
-  maritalStatus String?
-  
-  // Address Information
-  address       String?
-  city          String?
-  state         String?
-  country       String?
-  postalCode    String?
-  
-  // Emergency Contact
-  emergencyContactName String?
-  emergencyContactPhone String?
-  emergencyContactRelation String?
   
   // Application Status
   status        StudentStatus @default(PROSPECT)
@@ -342,60 +242,19 @@ model Student {
   
   // Academic Info
   currentEducation String?
-  educationLevel String?
-  institution   String?
   gpa           Float?
   testScores    String? // JSON
-  englishProficiency String? // JSON (IELTS, TOEFL, etc.)
-  
-  // Source Tracking
-  source        String?  // e.g., Google, Facebook, Referral
-  medium        String?  // e.g., Organic, CPC, Email
-  campaign      String?  // e.g., Summer_Campaign_2024
-  content       String?  // e.g., Ad_Copy_1
-  term          String?  // e.g., study_abroad
-  referrer      String?  // Who referred them
-  leadSource    String?  // General lead source category
-  leadSourceDetail String? // Specific lead source details
-  
-  // Portal Access
-  portalAccess  Boolean  @default(false)
-  portalEmail   String?  // Email for portal access
-  portalPassword String? // Encrypted password for portal
-  portalInvitationSent Boolean @default(false)
-  portalInvitationSentAt DateTime?
-  portalLastLogin DateTime?
   
   // Preferences
   preferredCountries String? // JSON array
   preferredCourses   String? // JSON array
-  preferredStudyLevels String? // JSON array
   budget          Float?
-  budgetCurrency  String? @default("USD")
-  availableIntakes String? // JSON array
-  studyMode       String? // FULL_TIME, PART_TIME, ONLINE
-  
-  // Communication Preferences
-  preferredContactMethod String? @default("EMAIL") // EMAIL, PHONE, SMS
-  emailNotifications Boolean @default(true)
-  smsNotifications Boolean @default(false)
-  marketingConsent Boolean @default(false)
-  
-  // Background Information
-  workExperience String? // JSON
-  achievements  String? // JSON
-  extracurricular String? // JSON
-  interests     String? // JSON
-  notes         String? // General notes about the student
   
   // Documents
   documents      String? // JSON array of document paths
   
   // Timeline
   assignedTo     String? // User ID
-  firstContactAt DateTime?
-  lastContactAt  DateTime?
-  nextFollowUpAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   
@@ -435,83 +294,27 @@ model University {
   name          String
   country       String
   city          String
-  state         String?
   website       String?
   description   String?
-  logo          String?
-  images        String? // JSON array of image URLs
   
   // Ranking & Accreditation
   worldRanking  Int?
   nationalRanking Int?
-  regionalRanking Int?
   accreditation String? // JSON array
-  qsRanking     Int?
-  timesRanking  Int?
-  arwuRanking   Int?
   
-  // University Details
-  type          String? // Public, Private, Community
-  establishedYear Int?
-  studentPopulation Int?
-  internationalStudentRatio Float?
-  studentFacultyRatio Float?
-  
-  // Programs & Subjects
+  // Programs
   programs      String? // JSON array of programs
-  subjects      String? // JSON array of available subjects
-  studyLevels   String? // JSON array (Undergraduate, Postgraduate, PhD, etc.)
-  faculties     String? // JSON array of faculties/departments
-  
-  // Requirements & Fees
   requirements  String? // JSON
-  tuitionFeeRange String? // JSON with min, max, currency
-  scholarshipInfo String? // JSON
-  livingCost   String? // JSON with estimated costs
-  
-  // Campus Information
-  campusSize   String?
-  campusType   String? // Urban, Suburban, Rural
-  facilities   String? // JSON array of facilities
-  accommodation String? // JSON with accommodation info
   
   // Partnership
   isPartner     Boolean  @default(false)
   partnershipLevel PartnershipLevel @default(NONE)
   commissionRate Float?
-  partnershipStartDate DateTime?
-  partnershipEndDate DateTime?
-  partnershipNotes String?
   
   // Contact
   contactEmail  String?
   contactPhone  String?
-  alternateContactEmail String?
-  alternateContactPhone String?
   address       String?
-  mailingAddress String?
-  
-  // Social Media
-  facebookUrl   String?
-  twitterUrl    String?
-  instagramUrl  String?
-  linkedinUrl   String?
-  youtubeUrl    String?
-  
-  // Global Database Fields
-  isGlobal      Boolean  @default(false)
-  globalId      String?  // ID from global university database
-  verified      Boolean  @default(false)
-  verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
-  popularityScore Float? @default(0.0)
-  applicationCount Int @default(0)
-  acceptanceRate Float?
-  
-  // Additional Metadata
-  tags          String? // JSON array for search and filtering
-  keywords      String? // JSON array for SEO and search
-  category      String? // Research University, Teaching University, etc.
-  specializations String? // JSON array of specializations
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -625,118 +428,16 @@ model Application {
   subjectId     String?
   subject       Subject?  @relation(fields: [subjectId], references: [id])
   
-  // Program Details
   program       String
-  programCode   String?
-  programLevel  String? // Undergraduate, Postgraduate, PhD, etc.
-  studyMode     String? // FULL_TIME, PART_TIME, ONLINE, HYBRID
-  duration      Int? // in years/months
   intake        String?
-  intakeYear    Int?
-  startdate     DateTime?
-  expectedEndDate DateTime?
-  
-  // Application Details
-  applicationNumber String?
-  applicationFee Float?
-  applicationFeeCurrency String? @default("USD")
-  applicationFeePaid Boolean @default(false)
-  applicationFeePaidAt DateTime?
-  submissionDate DateTime?
-  deadlineDate  DateTime?
   status        ApplicationStatus @default(DRAFT)
-  subStatus     String? // More detailed status within main status
-  priority      String? @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
   
-  // Academic Information (Auto-filled from Student)
-  currentEducation String?
-  gpa           Float?
-  englishProficiency String? // JSON
-  testScores    String? // JSON
-  
-  // Financial Information
-  tuitionFee    Float?
-  tuitionFeeCurrency String? @default("USD")
-  scholarshipAmount Float?
-  scholarshipCurrency String? @default("USD")
-  totalCost     Float?
-  fundingSource String? // JSON array
-  
-  // Document Requirements & Status
-  requiredDocuments String? // JSON array of required documents
-  submittedDocuments String? // JSON array of submitted documents
-  documentStatus String? // JSON with document-wise status
-  documentsVerified Boolean @default(false)
-  documentsVerifiedAt DateTime?
-  
-  // Application Progress
-  progressPercentage Int @default(0)
-  currentStage  String? // Current stage in application process
-  stageHistory  String? // JSON array of stage changes
-  nextStep      String?
-  nextStepDeadline DateTime?
-  
-  // Communication & Notes
-  communications String? // JSON array of communication logs
-  internalNotes String?
-  studentNotes  String?
-  universityNotes String?
-  
-  // Interview & Assessment
-  interviewRequired Boolean @default(false)
-  interviewScheduled Boolean @default(false)
-  interviewDate DateTime?
-  interviewType String? // ONLINE, IN_PERSON, PHONE
-  interviewStatus String? // SCHEDULED, COMPLETED, CANCELLED
-  interviewNotes String?
-  assessmentResults String? // JSON
-  
-  // Decision & Outcome
-  decisionDate  DateTime?
-  decisionMadeBy String? // User ID
-  decisionReason String?
-  conditions    String? // JSON array of conditions if any
-  offerReceived Boolean @default(false)
-  offerReceivedAt DateTime?
-  offerAccepted Boolean @default(false)
-  offerAcceptedAt DateTime?
-  offerRejected Boolean @default(false)
-  offerRejectedAt DateTime?
-  enrollmentConfirmed Boolean @default(false)
-  enrollmentConfirmedAt DateTime?
-  
-  // Visa & Immigration
-  visaRequired  Boolean @default(false)
-  visaApplied   Boolean @default(false)
-  visaAppliedAt DateTime?
-  visaApproved  Boolean @default(false)
-  visaApprovedAt DateTime?
-  visaRejected  Boolean @default(false)
-  visaRejectedAt DateTime?
-  visaNotes     String?
-  
-  // Payment & Financial Aid
+  // Progress Tracking
+  documents     String? // JSON array of submitted documents
   payments      String? // JSON array of payment records
-  paymentPlan   String? // JSON with payment plan details
-  financialAid  String? // JSON with financial aid information
-  scholarships  String? // JSON with scholarship details
+  communications String? // JSON array of communication logs
   
-  // Assignment & Tracking
   assignedTo    String? // User ID
-  assignedAt    DateTime?
-  lastContactAt DateTime?
-  nextFollowUpAt DateTime?
-  
-  // Auto-fill & Integration
-  autoFilledFields String? // JSON array of fields that were auto-filled
-  dataSyncStatus String? @default("PENDING") // PENDING, SYNCED, ERROR
-  lastSyncAt    DateTime?
-  
-  // Metadata
-  source        String? // MANUAL, AUTO_GENERATED, IMPORTED
-  sourceDetails String? // JSON with source information
-  tags          String? // JSON array for categorization
-  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
