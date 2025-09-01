@@ -34,6 +34,8 @@ import {
   Download,
   ExternalLink
 } from "lucide-react"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
 
 export default function FeaturesPage() {
   const [activeCategory, setActiveCategory] = useState("all")
@@ -196,16 +198,19 @@ export default function FeaturesPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Hero Section */}
-      <div className="bg-primary text-primary-foreground py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl lg:text-5xl font-bold mb-6">Powerful Features for Modern Education Agencies</h1>
-          <p className="text-xl opacity-90 max-w-3xl mx-auto">
-            Everything you need to manage students, automate workflows, and grow your education agency
-          </p>
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      <div className="bg-gradient-to-b from-background to-muted">
+        {/* Hero Section */}
+        <div className="bg-primary text-primary-foreground py-20">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-6">Powerful Features for Modern Education Agencies</h1>
+            <p className="text-xl opacity-90 max-w-3xl mx-auto">
+              Everything you need to manage students, automate workflows, and grow your education agency
+            </p>
+          </div>
         </div>
-      </div>
 
       <div className="container mx-auto px-4 py-12 space-y-16">
         {/* Category Filter */}
@@ -397,6 +402,8 @@ export default function FeaturesPage() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   )
 }

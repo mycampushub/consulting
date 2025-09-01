@@ -20,6 +20,7 @@ import {
   Building2,
   University,
   Briefcase,
+  Zap,
   CheckCircle,
   ArrowRight,
   Mail,
@@ -29,7 +30,6 @@ import {
   ExternalLink,
   Filter,
   Target,
-  Zap,
   Shield,
   Heart,
   Lightbulb,
@@ -383,6 +383,16 @@ export default function PartnersPage() {
     }
   }
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "university": return "text-blue-600"
+      case "technology": return "text-green-600"
+      case "agency": return "text-purple-600"
+      case "service": return "text-orange-600"
+      default: return "text-gray-600"
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -614,12 +624,12 @@ export default function PartnersPage() {
             {/* Partners Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPartners.map((partner) => (
-                <Card key={partner.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <getTypeIcon(partner.type) className={`h-6 w-6 ${partner.type === 'university' ? 'text-blue-600' : partner.type === 'technology' ? 'text-green-600' : partner.type === 'agency' ? 'text-purple-600' : 'text-orange-600'}`} />
-                      </div>
+                  <Card key={partner.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Building2 className="h-6 w-6 text-primary" />
+                        </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">{partner.name}</h3>
                         <div className="flex items-center gap-2">

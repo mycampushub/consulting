@@ -3,33 +3,33 @@ import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin } from "luc
 
 export default function Footer() {
   const footerLinks = {
-    product: [
-      { name: "Student CRM", href: "#student-crm" },
-      { name: "Marketing Automation", href: "#marketing-automation" },
-      { name: "Landing Page Builder", href: "#landing-page-builder" },
-      { name: "Form Builder", href: "#form-builder" },
-      { name: "Accounting Module", href: "#accounting" },
+    features: [
+      { name: "Student CRM", href: "/features/student-crm" },
+      { name: "Marketing Automation", href: "/features/marketing-automation" },
+      { name: "Landing Page Builder", href: "/features/landing-page-builder" },
+      { name: "Form Builder", href: "/features/form-builder" },
+      { name: "Accounting Module", href: "/features/accounting-module" },
     ],
     company: [
-      { name: "About Us", href: "#about" },
-      { name: "Careers", href: "#careers" },
-      { name: "Blog", href: "#blog" },
-      { name: "Press", href: "#press" },
-      { name: "Partners", href: "#partners" },
+      { name: "About Us", href: "/about" },
+      { name: "Careers", href: "/careers" },
+      { name: "Blog", href: "/blog" },
+      { name: "Press", href: "/press" },
+      { name: "Partners", href: "/partners" },
     ],
     support: [
-      { name: "Help Center", href: "#help" },
-      { name: "Documentation", href: "#docs" },
-      { name: "API Reference", href: "#api" },
-      { name: "Status", href: "#status" },
-      { name: "Contact Support", href: "#contact" },
+      { name: "Help Center", href: "/help" },
+      { name: "Documentation", href: "/docs" },
+      { name: "API Reference", href: "/api" },
+      { name: "Status", href: "/status" },
+      { name: "Contact Support", href: "/contact" },
     ],
     legal: [
-      { name: "Privacy Policy", href: "#privacy" },
-      { name: "Terms of Service", href: "#terms" },
-      { name: "Cookie Policy", href: "#cookies" },
-      { name: "GDPR", href: "#gdpr" },
-      { name: "Security", href: "#security" },
+      { name: "Privacy Policy", href: "/privacy" },
+      { name: "Terms of Service", href: "/terms" },
+      { name: "Cookie Policy", href: "/cookies" },
+      { name: "GDPR", href: "/gdpr" },
+      { name: "Security", href: "/security" },
     ],
   }
 
@@ -74,11 +74,11 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Product Links */}
+          {/* Features Links */}
           <div>
-            <h3 className="font-semibold text-sm uppercase tracking-wider mb-4">Product</h3>
+            <h3 className="font-semibold text-sm uppercase tracking-wider mb-4">Features</h3>
             <ul className="space-y-2">
-              {footerLinks.product.map((link) => (
+              {footerLinks.features.map((link) => (
                 <li key={link.name}>
                   <Link 
                     href={link.href}

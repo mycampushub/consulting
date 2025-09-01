@@ -24,6 +24,9 @@ import {
   Twitter,
   Facebook
 } from "lucide-react"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
+import Link from "next/link"
 
 export default function AboutPage() {
   const timeline = [
@@ -112,16 +115,19 @@ export default function AboutPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Hero Section */}
-      <div className="bg-primary text-primary-foreground py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl lg:text-5xl font-bold mb-6">About EduSaaS</h1>
-          <p className="text-xl opacity-90 max-w-3xl mx-auto">
-            Empowering education agencies worldwide with innovative technology solutions since 2020
-          </p>
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      <div className="bg-gradient-to-b from-background to-muted">
+        {/* Hero Section */}
+        <div className="bg-primary text-primary-foreground py-20">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-6">About EduSaaS</h1>
+            <p className="text-xl opacity-90 max-w-3xl mx-auto">
+              Empowering education agencies worldwide with innovative technology solutions since 2020
+            </p>
+          </div>
         </div>
-      </div>
 
       <div className="container mx-auto px-4 py-16 space-y-16">
         {/* Mission Statement */}
@@ -285,6 +291,8 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   )
 }

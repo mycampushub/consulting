@@ -26,6 +26,9 @@ import {
   Facebook,
   Instagram
 } from "lucide-react"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
+import Link from "next/link"
 
 interface ContactForm {
   name: string
@@ -111,16 +114,19 @@ export default function ContactPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl lg:text-5xl font-bold mb-4">Contact Us</h1>
-          <p className="text-xl opacity-90 max-w-2xl mx-auto">
-            Get in touch with our team to learn how EduSaaS can help your education agency grow
-          </p>
+    <div className="min-h-screen bg-background">
+      <Header />
+      
+      <div className="bg-gradient-to-b from-background to-muted">
+        {/* Header */}
+        <div className="bg-primary text-primary-foreground py-16">
+          <div className="container mx-auto px-4 text-center">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4">Contact Us</h1>
+            <p className="text-xl opacity-90 max-w-2xl mx-auto">
+              Get in touch with our team to learn how EduSaaS can help your education agency grow
+            </p>
+          </div>
         </div>
-      </div>
 
       <div className="container mx-auto px-4 py-12">
         <div className="grid lg:grid-cols-3 gap-8">
@@ -408,6 +414,8 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   )
 }

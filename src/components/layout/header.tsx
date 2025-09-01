@@ -7,7 +7,7 @@ import { Menu, X, ChevronDown } from "lucide-react"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isProductsOpen, setIsProductsOpen] = useState(false)
+  const [isFeaturesOpen, setIsFeaturesOpen] = useState(false)
 
   const navigation = [
     { name: "Home", href: "/" },
@@ -17,7 +17,7 @@ export default function Header() {
     { name: "Contact", href: "/contact" },
   ]
 
-  const products = [
+  const features = [
     { name: "Student CRM", description: "Complete student lifecycle management" },
     { name: "Marketing Automation", description: "Advanced workflow builder like GoHighLevel" },
     { name: "Landing Page Builder", description: "Drag-and-drop page creation" },
@@ -51,28 +51,28 @@ export default function Header() {
               </Link>
             ))}
             
-            {/* Products Dropdown */}
+            {/* Features Dropdown */}
             <div className="relative">
               <button
-                onMouseEnter={() => setIsProductsOpen(true)}
-                onMouseLeave={() => setIsProductsOpen(false)}
+                onMouseEnter={() => setIsFeaturesOpen(true)}
+                onMouseLeave={() => setIsFeaturesOpen(false)}
                 className="flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
-                Products
+                Features
                 <ChevronDown className="ml-1 h-4 w-4" />
               </button>
               
-              {isProductsOpen && (
+              {isFeaturesOpen && (
                 <div
-                  onMouseEnter={() => setIsProductsOpen(true)}
-                  onMouseLeave={() => setIsProductsOpen(false)}
+                  onMouseEnter={() => setIsFeaturesOpen(true)}
+                  onMouseLeave={() => setIsFeaturesOpen(false)}
                   className="absolute top-full left-0 mt-2 w-80 bg-background border rounded-lg shadow-lg p-4"
                 >
                   <div className="space-y-3">
-                    {products.map((product, index) => (
+                    {features.map((feature, index) => (
                       <div key={index} className="p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                        <h4 className="font-semibold text-sm">{product.name}</h4>
-                        <p className="text-xs text-muted-foreground mt-1">{product.description}</p>
+                        <h4 className="font-semibold text-sm">{feature.name}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
                       </div>
                     ))}
                   </div>
@@ -119,11 +119,11 @@ export default function Header() {
               ))}
               
               <div className="px-3 py-2">
-                <div className="text-sm font-medium text-muted-foreground mb-2">Products</div>
+                <div className="text-sm font-medium text-muted-foreground mb-2">Features</div>
                 <div className="space-y-2 pl-4">
-                  {products.map((product, index) => (
+                  {features.map((feature, index) => (
                     <div key={index} className="text-xs text-muted-foreground">
-                      {product.name}
+                      {feature.name}
                     </div>
                   ))}
                 </div>
