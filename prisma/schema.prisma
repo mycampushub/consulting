@@ -33,6 +33,8 @@ model Agency {
   users           User[]
   students        Student[]
   universities    University[]
+  campuses        Campus[]
+  subjects        Subject[]
   brandSettings   BrandSettings?
   billing         Billing?
   applications    Application[]
@@ -306,8 +308,91 @@ model University {
   
   // Relations
   applications  Application[]
+  campuses      Campus[]
   
   @@map("universities")
+}
+
+model Campus {
+  id            String   @id @default(cuid())
+  agencyId      String
+  agency        Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name          String
+  city          String
+  state         String?
+  country       String
+  address       String?
+  website       String?
+  description   String?
+  
+  // Contact
+  contactEmail  String?
+  contactPhone  String?
+  
+  // Statistics
+  studentCapacity Int?
+  currentStudents Int @default(0)
+  
+  // Facilities
+  facilities    String? // JSON array of facilities
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  subjects      Subject[]
+  applications  Application[]
+  
+  @@map("campuses")
+}
+
+model Subject {
+  id            String   @id @default(cuid())
+  agencyId      String
+  agency        Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  campusId      String
+  campus        Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name          String
+  code          String?
+  level         SubjectLevel @default(UNDERGRADUATE)
+  department    String?
+  faculty       String?
+  
+  // Duration & Structure
+  duration      Int? // in years
+  studyMode     StudyMode @default(FULL_TIME)
+  
+  // Requirements
+  entryRequirements String? // JSON
+  tuitionFee     Float?
+  currency       String @default("USD")
+  
+  // Statistics
+  capacity       Int?
+  enrolled       Int @default(0)
+  
+  // Accreditation
+  accreditation  String? // JSON array
+  
+  // Additional Info
+  description   String?
+  careerProspects String? // JSON array
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  applications  Application[]
+  
+  @@map("subjects")
 }
 
 model Application {
@@ -322,6 +407,12 @@ model Application {
   
   universityId  String
   university    University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  
+  campusId      String?
+  campus        Campus?   @relation(fields: [campusId], references: [id])
+  
+  subjectId     String?
+  subject       Subject?  @relation(fields: [subjectId], references: [id])
   
   program       String
   intake        String?
@@ -2268,6 +2359,24 @@ model EventAnalytics {
   calculatedAt    DateTime @default(now())
   
   @@map("event_analytics")
+}
+
+// University Module Enums
+enum SubjectLevel {
+  UNDERGRADUATE
+  POSTGRADUATE
+  DOCTORAL
+  DIPLOMA
+  CERTIFICATE
+  PROFESSIONAL
+}
+
+enum StudyMode {
+  FULL_TIME
+  PART_TIME
+  ONLINE
+  DISTANCE
+  BLENDED
 }
 
 // Journey Mapping Enums

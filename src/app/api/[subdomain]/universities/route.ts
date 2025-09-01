@@ -82,6 +82,25 @@ export async function GET(request: NextRequest) {
               status: true,
               studentId: true
             }
+          },
+          campuses: {
+            include: {
+              subjects: {
+                select: {
+                  id: true,
+                  name: true,
+                  level: true,
+                  enrolled: true
+                }
+              },
+              applications: {
+                select: {
+                  id: true,
+                  status: true,
+                  studentId: true
+                }
+              }
+            }
           }
         },
         orderBy: [
@@ -100,7 +119,11 @@ export async function GET(request: NextRequest) {
       ...university,
       accreditation: university.accreditation ? JSON.parse(university.accreditation) : [],
       programs: university.programs ? JSON.parse(university.programs) : [],
-      requirements: university.requirements ? JSON.parse(university.requirements) : null
+      requirements: university.requirements ? JSON.parse(university.requirements) : null,
+      campuses: university.campuses.map(campus => ({
+        ...campus,
+        facilities: campus.facilities ? JSON.parse(campus.facilities) : []
+      }))
     }))
 
     return NextResponse.json({
@@ -163,6 +186,25 @@ export async function POST(request: NextRequest) {
             status: true,
             studentId: true
           }
+        },
+        campuses: {
+          include: {
+            subjects: {
+              select: {
+                id: true,
+                name: true,
+                level: true,
+                enrolled: true
+              }
+            },
+            applications: {
+              select: {
+                id: true,
+                status: true,
+                studentId: true
+              }
+            }
+          }
         }
       }
     })
@@ -172,7 +214,11 @@ export async function POST(request: NextRequest) {
       ...university,
       accreditation: university.accreditation ? JSON.parse(university.accreditation) : [],
       programs: university.programs ? JSON.parse(university.programs) : [],
-      requirements: university.requirements ? JSON.parse(university.requirements) : null
+      requirements: university.requirements ? JSON.parse(university.requirements) : null,
+      campuses: university.campuses.map(campus => ({
+        ...campus,
+        facilities: campus.facilities ? JSON.parse(campus.facilities) : []
+      }))
     }
 
     return NextResponse.json(processedUniversity)
@@ -242,6 +288,25 @@ export async function PUT(request: NextRequest) {
             status: true,
             studentId: true
           }
+        },
+        campuses: {
+          include: {
+            subjects: {
+              select: {
+                id: true,
+                name: true,
+                level: true,
+                enrolled: true
+              }
+            },
+            applications: {
+              select: {
+                id: true,
+                status: true,
+                studentId: true
+              }
+            }
+          }
         }
       }
     })
@@ -251,7 +316,11 @@ export async function PUT(request: NextRequest) {
       ...university,
       accreditation: university.accreditation ? JSON.parse(university.accreditation) : [],
       programs: university.programs ? JSON.parse(university.programs) : [],
-      requirements: university.requirements ? JSON.parse(university.requirements) : null
+      requirements: university.requirements ? JSON.parse(university.requirements) : null,
+      campuses: university.campuses.map(campus => ({
+        ...campus,
+        facilities: campus.facilities ? JSON.parse(campus.facilities) : []
+      }))
     }
 
     return NextResponse.json(processedUniversity)

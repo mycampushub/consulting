@@ -42,7 +42,10 @@ import {
   BarChart3,
   Activity,
   Settings,
-  Handshake
+  Handshake,
+  Send,
+  Download,
+  Save
 } from "lucide-react"
 
 interface University {
@@ -258,6 +261,225 @@ export default function UniversitiesPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingUniversity, setEditingUniversity] = useState<University | null>(null)
   const [activeTab, setActiveTab] = useState("universities")
+  const [hasMultipleCampuses, setHasMultipleCampuses] = useState(false)
+  const [campuses, setCampuses] = useState<Array<{
+    name: string
+    city: string
+    state: string
+    country: string
+    address: string
+    contactEmail: string
+    contactPhone: string
+    studentCapacity: number
+    facilities: string[]
+  }>>([])
+  // Partnership Management State
+  const [isNewPartnershipDialogOpen, setIsNewPartnershipDialogOpen] = useState(false)
+  const [isAgreementRenewalsDialogOpen, setIsAgreementRenewalsDialogOpen] = useState(false)
+  const [isPerformanceReviewDialogOpen, setIsPerformanceReviewDialogOpen] = useState(false)
+  const [isBulkOutreachDialogOpen, setIsBulkOutreachDialogOpen] = useState(false)
+  const [selectedUniversityForPartnership, setSelectedUniversityForPartnership] = useState<University | null>(null)
+
+  const addCampus = () => {
+    setCampuses([...campuses, {
+      name: "",
+      city: "",
+      state: "",
+      country: "United States",
+      address: "",
+      contactEmail: "",
+      contactPhone: "",
+      studentCapacity: 0,
+      facilities: []
+    }])
+  }
+
+  const removeCampus = (index: number) => {
+    setCampuses(campuses.filter((_, i) => i !== index))
+  }
+
+  const updateCampus = (index: number, field: string, value: any) => {
+    const updatedCampuses = [...campuses]
+    updatedCampuses[index] = { ...updatedCampuses[index], [field]: value }
+    setCampuses(updatedCampuses)
+  }
+
+  // Partnership Management Functions
+  const handleNewPartnership = () => {
+    const nonPartnerUniversities = universities.filter(u => !u.isPartner || u.partnershipLevel === 'NONE')
+    if (nonPartnerUniversities.length === 0) {
+      alert('All universities are already partners. Consider upgrading existing partnerships instead.')
+      return
+    }
+    setIsNewPartnershipDialogOpen(true)
+  }
+
+  const handleAgreementRenewals = () => {
+    const partnerUniversities = universities.filter(u => u.isPartner && u.partnershipLevel !== 'NONE')
+    if (partnerUniversities.length === 0) {
+      alert('No active partnerships found to renew.')
+      return
+    }
+    setIsAgreementRenewalsDialogOpen(true)
+  }
+
+  const handlePerformanceReview = () => {
+    const partnerUniversities = universities.filter(u => u.isPartner && u.partnershipLevel !== 'NONE')
+    if (partnerUniversities.length === 0) {
+      alert('No active partnerships found to review.')
+      return
+    }
+    setIsPerformanceReviewDialogOpen(true)
+  }
+
+  const handleBulkOutreach = () => {
+    setIsBulkOutreachDialogOpen(true)
+  }
+
+  const createPartnership = async (universityId: string, partnershipLevel: string, commissionRate: number) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/universities?id=${universityId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isPartner: true,
+          partnershipLevel: partnershipLevel,
+          commissionRate: commissionRate
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create partnership')
+      }
+
+      // Refresh universities list
+      const fetchResponse = await fetch(`/api/${subdomain}/universities?limit=100`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedUniversities = data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          website: university.website,
+          description: university.description,
+          worldRanking: university.worldRanking,
+          nationalRanking: university.nationalRanking,
+          accreditation: university.accreditation || [],
+          programs: university.programs || [],
+          requirements: university.requirements || {
+            academic: [],
+            language: [],
+            financial: [],
+            documents: []
+          },
+          isPartner: university.isPartner,
+          partnershipLevel: university.partnershipLevel,
+          commissionRate: university.commissionRate,
+          contactEmail: university.contactEmail,
+          contactPhone: university.contactPhone,
+          address: university.address,
+          createdAt: university.createdAt,
+          lastUpdated: university.updatedAt,
+          studentsPlaced: university.applications?.filter((app: any) => app.status === 'ACCEPTED').length || 0,
+          applications: university.applications?.length || 0,
+          successRate: university.applications?.length > 0 
+            ? Math.round((university.applications.filter((app: any) => app.status === 'ACCEPTED').length / university.applications.length) * 100)
+            : 0,
+          notes: university.notes
+        }))
+        setUniversities(processedUniversities)
+      }
+
+      setIsNewPartnershipDialogOpen(false)
+      alert('Partnership created successfully!')
+    } catch (error) {
+      console.error('Error creating partnership:', error)
+      alert('Failed to create partnership. Please try again.')
+    }
+  }
+
+  const renewAgreement = async (universityId: string, newCommissionRate: number, renewalTerms: string) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/universities?id=${universityId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commissionRate: newCommissionRate,
+          notes: renewalTerms
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to renew agreement')
+      }
+
+      // Refresh universities list
+      const fetchResponse = await fetch(`/api/${subdomain}/universities?limit=100`)
+      if (fetchResponse.ok) {
+        const data = await fetchResponse.json()
+        const processedUniversities = data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          website: university.website,
+          description: university.description,
+          worldRanking: university.worldRanking,
+          nationalRanking: university.nationalRanking,
+          accreditation: university.accreditation || [],
+          programs: university.programs || [],
+          requirements: university.requirements || {
+            academic: [],
+            language: [],
+            financial: [],
+            documents: []
+          },
+          isPartner: university.isPartner,
+          partnershipLevel: university.partnershipLevel,
+          commissionRate: university.commissionRate,
+          contactEmail: university.contactEmail,
+          contactPhone: university.contactPhone,
+          address: university.address,
+          createdAt: university.createdAt,
+          lastUpdated: university.updatedAt,
+          studentsPlaced: university.applications?.filter((app: any) => app.status === 'ACCEPTED').length || 0,
+          applications: university.applications?.length || 0,
+          successRate: university.applications?.length > 0 
+            ? Math.round((university.applications.filter((app: any) => app.status === 'ACCEPTED').length / university.applications.length) * 100)
+            : 0,
+          notes: university.notes
+        }))
+        setUniversities(processedUniversities)
+      }
+
+      setIsAgreementRenewalsDialogOpen(false)
+      alert('Agreement renewed successfully!')
+    } catch (error) {
+      console.error('Error renewing agreement:', error)
+      alert('Failed to renew agreement. Please try again.')
+    }
+  }
+
+  const sendBulkOutreach = async (message: string, targetUniversities: string[]) => {
+    try {
+      // Simulate bulk outreach - in a real implementation, this would send emails or messages
+      const selectedUniversities = universities.filter(u => targetUniversities.includes(u.id))
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      setIsBulkOutreachDialogOpen(false)
+      alert(`Bulk outreach sent successfully to ${selectedUniversities.length} universities!`)
+    } catch (error) {
+      console.error('Error sending bulk outreach:', error)
+      alert('Failed to send bulk outreach. Please try again.')
+    }
+  }
 
   useEffect(() => {
     const fetchUniversities = async () => {
@@ -344,6 +566,36 @@ export default function UniversitiesPage() {
       }
 
       const createdUniversity = await response.json()
+      
+      // Create campuses if the university has multiple campuses
+      if (hasMultipleCampuses && campuses.length > 0) {
+        for (const campus of campuses) {
+          if (campus.name && campus.city && campus.country) {
+            await fetch(`/api/${subdomain}/campuses`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                universityId: createdUniversity.id,
+                name: campus.name,
+                city: campus.city,
+                state: campus.state,
+                country: campus.country,
+                address: campus.address,
+                contactEmail: campus.contactEmail,
+                contactPhone: campus.contactPhone,
+                studentCapacity: campus.studentCapacity || null,
+                facilities: campus.facilities || []
+              }),
+            })
+          }
+        }
+      }
+      
+      // Reset form state
+      setHasMultipleCampuses(false)
+      setCampuses([])
       
       // Refresh universities list
       const fetchResponse = await fetch(`/api/${subdomain}/universities?limit=100`)
@@ -550,7 +802,14 @@ export default function UniversitiesPage() {
                 <p className="text-sm text-muted-foreground">{subdomain}.eduagency.com</p>
               </div>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              if (!open) {
+                // Reset form state when dialog is closed
+                setHasMultipleCampuses(false)
+                setCampuses([])
+              }
+              setIsAddDialogOpen(open)
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
@@ -649,6 +908,149 @@ export default function UniversitiesPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="hasMultipleCampuses"
+                      checked={hasMultipleCampuses}
+                      onChange={(e) => {
+                        setHasMultipleCampuses(e.target.checked)
+                        if (!e.target.checked) {
+                          setCampuses([])
+                        }
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="hasMultipleCampuses">This university has multiple campuses</Label>
+                  </div>
+                  
+                  {hasMultipleCampuses && (
+                    <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Campuses</h3>
+                        <Button type="button" variant="outline" size="sm" onClick={addCampus}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Campus
+                        </Button>
+                      </div>
+                      
+                      {campuses.map((campus, index) => (
+                        <div key={index} className="border rounded-lg p-4 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-medium">Campus {index + 1}</h4>
+                            {campuses.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeCampus(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor={`campus-name-${index}`}>Campus Name *</Label>
+                              <Input
+                                id={`campus-name-${index}`}
+                                placeholder="Main Campus"
+                                value={campus.name}
+                                onChange={(e) => updateCampus(index, 'name', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`campus-city-${index}`}>City *</Label>
+                              <Input
+                                id={`campus-city-${index}`}
+                                placeholder="Enter city"
+                                value={campus.city}
+                                onChange={(e) => updateCampus(index, 'city', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor={`campus-state-${index}`}>State/Province</Label>
+                              <Input
+                                id={`campus-state-${index}`}
+                                placeholder="State"
+                                value={campus.state}
+                                onChange={(e) => updateCampus(index, 'state', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`campus-country-${index}`}>Country *</Label>
+                              <Select
+                                value={campus.country}
+                                onValueChange={(value) => updateCampus(index, 'country', value)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select country" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {countries.map(country => (
+                                    <SelectItem key={country} value={country}>{country}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor={`campus-capacity-${index}`}>Student Capacity</Label>
+                              <Input
+                                id={`campus-capacity-${index}`}
+                                type="number"
+                                placeholder="5000"
+                                value={campus.studentCapacity || ''}
+                                onChange={(e) => updateCampus(index, 'studentCapacity', parseInt(e.target.value) || 0)}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor={`campus-email-${index}`}>Contact Email</Label>
+                              <Input
+                                id={`campus-email-${index}`}
+                                type="email"
+                                placeholder="campus@university.edu"
+                                value={campus.contactEmail}
+                                onChange={(e) => updateCampus(index, 'contactEmail', e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor={`campus-phone-${index}`}>Contact Phone</Label>
+                              <Input
+                                id={`campus-phone-${index}`}
+                                placeholder="+1 (555) 123-4567"
+                                value={campus.contactPhone}
+                                onChange={(e) => updateCampus(index, 'contactPhone', e.target.value)}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor={`campus-address-${index}`}>Address</Label>
+                            <Input
+                              id={`campus-address-${index}`}
+                              placeholder="Full campus address"
+                              value={campus.address}
+                              onChange={(e) => updateCampus(index, 'address', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {campuses.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No campuses added yet. Click "Add Campus" to add your first campus.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
                   <div>
                     <Label htmlFor="notes">Notes</Label>
                     <Textarea id="notes" placeholder="Additional notes about the partnership..." rows={3} />
@@ -658,27 +1060,66 @@ export default function UniversitiesPage() {
                       Cancel
                     </Button>
                     <Button onClick={() => {
-                      // Simulate adding a university with form data
+                      // Collect form data
+                      const name = (document.getElementById('name') as HTMLInputElement)?.value || ""
+                      const country = (document.getElementById('country') as HTMLInputElement)?.value || ""
+                      const city = (document.getElementById('city') as HTMLInputElement)?.value || ""
+                      const website = (document.getElementById('website') as HTMLInputElement)?.value || ""
+                      const description = (document.getElementById('description') as HTMLTextAreaElement)?.value || ""
+                      const worldRanking = parseInt((document.getElementById('worldRanking') as HTMLInputElement)?.value || "") || null
+                      const partnershipLevel = (document.getElementById('partnershipLevel') as HTMLSelectElement)?.value || "NONE"
+                      const commissionRate = parseFloat((document.getElementById('commissionRate') as HTMLInputElement)?.value || "") || null
+                      const contactEmail = (document.getElementById('contactEmail') as HTMLInputElement)?.value || ""
+                      const contactPhone = (document.getElementById('contactPhone') as HTMLInputElement)?.value || ""
+                      const address = (document.getElementById('address') as HTMLInputElement)?.value || ""
+                      const notes = (document.getElementById('notes') as HTMLTextAreaElement)?.value || ""
+                      
+                      if (!name || !country || !city) {
+                        alert("Please fill in all required fields (Name, Country, City)")
+                        return
+                      }
+                      
+                      if (hasMultipleCampuses && campuses.length === 0) {
+                        alert("Please add at least one campus or uncheck the multiple campuses option")
+                        return
+                      }
+                      
+                      if (hasMultipleCampuses) {
+                        const invalidCampus = campuses.find(c => !c.name || !c.city || !c.country)
+                        if (invalidCampus) {
+                          alert("Please fill in all required campus fields (Name, City, Country)")
+                          return
+                        }
+                      }
+                      
                       const newUniversity: Omit<University, 'id' | 'createdAt' | 'lastUpdated'> = {
-                        name: "New University",
-                        country: "United States",
-                        city: "New York",
-                        description: "A new university partnership",
-                        accreditation: ["Regional"],
-                        programs: ["Business", "Computer Science"],
+                        name,
+                        country,
+                        city,
+                        website: website || undefined,
+                        description: description || undefined,
+                        worldRanking: worldRanking || undefined,
+                        nationalRanking: undefined,
+                        accreditation: [],
+                        programs: [],
                         requirements: {
-                          academic: ["High School Diploma"],
-                          language: ["IELTS 6.5"],
-                          financial: ["Application fee: $50"],
-                          documents: ["Transcripts", "Letters of recommendation"]
+                          academic: [],
+                          language: [],
+                          financial: [],
+                          documents: []
                         },
-                        isPartner: true,
-                        partnershipLevel: "BASIC",
-                        commissionRate: 10.0,
+                        isPartner: partnershipLevel !== "NONE",
+                        partnershipLevel: partnershipLevel as any,
+                        commissionRate: commissionRate || undefined,
+                        contactEmail: contactEmail || undefined,
+                        contactPhone: contactPhone || undefined,
+                        address: address || undefined,
                         studentsPlaced: 0,
                         applications: 0,
-                        successRate: 0
+                        successRate: 0,
+                        notes: notes || undefined
                       }
+                      
                       addUniversity(newUniversity)
                     }}>
                       Add University
@@ -1010,19 +1451,19 @@ export default function UniversitiesPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Button className="h-20 flex-col">
+                  <Button onClick={handleNewPartnership} className="h-20 flex-col">
                     <Plus className="h-6 w-6 mb-2" />
                     New Partnership
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col">
+                  <Button onClick={handleAgreementRenewals} variant="outline" className="h-20 flex-col">
                     <FileText className="h-6 w-6 mb-2" />
                     Agreement Renewals
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col">
+                  <Button onClick={handlePerformanceReview} variant="outline" className="h-20 flex-col">
                     <BarChart3 className="h-6 w-6 mb-2" />
                     Performance Review
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col">
+                  <Button onClick={handleBulkOutreach} variant="outline" className="h-20 flex-col">
                     <Mail className="h-6 w-6 mb-2" />
                     Bulk Outreach
                   </Button>
@@ -1124,6 +1565,366 @@ export default function UniversitiesPage() {
                   <div className="text-center">
                     <div className="text-3xl font-bold text-gray-600">$112K</div>
                     <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Enhanced Student Application Analytics */}
+            <div className="grid lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Application Funnel Analysis</CardTitle>
+                  <CardDescription>Student application journey metrics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Inquiries Received</span>
+                        <span className="font-medium">{stats.totalApplications * 2.5}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: '100%' }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Applications Started</span>
+                        <span className="font-medium">{stats.totalApplications * 1.8}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-purple-600 h-2 rounded-full" style={{ width: '72%' }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Applications Submitted</span>
+                        <span className="font-medium">{stats.totalApplications}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-orange-600 h-2 rounded-full" style={{ width: '40%' }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Acceptances Received</span>
+                        <span className="font-medium">{stats.totalStudents}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${stats.avgSuccessRate}%` }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Enrollments Confirmed</span>
+                        <span className="font-medium">{Math.round(stats.totalStudents * 0.85)}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-teal-600 h-2 rounded-full" style={{ width: `${Math.round(stats.avgSuccessRate * 0.85)}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Student Demographics</CardTitle>
+                  <CardDescription>Applicant background and preferences</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-3">Study Level Preferences</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Undergraduate</span>
+                          <span>65%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: '65%' }}></div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Postgraduate</span>
+                          <span>25%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-purple-600 h-2 rounded-full" style={{ width: '25%' }}></div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Doctoral/Research</span>
+                          <span>10%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-orange-600 h-2 rounded-full" style={{ width: '10%' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-3">Popular Study Fields</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>Business & Management</span>
+                          <span className="font-medium">28%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Computer Science</span>
+                          <span className="font-medium">22%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Engineering</span>
+                          <span className="font-medium">18%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Medicine & Health</span>
+                          <span className="font-medium">15%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Social Sciences</span>
+                          <span className="font-medium">10%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Other Fields</span>
+                          <span className="font-medium">7%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Application Success Metrics</CardTitle>
+                  <CardDescription>Detailed performance indicators</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-600">{stats.avgSuccessRate}%</div>
+                      <p className="text-sm text-muted-foreground">Overall Success Rate</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <div className="text-xl font-bold text-blue-600">12 days</div>
+                        <p className="text-xs text-muted-foreground">Avg. Processing Time</p>
+                      </div>
+                      <div>
+                        <div className="text-xl font-bold text-purple-600">94%</div>
+                        <p className="text-xs text-muted-foreground">Document Completion</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Interview Rate</span>
+                        <span>78%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-indigo-600 h-2 rounded-full" style={{ width: '78%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Application Trends</CardTitle>
+                  <CardDescription>Application volume over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {[
+                      { month: 'Jan', applications: 45, trend: 'up' },
+                      { month: 'Feb', applications: 52, trend: 'up' },
+                      { month: 'Mar', applications: 48, trend: 'down' },
+                      { month: 'Apr', applications: 67, trend: 'up' },
+                      { month: 'May', applications: 73, trend: 'up' },
+                      { month: 'Jun', applications: 69, trend: 'down' }
+                    ].map((item, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <span>{item.month}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-blue-600 h-1.5 rounded-full" 
+                              style={{ width: `${(item.applications / 80) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs w-8 text-right">{item.applications}</span>
+                          {item.trend === 'up' ? (
+                            <TrendingUp className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Activity className="h-3 w-3 text-red-600" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Regional Insights</CardTitle>
+                  <CardDescription>Application distribution by region</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[
+                      { region: 'North America', applications: 156, percentage: 42 },
+                      { region: 'Europe', applications: 98, percentage: 26 },
+                      { region: 'Asia Pacific', applications: 75, percentage: 20 },
+                      { region: 'Other Regions', applications: 42, percentage: 12 }
+                    ].map((item, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span>{item.region}</span>
+                          <span>{item.applications} ({item.percentage}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full" 
+                            style={{ width: `${item.percentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Popular Destinations Feature */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Popular Student Destinations</CardTitle>
+                <CardDescription>Most sought-after countries and cities for student applications</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid lg:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium mb-4">Top Countries by Applications</h4>
+                    <div className="space-y-3">
+                      {[
+                        { country: 'United States', applications: 89, percentage: 24, trend: 'up', universities: 45 },
+                        { country: 'United Kingdom', applications: 76, percentage: 20, trend: 'up', universities: 38 },
+                        { country: 'Canada', applications: 68, percentage: 18, trend: 'stable', universities: 32 },
+                        { country: 'Australia', applications: 54, percentage: 15, trend: 'up', universities: 28 },
+                        { country: 'Germany', applications: 42, percentage: 11, trend: 'up', universities: 22 },
+                        { country: 'Netherlands', applications: 38, percentage: 10, trend: 'stable', universities: 18 }
+                      ].map((item, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                                <span className="text-xs font-medium">{index + 1}</span>
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{item.country}</p>
+                                <p className="text-xs text-muted-foreground">{item.universities} universities</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{item.applications}</span>
+                              {item.trend === 'up' ? (
+                                <TrendingUp className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Activity className="h-3 w-3 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-gradient-to-r from-blue-600 to-purple-600 h-1.5 rounded-full" 
+                              style={{ width: `${item.percentage}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-4">Top Cities by Student Preferences</h4>
+                    <div className="space-y-3">
+                      {[
+                        { city: 'London', country: 'UK', applications: 34, popularity: 92, avgCost: '$22,000' },
+                        { city: 'New York', country: 'USA', applications: 31, popularity: 89, avgCost: '$28,000' },
+                        { city: 'Toronto', country: 'Canada', applications: 28, popularity: 87, avgCost: '$18,000' },
+                        { city: 'Sydney', country: 'Australia', applications: 25, popularity: 85, avgCost: '$25,000' },
+                        { city: 'Berlin', country: 'Germany', applications: 22, popularity: 82, avgCost: '$15,000' },
+                        { city: 'Melbourne', country: 'Australia', applications: 20, popularity: 80, avgCost: '$23,000' }
+                      ].map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                              <MapPin className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{item.city}</p>
+                              <p className="text-xs text-muted-foreground">{item.country}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-sm">
+                              <span className="font-medium">{item.applications}</span>
+                              <span className="text-xs text-muted-foreground">apps</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground">{item.avgCost}/year</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h5 className="font-medium text-blue-900 mb-2">Destination Insights</h5>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Most Popular Region:</span>
+                          <span className="text-blue-700">Europe (44%)</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Fastest Growing:</span>
+                          <span className="text-blue-700">Germany (+18%)</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Avg. Budget Range:</span>
+                          <span className="text-blue-700">$15K-$30K</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Preferred Duration:</span>
+                          <span className="text-blue-700">2-4 years</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">Destination Trends</h4>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-3 w-3 mr-2" />
+                      Export Report
+                    </Button>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="p-3 border rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">+24%</div>
+                      <p className="text-sm text-muted-foreground">Growth in European destinations</p>
+                    </div>
+                    <div className="p-3 border rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">$22.5K</div>
+                      <p className="text-sm text-muted-foreground">Average tuition cost</p>
+                    </div>
+                    <div className="p-3 border rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">87%</div>
+                      <p className="text-sm text-muted-foreground">Student satisfaction rate</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1397,6 +2198,461 @@ export default function UniversitiesPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New Partnership Dialog */}
+      <Dialog open={isNewPartnershipDialogOpen} onOpenChange={setIsNewPartnershipDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Partnership</DialogTitle>
+            <DialogDescription>
+              Establish a new partnership with a university
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="university-select">Select University *</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a university" />
+                </SelectTrigger>
+                <SelectContent>
+                  {universities
+                    .filter(u => !u.isPartner || u.partnershipLevel === 'NONE')
+                    .map(university => (
+                      <SelectItem key={university.id} value={university.id}>
+                        {university.name} - {university.country}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="partnership-level">Partnership Level *</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BASIC">Basic</SelectItem>
+                    <SelectItem value="PREMIUM">Premium</SelectItem>
+                    <SelectItem value="STRATEGIC">Strategic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="commission-rate">Commission Rate (%) *</Label>
+                <Input id="commission-rate" type="number" step="0.1" placeholder="15.0" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="partnership-notes">Partnership Terms</Label>
+              <Textarea id="partnership-notes" placeholder="Describe partnership terms, conditions, and expectations..." rows={4} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsNewPartnershipDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                const universitySelect = document.getElementById('university-select') as HTMLSelectElement
+                const partnershipLevel = document.getElementById('partnership-level') as HTMLSelectElement
+                const commissionRate = document.getElementById('commission-rate') as HTMLInputElement
+                
+                if (!universitySelect.value || !partnershipLevel.value || !commissionRate.value) {
+                  alert('Please fill in all required fields')
+                  return
+                }
+                
+                createPartnership(universitySelect.value, partnershipLevel.value, parseFloat(commissionRate.value))
+              }}>
+                Create Partnership
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Agreement Renewals Dialog */}
+      <Dialog open={isAgreementRenewalsDialogOpen} onOpenChange={setIsAgreementRenewalsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Renew Partnership Agreement</DialogTitle>
+            <DialogDescription>
+              Renew and update partnership agreements with existing partners
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="renewal-university">Select University *</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a partner university" />
+                </SelectTrigger>
+                <SelectContent>
+                  {universities
+                    .filter(u => u.isPartner && u.partnershipLevel !== 'NONE')
+                    .map(university => (
+                      <SelectItem key={university.id} value={university.id}>
+                        {university.name} - {university.partnershipLevel} ({university.commissionRate}%)
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-commission-rate">New Commission Rate (%)</Label>
+                <Input id="new-commission-rate" type="number" step="0.1" placeholder="15.0" />
+              </div>
+              <div>
+                <Label htmlFor="renewal-duration">Renewal Period</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Year</SelectItem>
+                    <SelectItem value="2">2 Years</SelectItem>
+                    <SelectItem value="3">3 Years</SelectItem>
+                    <SelectItem value="5">5 Years</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="renewal-terms">Renewal Terms & Conditions</Label>
+              <Textarea id="renewal-terms" placeholder="Updated terms, conditions, and expectations for the renewed partnership..." rows={4} />
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Current Partnership Details</h4>
+              <div className="grid md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Current Level:</span> <span id="current-level">-</span>
+                </div>
+                <div>
+                  <span className="font-medium">Current Rate:</span> <span id="current-rate">-</span>
+                </div>
+                <div>
+                  <span className="font-medium">Students Placed:</span> <span id="current-students">-</span>
+                </div>
+                <div>
+                  <span className="font-medium">Success Rate:</span> <span id="current-success">-</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsAgreementRenewalsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                const universitySelect = document.getElementById('renewal-university') as HTMLSelectElement
+                const newCommissionRate = document.getElementById('new-commission-rate') as HTMLInputElement
+                const renewalTerms = document.getElementById('renewal-terms') as HTMLTextAreaElement
+                
+                if (!universitySelect.value) {
+                  alert('Please select a university')
+                  return
+                }
+                
+                renewAgreement(universitySelect.value, newCommissionRate.value ? parseFloat(newCommissionRate.value) : 0, renewalTerms.value || '')
+              }}>
+                Renew Agreement
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Performance Review Dialog */}
+      <Dialog open={isPerformanceReviewDialogOpen} onOpenChange={setIsPerformanceReviewDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Partnership Performance Review</DialogTitle>
+            <DialogDescription>
+              Review and analyze partnership performance across all universities
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Total Partners</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.partners}</div>
+                  <div className="text-xs text-muted-foreground">Active partnerships</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Total Students</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalStudents}</div>
+                  <div className="text-xs text-muted-foreground">Placed this year</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Avg Success Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.avgSuccessRate}%</div>
+                  <div className="text-xs text-muted-foreground">Across all partners</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <Label htmlFor="review-university">Select University for Detailed Review</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a partner university" />
+                </SelectTrigger>
+                <SelectContent>
+                  {universities
+                    .filter(u => u.isPartner && u.partnershipLevel !== 'NONE')
+                    .map(university => (
+                      <SelectItem key={university.id} value={university.id}>
+                        {university.name} - {university.partnershipLevel}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="border rounded-lg p-4">
+              <h4 className="font-medium mb-4">Performance Metrics</h4>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Application Success Rate</span>
+                      <span>47%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '47%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Student Satisfaction</span>
+                      <span>4.2/5</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: '84%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Response Time</span>
+                      <span>2.3 days</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-purple-600 h-2 rounded-full" style={{ width: '76%' }}></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Document Processing</span>
+                      <span>91%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-orange-600 h-2 rounded-full" style={{ width: '91%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Communication Quality</span>
+                      <span>4.5/5</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-teal-600 h-2 rounded-full" style={{ width: '90%' }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Overall Partnership Score</span>
+                      <span>8.7/10</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '87%' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsPerformanceReviewDialogOpen(false)}>
+                Close
+              </Button>
+              <Button>
+                <Download className="h-4 w-4 mr-2" />
+                Export Report
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Outreach Dialog */}
+      <Dialog open={isBulkOutreachDialogOpen} onOpenChange={setIsBulkOutreachDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Outreach Campaign</DialogTitle>
+            <DialogDescription>
+              Send bulk messages to multiple universities for partnerships, updates, or announcements
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div>
+              <Label htmlFor="outreach-type">Campaign Type</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select campaign type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="partnership">Partnership Proposal</SelectItem>
+                  <SelectItem value="update">Partnership Update</SelectItem>
+                  <SelectItem value="announcement">Announcement</SelectItem>
+                  <SelectItem value="followup">Follow-up</SelectItem>
+                  <SelectItem value="event">Event Invitation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="target-universities">Target Universities</Label>
+              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3">
+                {universities.map(university => (
+                  <div key={university.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`university-${university.id}`}
+                      className="rounded border-gray-300"
+                      defaultChecked={university.isPartner}
+                    />
+                    <label htmlFor={`university-${university.id}`} className="text-sm flex-1">
+                      {university.name} - {university.country}
+                      {university.isPartner && (
+                        <Badge className={`ml-2 ${getPartnershipColor(university.partnershipLevel)}`}>
+                          {university.partnershipLevel}
+                        </Badge>
+                      )}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="email-template">Email Template</Label>
+              <Select>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="partnership-proposal">Partnership Proposal</SelectItem>
+                  <SelectItem value="partnership-renewal">Partnership Renewal</SelectItem>
+                  <SelectItem value="program-update">Program Update</SelectItem>
+                  <SelectItem value="event-invitation">Event Invitation</SelectItem>
+                  <SelectItem value="custom">Custom Message</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="message-content">Message Content</Label>
+              <Textarea 
+                id="message-content" 
+                placeholder="Compose your message here..." 
+                rows={8}
+                defaultValue={`Dear University Partner,
+
+We hope this message finds you well. We are reaching out to discuss potential collaboration opportunities and strengthen our partnership.
+
+We believe that by working together, we can create valuable opportunities for students and enhance educational outcomes.
+
+We look forward to your response and the possibility of working together.
+
+Best regards,
+The Education Agency Team`}
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="schedule-send">Schedule Send</Label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Send timing" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="now">Send Now</SelectItem>
+                    <SelectItem value="tomorrow">Send Tomorrow</SelectItem>
+                    <SelectItem value="next-week">Send Next Week</SelectItem>
+                    <SelectItem value="custom">Custom Date</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="follow-up">Follow-up Days</Label>
+                <Input id="follow-up" type="number" placeholder="7" defaultValue="7" />
+              </div>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-900 mb-2">Campaign Summary</h4>
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Selected Universities:</span> <span id="selected-count">0</span>
+                </div>
+                <div>
+                  <span className="font-medium">Estimated Delivery:</span> <span>Immediate</span>
+                </div>
+                <div>
+                  <span className="font-medium">Status:</span> <span className="text-green-600">Ready to send</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsBulkOutreachDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="outline">
+                <Save className="h-4 w-4 mr-2" />
+                Save Draft
+              </Button>
+              <Button onClick={() => {
+                const messageContent = document.getElementById('message-content') as HTMLTextAreaElement
+                const checkboxes = document.querySelectorAll<HTMLInputElement>('input[type="checkbox"][id^="university-"]')
+                const selectedUniversities = Array.from(checkboxes)
+                  .filter(cb => cb.checked)
+                  .map(cb => cb.id.replace('university-', ''))
+                
+                if (selectedUniversities.length === 0) {
+                  alert('Please select at least one university')
+                  return
+                }
+                
+                if (!messageContent.value.trim()) {
+                  alert('Please enter a message')
+                  return
+                }
+                
+                sendBulkOutreach(messageContent.value, selectedUniversities)
+              }}>
+                <Send className="h-4 w-4 mr-2" />
+                Send Campaign
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
