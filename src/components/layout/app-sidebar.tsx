@@ -50,7 +50,9 @@ import {
   Folder,
   Globe,
   Plug,
-  UserPlus
+  UserPlus,
+  ListTodo,
+  RotateCcw
 } from "lucide-react"
 
 interface AppSidebarProps {
@@ -63,6 +65,13 @@ const menuItems = [
     url: "/dashboard",
     icon: LayoutDashboard,
     description: "Overview and analytics"
+  },
+  {
+    title: "Tasks",
+    url: "/tasks",
+    icon: ListTodo,
+    description: "Task management",
+    badge: "New"
   },
   {
     title: "Students",

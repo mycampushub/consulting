@@ -85,15 +85,13 @@ model Agency {
   documents       Document[]
   notifications   Notification[]
   tasks           Task[]
-  pipelines       Pipeline[]
-  segmentMembers  SegmentMember[]
-  tagAssignments  TagAssignment[]
-  documentShares  DocumentShare[]
-  documentActivities DocumentActivity[]
-  branches        Branch[]
-  pipelineEntries PipelineEntry[]
-  appointmentNotes AppointmentNote[]
   taskComments    TaskComment[]
+  taskTimeLogs    TaskTimeLog[]
+  taskAttachments TaskAttachment[]
+  taskAssignments TaskAssignment[]
+  taskTemplates   TaskTemplate[]
+  assignmentRules AssignmentRule[]
+  roundRobinGroups RoundRobinGroup[]
   
   // Milestone System
   milestones      Milestone[]
@@ -176,7 +174,11 @@ model User {
   // New relations
   appointments   Appointment[]
   assignedTasks  Task[]
+  createdTasks   Task[] @relation("task_assigner")
   taskComments   TaskComment[]
+  taskTimeLogs   TaskTimeLog[]
+  taskAttachments TaskAttachment[]
+  taskAssignments TaskAssignment[] @relation("task_assignment_assigner")
   appointmentNotes AppointmentNote[]
   
   // Knowledge Base relations
@@ -1428,8 +1430,10 @@ model Task {
   category        TaskCategory @default(GENERAL)
   
   // Assignment
-  assignedTo      String   // User ID
+  assignedTo      String?   // User ID
   assignee        User?     @relation(fields: [assignedTo], references: [id])
+  assignedBy      String?   // User ID who assigned the task
+  assigner        User?     @relation("task_assigner", fields: [assignedBy], references: [id])
   
   // Context
   studentId       String?
@@ -1438,11 +1442,17 @@ model Task {
   lead            Lead?    @relation(fields: [leadId], references: [id])
   applicationId   String?
   application     Application? @relation(fields: [applicationId], references: [id])
+  universityId    String?
+  university      University? @relation(fields: [universityId], references: [id])
   
   // Scheduling
   dueDate         DateTime?
   dueTime         String?
   reminderAt      DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  estimatedHours  Float?
+  actualHours     Float?
   
   // Status
   status          TaskStatus @default(PENDING)
@@ -1453,16 +1463,42 @@ model Task {
   
   // Dependencies
   dependsOn       String?  // Task ID
+  dependency      Task?    @relation("task_dependency", fields: [dependsOn], references: [id])
+  dependentTasks  Task[]   @relation("task_dependency")
+  
+  // Recurring
+  isRecurring     Boolean  @default(false)
+  recurringPattern String? // JSON recurring pattern
+  recurringTaskId String?  // ID of the parent recurring task
+  parentRecurringTask Task? @relation("recurring_tasks", fields: [recurringTaskId], references: [id])
+  childRecurringTasks Task[] @relation("recurring_tasks")
+  
+  // Workflow
+  workflowId      String?
+  workflow        Workflow? @relation(fields: [workflowId], references: [id])
+  workflowStep    Int?
+  
+  // Template
+  templateId      String?
+  template        TaskTemplate? @relation(fields: [templateId], references: [id])
+  
+  // Assignment Rules
+  assignmentRuleId String?
+  assignmentRule   AssignmentRule? @relation(fields: [assignmentRuleId], references: [id])
   
   // Metadata
   tags            String?  // JSON array of tags
   metadata        String?  // JSON metadata
+  customFields    String?  // JSON custom fields
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   // Relations
   taskComments    TaskComment[]
+  taskTimeLogs    TaskTimeLog[]
+  taskAttachments TaskAttachment[]
+  taskAssignments TaskAssignment[]
   
   @@map("tasks")
 }
@@ -1476,15 +1512,209 @@ model TaskComment {
   
   // Comment Details
   content         String
+  type            CommentType @default(GENERAL)
   
   // Author
   authorId        String
   author          User     @relation(fields: [authorId], references: [id])
   
+  // Attachments
+  attachments     String?  // JSON array of attachment references
+  
+  // Visibility
+  isInternal      Boolean  @default(false)
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
   @@map("task_comments")
+}
+
+model TaskTimeLog {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Time Log Details
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  description     String?
+  hours           Float
+  billable        Boolean  @default(true)
+  rate            Float?
+  
+  // Date Range
+  startTime       DateTime
+  endTime         DateTime
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("task_time_logs")
+}
+
+model TaskAttachment {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Attachment Details
+  fileName        String
+  fileSize        Int
+  fileType        String
+  filePath        String
+  
+  // Upload Info
+  uploadedBy      String
+  uploader        User     @relation(fields: [uploadedBy], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("task_attachments")
+}
+
+model TaskAssignment {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  // Assignment Details
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  assignedBy      String
+  assigner        User     @relation("task_assignment_assigner", fields: [assignedBy], references: [id])
+  
+  // Assignment Type
+  assignmentType  AssignmentType @default(MANUAL)
+  
+  // Status
+  status          AssignmentStatus @default(ACTIVE)
+  
+  // Round Robin Info
+  roundRobinGroupId String?
+  roundRobinOrder Int?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("task_assignments")
+}
+
+model TaskTemplate {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Template Details
+  name            String
+  description     String?
+  category        TaskCategory @default(GENERAL)
+  type            TaskType @default(GENERAL)
+  
+  // Task Content
+  title           String
+  description     String?
+  estimatedHours  Float?
+  
+  // Default Values
+  defaultPriority TaskPriority @default(MEDIUM)
+  defaultTags     String?  // JSON array of tags
+  defaultMetadata String?  // JSON metadata
+  
+  // Assignment Rules
+  autoAssign      Boolean  @default(false)
+  assignmentRuleId String?
+  assignmentRule   AssignmentRule? @relation(fields: [assignmentRuleId], references: [id])
+  
+  // Workflow
+  workflowId      String?
+  workflow        Workflow? @relation(fields: [workflowId], references: [id])
+  
+  // Visibility
+  isGlobal        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  tasks           Task[]
+  
+  @@map("task_templates")
+}
+
+model AssignmentRule {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Rule Details
+  name            String
+  description     String?
+  type            AssignmentRuleType @default(ROUND_ROBIN)
+  
+  // Rule Configuration
+  configuration   String   // JSON configuration for the rule
+  
+  // Target Users/Teams
+  targetUserIds   String?  // JSON array of user IDs
+  targetRoleIds   String?  // JSON array of role IDs
+  targetDepartmentIds String? // JSON array of department IDs
+  
+  // Conditions
+  conditions      String?  // JSON conditions for when to apply this rule
+  
+  // Priority
+  priority        Int      @default(0)
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  tasks           Task[]
+  taskTemplates   TaskTemplate[]
+  
+  @@map("assignment_rules")
+}
+
+model RoundRobinGroup {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Group Details
+  name            String
+  description     String?
+  
+  // Configuration
+  strategy        RoundRobinStrategy @default(SEQUENTIAL)
+  skipUnavailable Boolean  @default(true)
+  resetDaily      Boolean  @default(false)
+  
+  // Member Order
+  memberOrder     String   // JSON array of user IDs in order
+  
+  // Current Position
+  currentPosition Int      @default(0)
+  lastAssignedAt DateTime?
+  
+  // Status
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("round_robin_groups")
 }
 
 // Feature Control System
@@ -3010,6 +3240,46 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+// Task Management Enums
+enum CommentType {
+  GENERAL
+  STATUS_UPDATE
+  ASSIGNMENT
+  DEADLINE
+  ISSUE
+  RESOLUTION
+}
+
+enum AssignmentType {
+  MANUAL
+  AUTOMATIC
+  ROUND_ROBIN
+  LOAD_BALANCED
+  SKILL_BASED
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  REASSIGNED
+  CANCELLED
+}
+
+enum AssignmentRuleType {
+  ROUND_ROBIN
+  LOAD_BALANCE
+  SKILL_MATCH
+  AVAILABILITY_BASED
+  CUSTOM
+}
+
+enum RoundRobinStrategy {
+  SEQUENTIAL
+  WEIGHTED
+  SKILL_BASED
+  AVAILABILITY_BASED
 }
 
 // Pipeline Enums

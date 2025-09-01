@@ -20,6 +20,7 @@ import {
   DollarSign, 
   AlertTriangle, 
   CheckCircle,
+  XCircle,
   Search,
   Filter,
   Plus,
@@ -63,7 +64,10 @@ import {
   Plug,
   Building,
   Play,
-  Loader2
+  Loader2,
+  ListTodo,
+  Circle,
+  RotateCcw
 } from "lucide-react"
 
 interface UserData {
@@ -111,6 +115,10 @@ interface DashboardStats {
   teamMembers: number
   conversionRate: number
   avgProcessingTime: number
+  totalTasks: number
+  pendingTasks: number
+  overdueTasks: number
+  completedTasksThisWeek: number
 }
 
 const mockUsers: UserData[] = [
@@ -280,7 +288,11 @@ const mockStats: DashboardStats = {
   monthlyRevenue: 12500,
   teamMembers: 4,
   conversionRate: 68,
-  avgProcessingTime: 14
+  avgProcessingTime: 14,
+  totalTasks: 67,
+  pendingTasks: 23,
+  overdueTasks: 5,
+  completedTasksThisWeek: 18
 }
 
 const recentActivities = [
@@ -302,6 +314,14 @@ const recentActivities = [
   },
   {
     id: "3",
+    type: "task",
+    action: "Task completed: Document review",
+    student: "James Wilson",
+    user: "Michael Chen",
+    timestamp: "5 hours ago"
+  },
+  {
+    id: "4",
     type: "university",
     action: "New partnership established",
     university: "University of Toronto",
@@ -309,7 +329,7 @@ const recentActivities = [
     timestamp: "1 day ago"
   },
   {
-    id: "4",
+    id: "5",
     type: "student",
     action: "Student consultation completed",
     student: "Alex Thompson",
@@ -317,12 +337,60 @@ const recentActivities = [
     timestamp: "1 day ago"
   },
   {
-    id: "5",
-    type: "document",
-    action: "Documents uploaded",
-    student: "James Wilson",
+    id: "6",
+    type: "task",
+    action: "Overdue task: Follow up with student",
+    student: "Liu Wei",
     user: "Emma Rodriguez",
     timestamp: "2 days ago"
+  }
+]
+
+const recentTasks = [
+  {
+    id: "1",
+    title: "Review application documents",
+    assignee: "Michael Chen",
+    status: "COMPLETED",
+    priority: "HIGH",
+    dueDate: "2024-01-20",
+    student: "Maria Garcia"
+  },
+  {
+    id: "2",
+    title: "Follow up with student",
+    assignee: "Emma Rodriguez",
+    status: "PENDING",
+    priority: "MEDIUM",
+    dueDate: "2024-01-21",
+    student: "Alex Thompson"
+  },
+  {
+    id: "3",
+    title: "Schedule university meeting",
+    assignee: "David Kim",
+    status: "IN_PROGRESS",
+    priority: "LOW",
+    dueDate: "2024-01-22",
+    student: "Priya Patel"
+  },
+  {
+    id: "4",
+    title: "Visa documentation review",
+    assignee: "Michael Chen",
+    status: "OVERDUE",
+    priority: "URGENT",
+    dueDate: "2024-01-19",
+    student: "James Wilson"
+  },
+  {
+    id: "5",
+    title: "Pre-departure briefing",
+    assignee: "Emma Rodriguez",
+    status: "PENDING",
+    priority: "MEDIUM",
+    dueDate: "2024-01-25",
+    student: "Liu Wei"
   }
 ]
 
@@ -429,6 +497,40 @@ export default function AgencyDashboard() {
       case "BASIC": return "bg-green-100 text-green-800"
       case "NONE": return "bg-gray-100 text-gray-800"
       default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getTaskStatusColor = (status: string) => {
+    switch (status) {
+      case "PENDING": return "bg-gray-100 text-gray-800"
+      case "IN_PROGRESS": return "bg-blue-100 text-blue-800"
+      case "COMPLETED": return "bg-green-100 text-green-800"
+      case "OVERDUE": return "bg-red-100 text-red-800"
+      case "CANCELLED": return "bg-red-100 text-red-800"
+      case "DEFERRED": return "bg-yellow-100 text-yellow-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getTaskPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "LOW": return "bg-green-100 text-green-800"
+      case "MEDIUM": return "bg-yellow-100 text-yellow-800"
+      case "HIGH": return "bg-orange-100 text-orange-800"
+      case "URGENT": return "bg-red-100 text-red-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getTaskStatusIcon = (status: string) => {
+    switch (status) {
+      case "PENDING": return <Circle className="h-3 w-3 text-gray-500" />
+      case "IN_PROGRESS": return <Clock className="h-3 w-3 text-blue-500" />
+      case "COMPLETED": return <CheckCircle className="h-3 w-3 text-green-500" />
+      case "OVERDUE": return <AlertTriangle className="h-3 w-3 text-red-500" />
+      case "CANCELLED": return <XCircle className="h-3 w-3 text-red-500" />
+      case "DEFERRED": return <Clock className="h-3 w-3 text-yellow-500" />
+      default: return <Circle className="h-3 w-3 text-gray-500" />
     }
   }
 
@@ -597,7 +699,7 @@ export default function AgencyDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
@@ -624,6 +726,30 @@ export default function AgencyDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+            <ListTodo className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTasks}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.completedTasksThisWeek} completed this week
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+            <p className="text-xs text-muted-foreground">
+              {stats.overdueTasks} overdue
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -634,26 +760,15 @@ export default function AgencyDashboard() {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.conversionRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              +5% from last month
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="universities">Universities</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -926,6 +1041,135 @@ export default function AgencyDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Recent Tasks</CardTitle>
+                  <CardDescription>
+                    Latest tasks and their current status
+                  </CardDescription>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => router.push(`/${subdomain}/tasks`)}
+                >
+                  View All Tasks
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {recentTasks.map((task) => (
+                  <div key={task.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2">
+                        {getTaskStatusIcon(task.status)}
+                        <div>
+                          <h3 className="font-medium">{task.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {task.student} • Due: {new Date(task.dueDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getTaskPriorityColor(task.priority)}>
+                        {task.priority}
+                      </Badge>
+                      <Badge className={getTaskStatusColor(task.status)}>
+                        {task.status.replace('_', ' ')}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">{task.assignee}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Status Breakdown</CardTitle>
+                <CardDescription>
+                  Current status distribution of all tasks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Circle className="h-3 w-3 text-gray-500" />
+                      <span className="text-sm">Pending</span>
+                    </div>
+                    <span className="text-sm font-medium">{stats.pendingTasks}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-3 w-3 text-blue-500" />
+                      <span className="text-sm">In Progress</span>
+                    </div>
+                    <span className="text-sm font-medium">{stats.totalTasks - stats.pendingTasks - stats.completedTasksThisWeek - stats.overdueTasks}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      <span className="text-sm">Completed This Week</span>
+                    </div>
+                    <span className="text-sm font-medium">{stats.completedTasksThisWeek}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                      <span className="text-sm">Overdue</span>
+                    </div>
+                    <span className="text-sm font-medium text-red-600">{stats.overdueTasks}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Common task-related actions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push(`/${subdomain}/tasks`)}
+                  >
+                    <ListTodo className="h-4 w-4 mr-2" />
+                    View All Tasks
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push(`/${subdomain}/settings/round-robin`)}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Manage Round Robin Groups
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setIsCreateTaskOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create New Task
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
