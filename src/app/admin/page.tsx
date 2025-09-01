@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   Building2, 
   Users, 
@@ -38,7 +39,27 @@ import {
   MoreHorizontal,
   GraduationCap,
   Zap,
-  GitBranch
+  GitBranch,
+  Bell,
+  RefreshCw,
+  UserPlus,
+  Pause,
+  Play,
+  Ban,
+  Check,
+  X,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Wifi,
+  WifiOff,
+  Server,
+  HardDrive,
+  MemoryStick,
+  Cpu,
+  Thermometer,
+  Battery,
+  Signal
 } from "lucide-react"
 
 interface Agency {
@@ -55,6 +76,22 @@ interface Agency {
   applicationCount: number
   lastActivity?: string
   billingStatus: 'ACTIVE' | 'PAST_DUE' | 'CANCELLED'
+  health: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL'
+  performance: {
+    responseTime: number
+    uptime: number
+    errorRate: number
+  }
+  metrics: {
+    monthlyActiveUsers: number
+    sessionDuration: number
+    bounceRate: number
+  }
+  support: {
+    ticketsOpen: number
+    ticketsResolved: number
+    avgResponseTime: number
+  }
 }
 
 interface SystemStats {
@@ -66,6 +103,34 @@ interface SystemStats {
   totalRevenue: number
   monthlyGrowth: number
   systemHealth: 'HEALTHY' | 'WARNING' | 'CRITICAL'
+  realTimeMetrics: {
+    activeUsers: number
+    requestsPerSecond: number
+    averageResponseTime: number
+    errorRate: number
+    databaseConnections: number
+    memoryUsage: number
+    cpuUsage: number
+    diskUsage: number
+  }
+  alerts: {
+    critical: number
+    warning: number
+    info: number
+  }
+}
+
+interface Notification {
+  id: string
+  type: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'
+  title: string
+  message: string
+  timestamp: string
+  read: boolean
+  action?: {
+    label: string
+    callback: () => void
+  }
 }
 
 const mockAgencies: Agency[] = [
@@ -82,7 +147,23 @@ const mockAgencies: Agency[] = [
     universityCount: 150,
     applicationCount: 180,
     lastActivity: "2024-01-20T10:30:00Z",
-    billingStatus: "ACTIVE"
+    billingStatus: "ACTIVE",
+    health: "EXCELLENT",
+    performance: {
+      responseTime: 120,
+      uptime: 99.9,
+      errorRate: 0.1
+    },
+    metrics: {
+      monthlyActiveUsers: 45,
+      sessionDuration: 1250,
+      bounceRate: 12.5
+    },
+    support: {
+      ticketsOpen: 3,
+      ticketsResolved: 28,
+      avgResponseTime: 2.5
+    }
   },
   {
     id: "2", 
@@ -96,7 +177,23 @@ const mockAgencies: Agency[] = [
     universityCount: 75,
     applicationCount: 95,
     lastActivity: "2024-01-20T09:15:00Z",
-    billingStatus: "ACTIVE"
+    billingStatus: "ACTIVE",
+    health: "GOOD",
+    performance: {
+      responseTime: 180,
+      uptime: 99.5,
+      errorRate: 0.3
+    },
+    metrics: {
+      monthlyActiveUsers: 22,
+      sessionDuration: 980,
+      bounceRate: 18.2
+    },
+    support: {
+      ticketsOpen: 1,
+      ticketsResolved: 15,
+      avgResponseTime: 4.2
+    }
   },
   {
     id: "3",
@@ -109,7 +206,23 @@ const mockAgencies: Agency[] = [
     studentCount: 0,
     universityCount: 0,
     applicationCount: 0,
-    billingStatus: "PAST_DUE"
+    billingStatus: "PAST_DUE",
+    health: "WARNING",
+    performance: {
+      responseTime: 350,
+      uptime: 97.2,
+      errorRate: 1.2
+    },
+    metrics: {
+      monthlyActiveUsers: 2,
+      sessionDuration: 320,
+      bounceRate: 45.8
+    },
+    support: {
+      ticketsOpen: 2,
+      ticketsResolved: 0,
+      avgResponseTime: 8.5
+    }
   },
   {
     id: "4",
@@ -123,7 +236,23 @@ const mockAgencies: Agency[] = [
     universityCount: 40,
     applicationCount: 30,
     lastActivity: "2024-01-19T16:45:00Z",
-    billingStatus: "ACTIVE"
+    billingStatus: "ACTIVE",
+    health: "GOOD",
+    performance: {
+      responseTime: 200,
+      uptime: 98.8,
+      errorRate: 0.5
+    },
+    metrics: {
+      monthlyActiveUsers: 8,
+      sessionDuration: 720,
+      bounceRate: 22.1
+    },
+    support: {
+      ticketsOpen: 0,
+      ticketsResolved: 5,
+      avgResponseTime: 6.1
+    }
   },
   {
     id: "5",
@@ -137,7 +266,23 @@ const mockAgencies: Agency[] = [
     universityCount: 90,
     applicationCount: 85,
     lastActivity: "2024-01-15T14:20:00Z",
-    billingStatus: "CANCELLED"
+    billingStatus: "CANCELLED",
+    health: "CRITICAL",
+    performance: {
+      responseTime: 520,
+      uptime: 94.1,
+      errorRate: 3.8
+    },
+    metrics: {
+      monthlyActiveUsers: 15,
+      sessionDuration: 450,
+      bounceRate: 38.9
+    },
+    support: {
+      ticketsOpen: 5,
+      ticketsResolved: 12,
+      avgResponseTime: 12.3
+    }
   }
 ]
 
@@ -149,7 +294,22 @@ const mockStats: SystemStats = {
   totalApplications: 6750,
   totalRevenue: 284500,
   monthlyGrowth: 12.5,
-  systemHealth: "HEALTHY"
+  systemHealth: "HEALTHY",
+  realTimeMetrics: {
+    activeUsers: 342,
+    requestsPerSecond: 45.2,
+    averageResponseTime: 145,
+    errorRate: 0.8,
+    databaseConnections: 23,
+    memoryUsage: 68.5,
+    cpuUsage: 42.3,
+    diskUsage: 55.8
+  },
+  alerts: {
+    critical: 2,
+    warning: 5,
+    info: 12
+  }
 }
 
 const recentActivities = [
@@ -201,6 +361,80 @@ export default function AdminConsole() {
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: "1",
+      type: "WARNING",
+      title: "High Memory Usage",
+      message: "Server memory usage is at 85%, consider scaling up.",
+      timestamp: "2 minutes ago",
+      read: false
+    },
+    {
+      id: "2",
+      type: "ERROR",
+      title: "Database Connection Failed",
+      message: "Failed to connect to database server. Retrying...",
+      timestamp: "5 minutes ago",
+      read: false,
+      action: {
+        label: "View Logs",
+        callback: () => console.log("View logs clicked")
+      }
+    },
+    {
+      id: "3",
+      type: "SUCCESS",
+      title: "Backup Completed",
+      message: "Daily backup completed successfully.",
+      timestamp: "1 hour ago",
+      read: true
+    }
+  ])
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Simulate real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdate(new Date())
+      
+      // Simulate random metric updates
+      if (Math.random() > 0.7) {
+        setNotifications(prev => {
+          const newNotification: Notification = {
+            id: Date.now().toString(),
+            type: Math.random() > 0.8 ? "ERROR" : Math.random() > 0.5 ? "WARNING" : "INFO",
+            title: "System Update",
+            message: "Real-time metrics updated",
+            timestamp: "Just now",
+            read: false
+          }
+          return [newNotification, ...prev.slice(0, 9)]
+        })
+      }
+    }, 10000) // Update every 10 seconds
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setLastUpdate(new Date())
+    setIsRefreshing(false)
+  }
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === id ? { ...notif, read: true } : notif
+      )
+    )
+  }
+
+  const unreadNotifications = notifications.filter(n => !n.read).length
 
   const filteredAgencies = agencies.filter(agency => {
     const matchesSearch = agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -217,6 +451,58 @@ export default function AdminConsole() {
       case "INACTIVE": return "bg-gray-100 text-gray-800"
       default: return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getHealthColor = (health: string) => {
+    switch (health) {
+      case "EXCELLENT": return "text-green-600"
+      case "GOOD": return "text-blue-600"
+      case "WARNING": return "text-yellow-600"
+      case "CRITICAL": return "text-red-600"
+      default: return "text-gray-600"
+    }
+  }
+
+  const getHealthIcon = (health: string) => {
+    switch (health) {
+      case "EXCELLENT": return <CheckCircle className="h-4 w-4" />
+      case "GOOD": return <CheckCircle className="h-4 w-4" />
+      case "WARNING": return <AlertTriangle className="h-4 w-4" />
+      case "CRITICAL": return <X className="h-4 w-4" />
+      default: return <Minus className="h-4 w-4" />
+    }
+  }
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case "ERROR": return "bg-red-50 border-red-200 text-red-800"
+      case "WARNING": return "bg-yellow-50 border-yellow-200 text-yellow-800"
+      case "SUCCESS": return "bg-green-50 border-green-200 text-green-800"
+      case "INFO": return "bg-blue-50 border-blue-200 text-blue-800"
+      default: return "bg-gray-50 border-gray-200 text-gray-800"
+    }
+  }
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "ERROR": return <X className="h-4 w-4" />
+      case "WARNING": return <AlertTriangle className="h-4 w-4" />
+      case "SUCCESS": return <CheckCircle className="h-4 w-4" />
+      case "INFO": return <Bell className="h-4 w-4" />
+      default: return <Bell className="h-4 w-4" />
+    }
+  }
+
+  const formatUptime = (uptime: number) => {
+    return `${uptime}%`
+  }
+
+  const formatResponseTime = (time: number) => {
+    return `${time}ms`
+  }
+
+  const formatErrorRate = (rate: number) => {
+    return `${rate}%`
   }
 
   const getPlanColor = (plan: string) => {
@@ -263,6 +549,42 @@ export default function AdminConsole() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {/* Real-time Status Indicator */}
+              <div className="flex items-center gap-2 text-sm">
+                <div className={`w-2 h-2 rounded-full ${stats.systemHealth === 'HEALTHY' ? 'bg-green-500' : stats.systemHealth === 'WARNING' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                <span className="text-muted-foreground">
+                  {stats.systemHealth === 'HEALTHY' ? 'All Systems Operational' : stats.systemHealth === 'WARNING' ? 'Some Issues Detected' : 'Critical Issues'}
+                </span>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">
+                  Updated {lastUpdate.toLocaleTimeString()}
+                </span>
+              </div>
+              
+              {/* Notifications */}
+              <div className="relative">
+                <Button variant="outline" size="sm">
+                  <Bell className="h-4 w-4 mr-2" />
+                  Notifications
+                  {unreadNotifications > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                      {unreadNotifications}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+              
+              {/* Refresh Button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4 mr-2" />
                 Export Data
