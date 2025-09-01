@@ -1,433 +1,200 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Progress } from "@/components/ui/progress"
 import { 
-  FileText, 
-  Upload, 
-  Download, 
+  Plus, 
   Search, 
   Filter, 
-  Plus,
+  Upload, 
+  Download, 
+  FileText, 
+  FileImage, 
+  FileVideo, 
+  FileAudio,
+  FileArchive,
+  File,
   Eye,
   Edit,
   Trash2,
-  Calendar,
+  Share,
+  Star,
   Clock,
-  CheckCircle,
-  AlertCircle,
-  Users,
+  User,
   Folder,
-  Database,
-  HardDrive,
-  File,
-  Image,
-  FileVideo,
-  FileArchive,
+  Tag,
   MoreHorizontal,
-  Share2,
-  Lock,
-  Unlock,
-  Loader2
-} from 'lucide-react'
-import { format } from 'date-fns'
+  Settings,
+  HardDrive,
+  Cloud
+} from "lucide-react"
 
 interface Document {
   id: string
   name: string
-  type: 'PDF' | 'DOC' | 'DOCX' | 'JPG' | 'PNG' | 'MP4' | 'ZIP' | 'OTHER'
+  type: 'PDF' | 'DOC' | 'DOCX' | 'XLS' | 'XLSX' | 'PPT' | 'PPTX' | 'JPG' | 'PNG' | 'MP4' | 'MP3' | 'ZIP' | 'OTHER'
+  category: 'APPLICATION' | 'CONTRACT' | 'TRANSCRIPT' | 'CERTIFICATE' | 'PASSPORT' | 'VISA' | 'FINANCIAL' | 'OTHER'
   size: number
-  category: string
-  tags: string[]
   uploadedBy: string
   uploadedAt: string
   lastModified: string
-  status: 'ACTIVE' | 'ARCHIVED' | 'DELETED'
-  isPublic: boolean
-  downloadCount: number
+  tags: string[]
+  isStarred: boolean
+  isShared: boolean
+  sharedWith?: string[]
   studentId?: string
-  universityId?: string
-  applicationId?: string
+  studentName?: string
+  status: 'ACTIVE' | 'ARCHIVED' | 'DELETED'
 }
 
 interface DocumentFolder {
   id: string
   name: string
-  description: string
+  description?: string
   documentCount: number
   totalSize: number
   createdAt: string
-  isPublic: boolean
-}
-
-interface DocumentTemplate {
-  id: string
-  name: string
-  description: string
-  category: string
-  requiredFields: string[]
-  fileUrl: string
+  createdBy: string
+  tags: string[]
+  isShared: boolean
 }
 
 const mockDocuments: Document[] = [
   {
-    id: '1',
-    name: 'John_Doe_Transcript.pdf',
-    type: 'PDF',
-    size: 2048000,
-    category: 'Academic',
-    tags: ['transcript', 'academic', 'john-doe'],
-    uploadedBy: 'Sarah Johnson',
-    uploadedAt: '2024-01-20T10:30:00Z',
-    lastModified: '2024-01-20T10:30:00Z',
-    status: 'ACTIVE',
-    isPublic: false,
-    downloadCount: 3,
-    studentId: '1'
+    id: "1",
+    name: "University Application Form",
+    type: "PDF",
+    category: "APPLICATION",
+    size: 2048576,
+    uploadedBy: "Sarah Johnson",
+    uploadedAt: "2024-01-15T10:30:00Z",
+    lastModified: "2024-01-15T10:30:00Z",
+    tags: ["application", "university", "form"],
+    isStarred: true,
+    isShared: false,
+    studentId: "1",
+    studentName: "Alex Thompson",
+    status: "ACTIVE"
   },
   {
-    id: '2',
-    name: 'Maria_Garcia_Passport.jpg',
-    type: 'JPG',
-    size: 1024000,
-    category: 'Identification',
-    tags: ['passport', 'id', 'maria-garcia'],
-    uploadedBy: 'Emma Rodriguez',
-    uploadedAt: '2024-01-19T14:20:00Z',
-    lastModified: '2024-01-19T14:20:00Z',
-    status: 'ACTIVE',
-    isPublic: false,
-    downloadCount: 5,
-    studentId: '2'
+    id: "2",
+    name: "Academic Transcript",
+    type: "PDF",
+    category: "TRANSCRIPT",
+    size: 1048576,
+    uploadedBy: "Michael Chen",
+    uploadedAt: "2024-01-10T14:20:00Z",
+    lastModified: "2024-01-10T14:20:00Z",
+    tags: ["transcript", "academic", "records"],
+    isStarred: false,
+    isShared: true,
+    sharedWith: ["emma@agency.com"],
+    studentId: "2",
+    studentName: "Maria Garcia",
+    status: "ACTIVE"
   },
   {
-    id: '3',
-    name: 'University_Oxford_Brochure.pdf',
-    type: 'PDF',
-    size: 5120000,
-    category: 'University',
-    tags: ['brochure', 'university', 'oxford'],
-    uploadedBy: 'Michael Chen',
-    uploadedAt: '2024-01-18T09:15:00Z',
-    lastModified: '2024-01-18T09:15:00Z',
-    status: 'ACTIVE',
-    isPublic: true,
-    downloadCount: 15,
-    universityId: '2'
+    id: "3",
+    name: "Passport Copy",
+    type: "JPG",
+    category: "PASSPORT",
+    size: 512000,
+    uploadedBy: "Emma Rodriguez",
+    uploadedAt: "2024-01-12T09:15:00Z",
+    lastModified: "2024-01-12T09:15:00Z",
+    tags: ["passport", "identification", "travel"],
+    isStarred: true,
+    isShared: false,
+    studentId: "3",
+    studentName: "James Wilson",
+    status: "ACTIVE"
   },
   {
-    id: '4',
-    name: 'Application_Form_Template.docx',
-    type: 'DOCX',
-    size: 102400,
-    category: 'Template',
-    tags: ['template', 'application', 'form'],
-    uploadedBy: 'Sarah Johnson',
-    uploadedAt: '2024-01-17T16:45:00Z',
-    lastModified: '2024-01-17T16:45:00Z',
-    status: 'ACTIVE',
-    isPublic: true,
-    downloadCount: 28
+    id: "4",
+    name: "Financial Guarantee Letter",
+    type: "PDF",
+    category: "FINANCIAL",
+    size: 1536000,
+    uploadedBy: "Sarah Johnson",
+    uploadedAt: "2024-01-18T16:45:00Z",
+    lastModified: "2024-01-18T16:45:00Z",
+    tags: ["financial", "guarantee", "bank"],
+    isStarred: false,
+    isShared: true,
+    sharedWith: ["michael@agency.com", "emma@agency.com"],
+    studentId: "1",
+    studentName: "Alex Thompson",
+    status: "ACTIVE"
   }
 ]
 
 const mockFolders: DocumentFolder[] = [
   {
-    id: '1',
-    name: 'Student Documents',
-    description: 'All student-related documents',
-    documentCount: 45,
-    totalSize: 204800000,
-    createdAt: '2024-01-01',
-    isPublic: false
+    id: "1",
+    name: "Applications",
+    description: "University application documents",
+    documentCount: 15,
+    totalSize: 25600000,
+    createdAt: "2024-01-01T00:00:00Z",
+    createdBy: "Sarah Johnson",
+    tags: ["application", "university"],
+    isShared: false
   },
   {
-    id: '2',
-    name: 'University Materials',
-    description: 'University brochures and information',
+    id: "2",
+    name: "Student Records",
+    description: "Academic transcripts and certificates",
     documentCount: 23,
-    totalSize: 153600000,
-    createdAt: '2024-01-01',
-    isPublic: true
+    totalSize: 35600000,
+    createdAt: "2024-01-01T00:00:00Z",
+    createdBy: "Michael Chen",
+    tags: ["academic", "records"],
+    isShared: true
   },
   {
-    id: '3',
-    name: 'Templates',
-    description: 'Document templates and forms',
-    documentCount: 12,
-    totalSize: 51200000,
-    createdAt: '2024-01-01',
-    isPublic: true
-  },
-  {
-    id: '4',
-    name: 'Archive',
-    description: 'Archived documents',
+    id: "3",
+    name: "Legal Documents",
+    description: "Passports, visas, and legal papers",
     documentCount: 8,
-    totalSize: 102400000,
-    createdAt: '2024-01-01',
-    isPublic: false
+    totalSize: 12800000,
+    createdAt: "2024-01-05T00:00:00Z",
+    createdBy: "Emma Rodriguez",
+    tags: ["legal", "passport", "visa"],
+    isShared: false
   }
 ]
-
-const mockTemplates: DocumentTemplate[] = [
-  {
-    id: '1',
-    name: 'Student Application Form',
-    description: 'Standard student application form',
-    category: 'Application',
-    requiredFields: ['Personal Information', 'Academic Background', 'Program Choice'],
-    fileUrl: '/templates/application-form.docx'
-  },
-  {
-    id: '2',
-    name: 'Document Checklist',
-    description: 'Required documents checklist',
-    category: 'Checklist',
-    requiredFields: ['Passport', 'Transcript', 'Language Certificate'],
-    fileUrl: '/templates/document-checklist.pdf'
-  },
-  {
-    id: '3',
-    name: 'Consent Form',
-    description: 'Parental consent form for minors',
-    category: 'Legal',
-    requiredFields: ['Student Name', 'Parent Signature', 'Date'],
-    fileUrl: '/templates/consent-form.pdf'
-  }
-]
-
-const fileIcons = {
-  PDF: FileText,
-  DOC: FileText,
-  DOCX: FileText,
-  JPG: Image,
-  PNG: Image,
-  MP4: FileVideo,
-  ZIP: FileArchive,
-  OTHER: File
-}
-
-const categoryColors = {
-  'Academic': 'bg-blue-100 text-blue-800',
-  'Identification': 'bg-green-100 text-green-800',
-  'University': 'bg-purple-100 text-purple-800',
-  'Template': 'bg-orange-100 text-orange-800',
-  'Application': 'bg-red-100 text-red-800',
-  'Legal': 'bg-yellow-100 text-yellow-800',
-  'Checklist': 'bg-indigo-100 text-indigo-800'
-}
-
-const statusColors = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  ARCHIVED: 'bg-gray-100 text-gray-800',
-  DELETED: 'bg-red-100 text-red-800'
-}
 
 export default function DocumentsPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [folders, setFolders] = useState<DocumentFolder[]>(mockFolders) // Keep mock for now
-  const [templates, setTemplates] = useState<DocumentTemplate[]>(mockTemplates) // Keep mock for now
-  const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
-  const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false)
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [newDocument, setNewDocument] = useState({
-    name: '',
-    category: '',
-    tags: '',
-    isPublic: false
+  const [documents] = useState<Document[]>(mockDocuments)
+  const [folders] = useState<DocumentFolder[]>(mockFolders)
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [isUploadOpen, setIsUploadOpen] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesCategory = categoryFilter === "all" || doc.category === categoryFilter
+    const matchesType = typeFilter === "all" || doc.type === typeFilter
+    return matchesSearch && matchesCategory && matchesType && doc.status === "ACTIVE"
   })
-  const [newFolder, setNewFolder] = useState({
-    name: '',
-    description: '',
-    isPublic: false
-  })
-
-  useEffect(() => {
-    fetchDocumentsData()
-  }, [subdomain])
-
-  const fetchDocumentsData = async () => {
-    try {
-      setLoading(true)
-      
-      const response = await fetch(`/api/${subdomain}/documents`)
-      if (!response.ok) throw new Error('Failed to fetch documents')
-      
-      const data = await response.json()
-      
-      // Transform API data to match our interface
-      const transformedDocuments = data.documents?.map((doc: any) => ({
-        id: doc.id,
-        name: doc.name,
-        type: doc.fileType === 'application/pdf' ? 'PDF' : 
-              doc.fileType?.startsWith('image/') ? 'JPG' :
-              doc.fileType?.includes('word') ? 'DOC' :
-              doc.fileType?.includes('video') ? 'MP4' :
-              doc.fileType?.includes('zip') ? 'ZIP' : 'OTHER',
-        size: doc.fileSize || 0,
-        category: doc.category || 'General',
-        tags: doc.tags || [],
-        uploadedBy: doc.uploadedBy || 'System',
-        uploadedAt: doc.createdAt,
-        lastModified: doc.updatedAt,
-        status: doc.status || 'ACTIVE',
-        isPublic: doc.isPublic || false,
-        downloadCount: doc.downloadCount || 0,
-        studentId: doc.studentId,
-        universityId: doc.universityId,
-        applicationId: doc.applicationId
-      })) || []
-
-      setDocuments(transformedDocuments)
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      // Fallback to mock data if API fails
-      setDocuments(mockDocuments)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleUploadDocument = async () => {
-    if (!newDocument.name || !newDocument.category) {
-      alert('Please fill in all required fields')
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      // Simulate file upload - in real implementation, this would handle actual file upload
-      const mockFileData = {
-        name: newDocument.name,
-        description: `Uploaded document: ${newDocument.name}`,
-        type: 'IDENTITY',
-        category: newDocument.category,
-        fileName: newDocument.name,
-        filePath: `/documents/${newDocument.name}`,
-        fileSize: 1024000, // 1MB default
-        mimeType: 'application/pdf',
-        isPublic: newDocument.isPublic,
-        tags: newDocument.tags ? newDocument.tags.split(',').map(t => t.trim()) : []
-      }
-
-      const response = await fetch(`/api/${subdomain}/documents`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(mockFileData),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to upload document')
-      }
-
-      const document = await response.json()
-      
-      // Transform to match our interface
-      const transformedDocument: Document = {
-        id: document.id,
-        name: document.name,
-        type: 'PDF', // Default type
-        size: document.fileSize,
-        category: document.category,
-        tags: document.tags || [],
-        uploadedBy: 'Current User',
-        uploadedAt: document.createdAt,
-        lastModified: document.updatedAt,
-        status: 'ACTIVE',
-        isPublic: document.isPublic,
-        downloadCount: 0
-      }
-      
-      setDocuments([transformedDocument, ...documents])
-      setNewDocument({ name: '', category: '', tags: '', isPublic: false })
-      setIsUploadDialogOpen(false)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to upload document')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleCreateFolder = () => {
-    const folder: DocumentFolder = {
-      id: Date.now().toString(),
-      name: newFolder.name,
-      description: newFolder.description,
-      documentCount: 0,
-      totalSize: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      isPublic: newFolder.isPublic
-    }
-    setFolders([...folders, folder])
-    setNewFolder({ name: '', description: '', isPublic: false })
-    setIsCreateFolderDialogOpen(false)
-  }
-
-  const handleDeleteDocument = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/${subdomain}/documents/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete document')
-      }
-
-      setDocuments(documents.filter(doc => doc.id !== id))
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete document')
-    }
-  }
-
-  const getFilteredDocuments = () => {
-    let filtered = documents
-
-    if (searchTerm) {
-      filtered = filtered.filter(doc =>
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    }
-
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter(doc => doc.category === categoryFilter)
-    }
-
-    if (typeFilter !== 'all') {
-      filtered = filtered.filter(doc => doc.type === typeFilter)
-    }
-
-    return filtered
-  }
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -437,500 +204,382 @@ export default function DocumentsPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const getStorageStats = () => {
-    const totalSize = documents.reduce((sum, doc) => sum + doc.size, 0)
-    const totalSizeMB = totalSize / (1024 * 1024)
-    const storageLimit = 20000 // 20GB in MB
-    const usagePercentage = Math.min((totalSizeMB / storageLimit) * 100, 100)
-
-    return {
-      totalDocuments: documents.length,
-      totalSize: formatFileSize(totalSize),
-      storageLimit: `${storageLimit / 1000}GB`,
-      usagePercentage,
-      publicDocuments: documents.filter(doc => doc.isPublic).length,
-      privateDocuments: documents.filter(doc => !doc.isPublic).length
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "APPLICATION": return "bg-blue-100 text-blue-800"
+      case "CONTRACT": return "bg-purple-100 text-purple-800"
+      case "TRANSCRIPT": return "bg-green-100 text-green-800"
+      case "CERTIFICATE": return "bg-yellow-100 text-yellow-800"
+      case "PASSPORT": return "bg-red-100 text-red-800"
+      case "VISA": return "bg-orange-100 text-orange-800"
+      case "FINANCIAL": return "bg-indigo-100 text-indigo-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
-  const stats = getStorageStats()
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "PDF": return <FileText className="h-4 w-4 text-red-500" />
+      case "DOC":
+      case "DOCX": return <FileText className="h-4 w-4 text-blue-500" />
+      case "XLS":
+      case "XLSX": return <FileText className="h-4 w-4 text-green-500" />
+      case "PPT":
+      case "PPTX": return <FileText className="h-4 w-4 text-orange-500" />
+      case "JPG":
+      case "PNG": return <FileImage className="h-4 w-4 text-purple-500" />
+      case "MP4": return <FileVideo className="h-4 w-4 text-red-500" />
+      case "MP3": return <FileAudio className="h-4 w-4 text-blue-500" />
+      case "ZIP": return <FileArchive className="h-4 w-4 text-yellow-500" />
+      default: return <File className="h-4 w-4 text-gray-500" />
+    }
   }
 
-  if (error) {
-    return (
-      <Alert className="max-w-md m-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  }
+  const totalStorage = 5 * 1024 * 1024 * 1024 // 5GB
+  const usedStorage = documents.reduce((sum, doc) => sum + doc.size, 0)
+  const storagePercentage = (usedStorage / totalStorage) * 100
+
+  const starredDocuments = documents.filter(doc => doc.isStarred && doc.status === "ACTIVE")
+  const sharedDocuments = documents.filter(doc => doc.isShared && doc.status === "ACTIVE")
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Document Management</h1>
-          <p className="text-muted-foreground">
-            Upload, organize, and manage all your documents
-          </p>
+          <h1 className="text-2xl font-bold">Documents Management</h1>
+          <p className="text-muted-foreground">Organize, store, and share documents securely</p>
         </div>
-        <div className="flex space-x-2">
-          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+        <div className="flex gap-2">
+          <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Upload className="mr-2 h-4 w-4" />
+                <Upload className="h-4 w-4 mr-2" />
                 Upload Document
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>Upload Document</DialogTitle>
-                <DialogDescription>
-                  Upload a new document to the system
-                </DialogDescription>
+                <DialogDescription>Upload a new document to the system</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="file" className="text-right">
-                    File
-                  </Label>
-                  <div className="col-span-3">
-                    <div className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg">
-                      <div className="text-center">
-                        <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                        <p className="text-xs text-gray-500">PDF, DOC, DOCX, JPG, PNG up to 10MB</p>
-                      </div>
-                    </div>
-                  </div>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="file">Select File</Label>
+                  <Input id="file" type="file" />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    value={newDocument.name}
-                    onChange={(e) => setNewDocument({...newDocument, name: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="category" className="text-right">
-                    Category
-                  </Label>
-                  <Select
-                    value={newDocument.category}
-                    onValueChange={(value) => setNewDocument({...newDocument, category: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <Select>
+                    <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Academic">Academic</SelectItem>
-                      <SelectItem value="Identification">Identification</SelectItem>
-                      <SelectItem value="University">University</SelectItem>
-                      <SelectItem value="Template">Template</SelectItem>
-                      <SelectItem value="Application">Application</SelectItem>
-                      <SelectItem value="Legal">Legal</SelectItem>
+                      <SelectItem value="APPLICATION">Application</SelectItem>
+                      <SelectItem value="CONTRACT">Contract</SelectItem>
+                      <SelectItem value="TRANSCRIPT">Transcript</SelectItem>
+                      <SelectItem value="CERTIFICATE">Certificate</SelectItem>
+                      <SelectItem value="PASSPORT">Passport</SelectItem>
+                      <SelectItem value="VISA">Visa</SelectItem>
+                      <SelectItem value="FINANCIAL">Financial</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="tags" className="text-right">
-                    Tags
-                  </Label>
-                  <Input
-                    id="tags"
-                    value={newDocument.tags}
-                    onChange={(e) => setNewDocument({...newDocument, tags: e.target.value})}
-                    className="col-span-3"
-                    placeholder="tag1, tag2, tag3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="visibility" className="text-right">
-                    Visibility
-                  </Label>
-                  <Select
-                    value={newDocument.isPublic ? 'public' : 'private'}
-                    onValueChange={(value) => setNewDocument({...newDocument, isPublic: value === 'public'})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
+                <div>
+                  <Label htmlFor="student">Student (Optional)</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select student" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="public">Public</SelectItem>
+                      <SelectItem value="1">Alex Thompson</SelectItem>
+                      <SelectItem value="2">Maria Garcia</SelectItem>
+                      <SelectItem value="3">James Wilson</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="tags">Tags</Label>
+                  <Input id="tags" placeholder="Enter tags separated by commas" />
+                </div>
+                {uploadProgress > 0 && (
+                  <div>
+                    <Label>Upload Progress</Label>
+                    <Progress value={uploadProgress} className="mt-2" />
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsUploadOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={() => {
+                    setUploadProgress(100)
+                    setTimeout(() => {
+                      setIsUploadOpen(false)
+                      setUploadProgress(0)
+                    }, 1000)
+                  }}>
+                    Upload
+                  </Button>
+                </DialogFooter>
               </div>
-              <DialogFooter>
-                <Button onClick={handleUploadDocument} disabled={submitting}>
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    'Upload Document'
-                  )}
-                </Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          <Dialog open={isCreateFolderDialogOpen} onOpenChange={setIsCreateFolderDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Folder className="mr-2 h-4 w-4" />
-                Create Folder
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Create New Folder</DialogTitle>
-                <DialogDescription>
-                  Create a new folder to organize your documents
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="folderName" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="folderName"
-                    value={newFolder.name}
-                    onChange={(e) => setNewFolder({...newFolder, name: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="folderDescription" className="text-right">
-                    Description
-                  </Label>
-                  <Input
-                    id="folderDescription"
-                    value={newFolder.description}
-                    onChange={(e) => setNewFolder({...newFolder, description: e.target.value})}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="folderVisibility" className="text-right">
-                    Visibility
-                  </Label>
-                  <Select
-                    value={newFolder.isPublic ? 'public' : 'private'}
-                    onValueChange={(value) => setNewFolder({...newFolder, isPublic: value === 'public'})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="public">Public</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleCreateFolder}>Create Folder</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
 
-      {/* Storage Alert */}
-      <Alert className="border-blue-200 bg-blue-50">
-        <HardDrive className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800">
-          <strong>Storage Usage:</strong> {stats.totalSize} of {stats.storageLimit} used ({Math.round(stats.usagePercentage)}%)
-        </AlertDescription>
-      </Alert>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalDocuments}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.publicDocuments} public, {stats.privateDocuments} private
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSize}</div>
-            <p className="text-xs text-muted-foreground">
-              of {stats.storageLimit}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Folders</CardTitle>
-            <Folder className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{folders.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Document folders
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Templates</CardTitle>
-            <File className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{templates.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Available templates
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Storage Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HardDrive className="h-5 w-5" />
+            Storage Overview
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Storage Used</span>
+              <span className="text-sm text-muted-foreground">
+                {formatFileSize(usedStorage)} of {formatFileSize(totalStorage)}
+              </span>
+            </div>
+            <Progress value={storagePercentage} className="h-2" />
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">{documents.length}</div>
+                <div className="text-xs text-muted-foreground">Total Files</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{starredDocuments.length}</div>
+                <div className="text-xs text-muted-foreground">Starred</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{sharedDocuments.length}</div>
+                <div className="text-xs text-muted-foreground">Shared</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="documents" className="space-y-6">
         <TabsList>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="folders">Folders</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="starred">Starred</TabsTrigger>
+          <TabsTrigger value="shared">Shared</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Library</CardTitle>
-              <CardDescription>Manage and organize all your documents</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex space-x-4 mb-6">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search documents..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="Academic">Academic</SelectItem>
-                    <SelectItem value="Identification">Identification</SelectItem>
-                    <SelectItem value="University">University</SelectItem>
-                    <SelectItem value="Template">Template</SelectItem>
-                    <SelectItem value="Application">Application</SelectItem>
-                    <SelectItem value="Legal">Legal</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-[120px]">
-                    <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="PDF">PDF</SelectItem>
-                    <SelectItem value="DOC">DOC</SelectItem>
-                    <SelectItem value="DOCX">DOCX</SelectItem>
-                    <SelectItem value="JPG">JPG</SelectItem>
-                    <SelectItem value="PNG">PNG</SelectItem>
-                  </SelectContent>
-                </Select>
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex gap-4 items-center">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search documents..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
               </div>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="APPLICATION">Application</SelectItem>
+                  <SelectItem value="CONTRACT">Contract</SelectItem>
+                  <SelectItem value="TRANSCRIPT">Transcript</SelectItem>
+                  <SelectItem value="CERTIFICATE">Certificate</SelectItem>
+                  <SelectItem value="PASSPORT">Passport</SelectItem>
+                  <SelectItem value="VISA">Visa</SelectItem>
+                  <SelectItem value="FINANCIAL">Financial</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="DOC">DOC</SelectItem>
+                  <SelectItem value="DOCX">DOCX</SelectItem>
+                  <SelectItem value="JPG">JPG</SelectItem>
+                  <SelectItem value="PNG">PNG</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Uploaded</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Downloads</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {getFilteredDocuments().map((document) => {
-                    const IconComponent = fileIcons[document.type]
-                    return (
-                      <TableRow key={document.id}>
-                        <TableCell>
-                          <div className="flex items-center space-x-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                              <IconComponent className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{document.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {document.uploadedBy}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={categoryColors[document.category as keyof typeof categoryColors] || 'bg-gray-100 text-gray-800'}>
-                            {document.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatFileSize(document.size)}</TableCell>
-                        <TableCell>
-                          {format(new Date(document.uploadedAt), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[document.status]}>
-                            {document.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{document.downloadCount}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteDocument(document.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          {/* Documents Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredDocuments.map((document) => (
+              <Card key={document.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    {getTypeIcon(document.type)}
+                    <div className="flex gap-1">
+                      {document.isStarred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                      {document.isShared && <Share className="h-4 w-4 text-blue-500" />}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-sm line-clamp-2">{document.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getCategoryColor(document.category)}>
+                        {document.category}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <div>{formatFileSize(document.size)}</div>
+                      <div>by {document.uploadedBy}</div>
+                      <div>{new Date(document.uploadedAt).toLocaleDateString()}</div>
+                    </div>
+                    {document.studentName && (
+                      <div className="text-xs text-muted-foreground">
+                        Student: {document.studentName}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      {document.tags.slice(0, 2).map((tag) => (
+                        <span key={tag} className="text-xs bg-gray-100 px-1 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                      {document.tags.length > 2 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{document.tags.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="ghost" size="sm" className="flex-1">
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Download className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
         <TabsContent value="folders" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Folders</CardTitle>
-              <CardDescription>Organize your documents into folders</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {folders.map((folder) => (
-                  <Card key={folder.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Folder className="h-5 w-5" />
-                          <CardTitle className="text-sm">{folder.name}</CardTitle>
-                        </div>
-                        {folder.isPublic ? (
-                          <Unlock className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Lock className="h-4 w-4 text-gray-500" />
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground mb-3">{folder.description}</p>
-                      <div className="flex justify-between text-sm text-muted-foreground mb-3">
-                        <span>{folder.documentCount} documents</span>
-                        <span>{formatFileSize(folder.totalSize)}</span>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {folders.map((folder) => (
+              <Card key={folder.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Folder className="h-8 w-8 text-blue-500" />
+                    <div className="flex-1">
+                      <h3 className="font-medium">{folder.name}</h3>
+                      <p className="text-sm text-muted-foreground">{folder.description}</p>
+                    </div>
+                    {folder.isShared && <Share className="h-4 w-4 text-blue-500" />}
+                  </div>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Documents:</span>
+                      <span>{folder.documentCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Size:</span>
+                      <span>{formatFileSize(folder.totalSize)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Created:</span>
+                      <span>{new Date(folder.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-3">
+                    {folder.tags.map((tag) => (
+                      <span key={tag} className="text-xs bg-gray-100 px-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
 
-        <TabsContent value="templates" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Templates</CardTitle>
-              <CardDescription>Reusable document templates</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {templates.map((template) => (
-                  <Card key={template.id}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">{template.name}</CardTitle>
-                      <CardDescription className="text-xs">{template.category}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
-                      <div className="space-y-2 mb-3">
-                        <p className="text-xs font-medium">Required Fields:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {template.requiredFields.map((field, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {field}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Download className="h-3 w-3 mr-1" />
-                          Download
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="starred" className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {starredDocuments.map((document) => (
+              <Card key={document.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    {getTypeIcon(document.type)}
+                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-sm line-clamp-2">{document.name}</h3>
+                    <div className="text-xs text-muted-foreground">
+                      <div>{formatFileSize(document.size)}</div>
+                      <div>{new Date(document.uploadedAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="ghost" size="sm" className="flex-1">
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="shared" className="space-y-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {sharedDocuments.map((document) => (
+              <Card key={document.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    {getTypeIcon(document.type)}
+                    <Share className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-sm line-clamp-2">{document.name}</h3>
+                    <div className="text-xs text-muted-foreground">
+                      <div>{formatFileSize(document.size)}</div>
+                      <div>Shared with {document.sharedWith?.length || 0} people</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="ghost" size="sm" className="flex-1">
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                    <Button variant="ghost" size="sm">
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

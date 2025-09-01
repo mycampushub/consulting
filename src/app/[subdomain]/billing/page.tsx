@@ -1,538 +1,502 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Progress } from "@/components/ui/progress"
+import { Switch } from "@/components/ui/switch"
 import { 
   CreditCard, 
-  DollarSign, 
-  TrendingUp, 
+  Download, 
+  Upload, 
   AlertTriangle, 
-  Download,
-  Plus,
-  Settings,
-  Calendar,
-  CheckCircle,
+  CheckCircle, 
   Clock,
+  Settings,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
   FileText,
-  BarChart3,
+  Receipt,
+  Calendar,
+  Mail,
+  Phone,
+  MapPin,
+  User,
   Users,
-  Database,
+  Building,
+  Star,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  BarChart3,
+  Activity,
   Zap,
-  Loader2
-} from 'lucide-react'
-import { format } from 'date-fns'
-
-interface Invoice {
-  id: string
-  number: string
-  amount: number
-  status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED'
-  date: string
-  dueDate: string
-  downloadUrl: string
-}
+  Shield,
+  Database,
+  Globe
+} from "lucide-react"
 
 interface Subscription {
+  id: string
   plan: 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE'
-  status: 'ACTIVE' | 'CANCELLED' | 'PENDING'
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'PENDING'
   currentPeriodStart: string
   currentPeriodEnd: string
-  stripeSubscriptionId?: string
-}
-
-interface Usage {
-  studentCount: number
-  studentLimit: number
-  userCount: number
-  userLimit: number
-  storageUsed: number
-  storageLimit: number
-}
-
-interface BillingStats {
-  monthlyRevenue: number
-  totalRevenue: number
-  upcomingInvoice: number
-  lastPayment: string
-  lastPaymentAmount: number
-}
-
-const planFeatures = {
-  FREE: {
-    students: 10,
-    users: 3,
-    storage: 1000,
-    features: ['Basic student management', 'University database access', 'Email support']
-  },
-  STARTER: {
-    students: 50,
-    users: 5,
-    storage: 5000,
-    features: ['Everything in Free', 'Advanced analytics', 'Application tracking', 'Priority support']
-  },
-  PROFESSIONAL: {
-    students: 200,
-    users: 10,
-    storage: 20000,
-    features: ['Everything in Starter', 'Custom branding', 'API access', 'Dedicated account manager']
-  },
-  ENTERPRISE: {
-    students: -1,
-    users: -1,
-    storage: -1,
-    features: ['Everything in Professional', 'Unlimited everything', 'Custom integrations', 'White-label solution']
+  trialEnd?: string
+  cancelAtPeriodEnd: boolean
+  features: string[]
+  price: {
+    monthly: number
+    yearly: number
+  }
+  usage: {
+    students: number
+    users: number
+    storage: number
+    bandwidth: number
+  }
+  limits: {
+    students: number
+    users: number
+    storage: number // in GB
+    bandwidth: number // in GB
   }
 }
 
-const planPrices = {
-  FREE: 0,
-  STARTER: 99,
-  PROFESSIONAL: 299,
-  ENTERPRISE: 999
+interface Invoice {
+  id: string
+  invoiceNumber: string
+  amount: number
+  currency: string
+  status: 'DRAFT' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'REFUNDED'
+  issueDate: string
+  dueDate: string
+  paidDate?: string
+  description: string
+  items: InvoiceItem[]
 }
 
-const statusColors = {
-  PAID: 'bg-green-100 text-green-800',
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  OVERDUE: 'bg-red-100 text-red-800',
-  CANCELLED: 'bg-gray-100 text-gray-800',
-  ACTIVE: 'bg-green-100 text-green-800',
-  CANCELLED_SUB: 'bg-red-100 text-red-800',
-  PENDING_SUB: 'bg-yellow-100 text-yellow-800'
+interface InvoiceItem {
+  id: string
+  description: string
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+interface PaymentMethod {
+  id: string
+  type: 'CREDIT_CARD' | 'DEBIT_CARD' | 'PAYPAL' | 'BANK_TRANSFER' | 'OTHER'
+  last4?: string
+  brand?: string
+  expiryMonth?: number
+  expiryYear?: number
+  isDefault: boolean
+  status: 'ACTIVE' | 'EXPIRED' | 'FAILED'
+}
+
+interface UsageRecord {
+  id: string
+  period: string
+  students: {
+    current: number
+    limit: number
+  }
+  users: {
+    current: number
+    limit: number
+  }
+  storage: {
+    current: number // in MB
+    limit: number // in GB
+  }
+  apiCalls: {
+    current: number
+    limit: number
+  }
+  generatedAt: string
+}
+
+const mockSubscription: Subscription = {
+  id: "1",
+  plan: "PROFESSIONAL",
+  status: "ACTIVE",
+  currentPeriodStart: "2024-01-01T00:00:00Z",
+  currentPeriodEnd: "2024-02-01T00:00:00Z",
+  cancelAtPeriodEnd: false,
+  features: [
+    "Unlimited Students",
+    "Up to 10 Team Members",
+    "50GB Storage",
+    "Priority Support",
+    "Custom Domain",
+    "Advanced Analytics",
+    "API Access"
+  ],
+  price: {
+    monthly: 99,
+    yearly: 990
+  },
+  usage: {
+    students: 45,
+    users: 4,
+    storage: 15360, // 15GB in MB
+    bandwidth: 25
+  },
+  limits: {
+    students: 100,
+    users: 10,
+    storage: 50, // 50GB
+    bandwidth: 100
+  }
+}
+
+const mockInvoices: Invoice[] = [
+  {
+    id: "1",
+    invoiceNumber: "INV-2024-001",
+    amount: 99,
+    currency: "USD",
+    status: "PAID",
+    issueDate: "2024-01-01",
+    dueDate: "2024-01-15",
+    paidDate: "2024-01-10",
+    description: "Professional Plan - Monthly Subscription",
+    items: [
+      {
+        id: "1",
+        description: "Professional Plan (Monthly)",
+        quantity: 1,
+        unitPrice: 99,
+        amount: 99
+      }
+    ]
+  },
+  {
+    id: "2",
+    invoiceNumber: "INV-2023-012",
+    amount: 99,
+    currency: "USD",
+    status: "PAID",
+    issueDate: "2023-12-01",
+    dueDate: "2023-12-15",
+    paidDate: "2023-12-08",
+    description: "Professional Plan - Monthly Subscription",
+    items: [
+      {
+        id: "1",
+        description: "Professional Plan (Monthly)",
+        quantity: 1,
+        unitPrice: 99,
+        amount: 99
+      }
+    ]
+  }
+]
+
+const mockPaymentMethods: PaymentMethod[] = [
+  {
+    id: "1",
+    type: "CREDIT_CARD",
+    last4: "4242",
+    brand: "visa",
+    expiryMonth: 12,
+    expiryYear: 2025,
+    isDefault: true,
+    status: "ACTIVE"
+  }
+]
+
+const mockUsage: UsageRecord = {
+  id: "1",
+  period: "2024-01",
+  students: {
+    current: 45,
+    limit: 100
+  },
+  users: {
+    current: 4,
+    limit: 10
+  },
+  storage: {
+    current: 15360, // 15GB in MB
+    limit: 50 // 50GB
+  },
+  apiCalls: {
+    current: 15420,
+    limit: 50000
+  },
+  generatedAt: "2024-01-20T00:00:00Z"
 }
 
 export default function BillingPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
-  const [usage, setUsage] = useState<Usage | null>(null)
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [stats, setStats] = useState<BillingStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<string>('')
+  const [subscription] = useState<Subscription>(mockSubscription)
+  const [invoices] = useState<Invoice[]>(mockInvoices)
+  const [paymentMethods] = useState<PaymentMethod[]>(mockPaymentMethods)
+  const [usage] = useState<UsageRecord>(mockUsage)
+  const [loading, setLoading] = useState(false)
+  const [isAddPaymentMethodOpen, setIsAddPaymentMethodOpen] = useState(false)
 
-  // Fetch billing data
-  const fetchSubscriptionData = async () => {
-    try {
-      const response = await fetch(`/api/${subdomain}/billing/subscription`)
-      if (!response.ok) throw new Error('Failed to fetch subscription')
-      
-      const data = await response.json()
-      setSubscription({
-        plan: data.subscription.plan,
-        status: data.subscription.status,
-        currentPeriodStart: data.subscription.currentPeriodStart,
-        currentPeriodEnd: data.subscription.currentPeriodEnd,
-        stripeSubscriptionId: data.subscription.stripeSubscriptionId
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch subscription')
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "ACTIVE": case "PAID": return "bg-green-100 text-green-800"
+      case "PENDING": return "bg-yellow-100 text-yellow-800"
+      case "OVERDUE": return "bg-red-100 text-red-800"
+      case "CANCELLED": case "EXPIRED": return "bg-gray-100 text-gray-800"
+      case "REFUNDED": return "bg-blue-100 text-blue-800"
+      case "FAILED": return "bg-red-100 text-red-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
-  const fetchUsageData = async () => {
-    try {
-      const response = await fetch(`/api/${subdomain}/billing/usage`)
-      if (!response.ok) throw new Error('Failed to fetch usage')
-      
-      const data = await response.json()
-      setUsage({
-        studentCount: data.usage.students.used,
-        studentLimit: data.usage.students.limit,
-        userCount: data.usage.users.used,
-        userLimit: data.usage.users.limit,
-        storageUsed: data.usage.storage.used,
-        storageLimit: data.usage.storage.limit
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch usage')
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case "FREE": return "bg-gray-100 text-gray-800"
+      case "STARTER": return "bg-blue-100 text-blue-800"
+      case "PROFESSIONAL": return "bg-purple-100 text-purple-800"
+      case "ENTERPRISE": return "bg-orange-100 text-orange-800"
+      default: return "bg-gray-100 text-gray-800"
     }
   }
 
-  const fetchInvoicesData = async () => {
-    try {
-      const response = await fetch(`/api/${subdomain}/accounting/invoices?limit=50`)
-      if (!response.ok) throw new Error('Failed to fetch invoices')
-      
-      const data = await response.json()
-      const processedInvoices = data.invoices.map((invoice: any) => ({
-        id: invoice.id,
-        number: invoice.invoiceNumber,
-        amount: invoice.amount,
-        status: invoice.status,
-        date: invoice.issueDate,
-        dueDate: invoice.dueDate,
-        downloadUrl: '#' // In real implementation, generate download URL
-      }))
-      setInvoices(processedInvoices)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch invoices')
+  const getPaymentMethodIcon = (type: string) => {
+    switch (type) {
+      case "CREDIT_CARD":
+      case "DEBIT_CARD":
+        return <CreditCard className="h-4 w-4" />
+      case "PAYPAL":
+        return <Globe className="h-4 w-4" />
+      case "BANK_TRANSFER":
+        return <Building className="h-4 w-4" />
+      default:
+        return <CreditCard className="h-4 w-4" />
     }
   }
 
-  const fetchStatsData = async () => {
-    try {
-      // Calculate stats from available data
-      if (subscription && invoices.length > 0) {
-        const monthlyRevenue = subscription ? planPrices[subscription.plan] : 0
-        const totalRevenue = invoices
-          .filter(inv => inv.status === 'PAID')
-          .reduce((sum, inv) => sum + inv.amount, 0)
-        
-        const upcomingInvoice = subscription ? planPrices[subscription.plan] : 0
-        
-        const lastPaidInvoice = invoices
-          .filter(inv => inv.status === 'PAID')
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-        
-        setStats({
-          monthlyRevenue,
-          totalRevenue,
-          upcomingInvoice,
-          lastPayment: lastPaidInvoice?.date || '',
-          lastPaymentAmount: lastPaidInvoice?.amount || 0
-        })
-      }
-    } catch (err) {
-      console.error('Error calculating stats:', err)
-    }
-  }
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        await Promise.all([
-          fetchSubscriptionData(),
-          fetchUsageData(),
-          fetchInvoicesData()
-        ])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    fetchData()
-  }, [subdomain])
-
-  useEffect(() => {
-    if (subscription && invoices.length > 0) {
-      fetchStatsData()
-    }
-  }, [subscription, invoices])
-
-  const handleUpgradePlan = (plan: string) => {
-    setSelectedPlan(plan)
-    setIsUpgradeDialogOpen(true)
-  }
-
-  const confirmUpgrade = async () => {
-    if (!selectedPlan || !subscription) return
-
-    try {
-      const response = await fetch(`/api/${subdomain}/billing/subscription`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan: selectedPlan,
-          // In real implementation, this would handle Stripe payment processing
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to upgrade plan')
-      }
-
-      await fetchSubscriptionData()
-      setIsUpgradeDialogOpen(false)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to upgrade plan')
-    }
-  }
-
-  const getUsagePercentage = (used: number, limit: number) => {
-    return limit === -1 ? 0 : Math.min((used / limit) * 100, 100)
+  const getUsagePercentage = (current: number, limit: number) => {
+    return Math.min((current / limit) * 100, 100)
   }
 
   const getUsageColor = (percentage: number) => {
-    if (percentage > 90) return 'text-red-600'
-    if (percentage > 70) return 'text-yellow-600'
-    return 'text-green-600'
+    if (percentage >= 90) return "text-red-600"
+    if (percentage >= 75) return "text-yellow-600"
+    return "text-green-600"
   }
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-6">
-        <Alert className="max-w-md">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  if (!subscription || !usage || !stats) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">No billing data available</p>
-        </div>
-      </div>
-    )
-  }
+  const daysUntilRenewal = Math.ceil((new Date(subscription.currentPeriodEnd).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Billing & Subscription</h1>
-          <p className="text-muted-foreground">
-            Manage your subscription, usage, and billing information
-          </p>
+          <h1 className="text-2xl font-bold">Billing & Subscription</h1>
+          <p className="text-muted-foreground">Manage your subscription, payments, and usage</p>
         </div>
-        <Button variant="outline">
-          <Settings className="mr-2 h-4 w-4" />
-          Billing Settings
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
-      {/* Current Subscription Alert */}
-      <Alert className="border-blue-200 bg-blue-50">
-        <CreditCard className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800">
-          <strong>Current Plan:</strong> {subscription.plan} - {subscription.status}. 
-          Next billing date: {format(new Date(subscription.currentPeriodEnd), 'MMM dd, yyyy')}
-        </AlertDescription>
-      </Alert>
+      {/* Subscription Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5" />
+            Current Subscription
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className={getPlanColor(subscription.plan)}>
+                  {subscription.plan}
+                </Badge>
+                <Badge className={getStatusColor(subscription.status)}>
+                  {subscription.status}
+                </Badge>
+              </div>
+              <div className="text-2xl font-bold">${subscription.price.monthly}/mo</div>
+              <div className="text-sm text-muted-foreground">
+                ${subscription.price.yearly}/year (save 17%)
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Next Billing Date</div>
+              <div className="font-medium">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</div>
+              <div className="text-sm text-muted-foreground">
+                {daysUntilRenewal} days remaining
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Students</div>
+              <div className="font-medium">{subscription.usage.students} / {subscription.limits.students}</div>
+              <Progress 
+                value={getUsagePercentage(subscription.usage.students, subscription.limits.students)} 
+                className="h-2 mt-1"
+              />
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Team Members</div>
+              <div className="font-medium">{subscription.usage.users} / {subscription.limits.users}</div>
+              <Progress 
+                value={getUsagePercentage(subscription.usage.users, subscription.limits.users)} 
+                className="h-2 mt-1"
+              />
+            </div>
+          </div>
+          
+          <div className="mt-6">
+            <h3 className="font-medium mb-3">Plan Features</h3>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {subscription.features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.monthlyRevenue}</div>
-            <p className="text-xs text-muted-foreground">
-              Current subscription
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Invoice</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.upcomingInvoice}</div>
-            <p className="text-xs text-muted-foreground">
-              Due on {format(new Date(subscription.currentPeriodEnd), 'MMM dd')}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.totalRevenue}</div>
-            <p className="text-xs text-muted-foreground">
-              Lifetime revenue
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Payment</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.lastPaymentAmount}</div>
-            <p className="text-xs text-muted-foreground">
-              {format(new Date(stats.lastPayment), 'MMM dd, yyyy')}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="flex gap-2 mt-6">
+            <Button variant="outline">
+              <Settings className="h-4 w-4 mr-2" />
+              Change Plan
+            </Button>
+            {subscription.cancelAtPeriodEnd && (
+              <Badge className="bg-yellow-100 text-yellow-800">
+                Cancels at period end
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="usage" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="usage">Usage</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
-          <TabsTrigger value="plans">Plans</TabsTrigger>
+          <TabsTrigger value="payment-methods">Payment Methods</TabsTrigger>
+          <TabsTrigger value="billing-info">Billing Information</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Subscription</CardTitle>
-                <CardDescription>Your active subscription details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Plan</span>
-                  <Badge className="bg-blue-100 text-blue-800">{subscription.plan}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Status</span>
-                  <Badge className={statusColors[subscription.status]}>
-                    {subscription.status}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Monthly Cost</span>
-                  <span className="font-bold">${planPrices[subscription.plan]}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Current Period</span>
-                  <span className="text-sm">
-                    {format(new Date(subscription.currentPeriodStart), 'MMM dd')} - {format(new Date(subscription.currentPeriodEnd), 'MMM dd, yyyy')}
-                  </span>
-                </div>
-                <div className="pt-4">
-                  <Button className="w-full" onClick={() => handleUpgradePlan('ENTERPRISE')}>
-                    Upgrade Plan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Method</CardTitle>
-                <CardDescription>Your default payment method</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-8 bg-blue-600 rounded flex items-center justify-center">
-                    <CreditCard className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Visa ending in 4242</p>
-                    <p className="text-sm text-muted-foreground">Expires 12/2025</p>
-                  </div>
-                </div>
-                <div className="pt-4 space-y-2">
-                  <Button variant="outline" className="w-full">
-                    Update Payment Method
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    View Billing History
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
         <TabsContent value="usage" className="space-y-6">
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Students</span>
-                </CardTitle>
-                <CardDescription>Student management usage</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Students</CardTitle>
+                <User className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Used</span>
-                  <span className={`font-medium ${getUsageColor(getUsagePercentage(usage.studentCount, usage.studentLimit))}`}>
-                    {usage.studentCount} / {usage.studentLimit === -1 ? '∞' : usage.studentLimit}
-                  </span>
+              <CardContent>
+                <div className={`text-2xl font-bold ${getUsageColor(getUsagePercentage(usage.students.current, usage.students.limit))}`}>
+                  {usage.students.current}
                 </div>
-                <Progress value={getUsagePercentage(usage.studentCount, usage.studentLimit)} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {usage.studentLimit === -1 ? 'Unlimited students' : `${usage.studentLimit - usage.studentCount} remaining`}
+                  of {usage.students.limit} limit
                 </p>
+                <Progress 
+                  value={getUsagePercentage(usage.students.current, usage.students.limit)} 
+                  className="h-2 mt-2"
+                />
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>Team Members</span>
-                </CardTitle>
-                <CardDescription>User account usage</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Used</span>
-                  <span className={`font-medium ${getUsageColor(getUsagePercentage(usage.userCount, usage.userLimit))}`}>
-                    {usage.userCount} / {usage.userLimit === -1 ? '∞' : usage.userLimit}
-                  </span>
+              <CardContent>
+                <div className={`text-2xl font-bold ${getUsageColor(getUsagePercentage(usage.users.current, usage.users.limit))}`}>
+                  {usage.users.current}
                 </div>
-                <Progress value={getUsagePercentage(usage.userCount, usage.userLimit)} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {usage.userLimit === -1 ? 'Unlimited users' : `${usage.userLimit - usage.userCount} remaining`}
+                  of {usage.users.limit} limit
                 </p>
+                <Progress 
+                  value={getUsagePercentage(usage.users.current, usage.users.limit)} 
+                  className="h-2 mt-2"
+                />
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Database className="h-5 w-5" />
-                  <span>Storage</span>
-                </CardTitle>
-                <CardDescription>Document storage usage</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Storage</CardTitle>
+                <Database className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Used</span>
-                  <span className={`font-medium ${getUsageColor(getUsagePercentage(usage.storageUsed, usage.storageLimit))}`}>
-                    {Math.round(usage.storageUsed / 1024)}GB / {usage.storageLimit === -1 ? '∞' : `${Math.round(usage.storageLimit / 1024)}GB`}
-                  </span>
+              <CardContent>
+                <div className={`text-2xl font-bold ${getUsageColor(getUsagePercentage(usage.storage.current / 1024, usage.storage.limit))}`}>
+                  {(usage.storage.current / 1024).toFixed(1)}GB
                 </div>
-                <Progress value={getUsagePercentage(usage.storageUsed, usage.storageLimit)} className="h-2" />
                 <p className="text-xs text-muted-foreground">
-                  {usage.storageLimit === -1 ? 'Unlimited storage' : `${Math.round((usage.storageLimit - usage.storageUsed) / 1024)}GB remaining`}
+                  of {usage.storage.limit}GB limit
                 </p>
+                <Progress 
+                  value={getUsagePercentage(usage.storage.current / 1024, usage.storage.limit)} 
+                  className="h-2 mt-2"
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">API Calls</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${getUsageColor(getUsagePercentage(usage.apiCalls.current, usage.apiCalls.limit))}`}>
+                  {usage.apiCalls.current.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  of {usage.apiCalls.limit.toLocaleString()} limit
+                </p>
+                <Progress 
+                  value={getUsagePercentage(usage.apiCalls.current, usage.apiCalls.limit)} 
+                  className="h-2 mt-2"
+                />
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Usage History</CardTitle>
+              <CardDescription>Track your resource usage over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">Usage charts will be implemented here</p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Invoices</CardTitle>
-              <CardDescription>Your billing history and invoices</CardDescription>
+              <CardDescription>View and download your billing invoices</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -540,28 +504,33 @@ export default function BillingPage() {
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Due Date</TableHead>
+                    <TableHead>Description</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoices.map((invoice) => (
                     <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.number}</TableCell>
-                      <TableCell>{format(new Date(invoice.date), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>{format(new Date(invoice.dueDate), 'MMM dd, yyyy')}</TableCell>
-                      <TableCell>${invoice.amount}</TableCell>
+                      <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                      <TableCell>{new Date(invoice.issueDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{invoice.description}</TableCell>
+                      <TableCell>${invoice.amount} {invoice.currency}</TableCell>
                       <TableCell>
-                        <Badge className={statusColors[invoice.status]}>
+                        <Badge className={getStatusColor(invoice.status)}>
                           {invoice.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
-                        </Button>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -571,112 +540,168 @@ export default function BillingPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="plans" className="space-y-6">
-          <div className="text-center space-y-4">
+        <TabsContent value="payment-methods" className="space-y-6">
+          <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Choose Your Plan</h2>
-              <p className="text-muted-foreground">
-                Select the perfect plan for your educational agency
-              </p>
+              <h3 className="text-lg font-medium">Payment Methods</h3>
+              <p className="text-muted-foreground">Manage your payment methods</p>
             </div>
+            <Dialog open={isAddPaymentMethodOpen} onOpenChange={setIsAddPaymentMethodOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Payment Method
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Payment Method</DialogTitle>
+                  <DialogDescription>Add a new payment method for your subscription</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="cardNumber">Card Number</Label>
+                    <Input id="cardNumber" placeholder="1234 5678 9012 3456" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="expiry">Expiry Date</Label>
+                      <Input id="expiry" placeholder="MM/YY" />
+                    </div>
+                    <div>
+                      <Label htmlFor="cvc">CVC</Label>
+                      <Input id="cvc" placeholder="123" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="name">Cardholder Name</Label>
+                    <Input id="name" placeholder="John Doe" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="default" />
+                    <Label htmlFor="default">Set as default payment method</Label>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddPaymentMethodOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => setIsAddPaymentMethodOpen(false)}>
+                      Add Payment Method
+                    </Button>
+                  </DialogFooter>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.entries(planFeatures).map(([plan, features]) => (
-              <Card key={plan} className={`relative ${plan === subscription.plan ? 'ring-2 ring-primary' : ''}`}>
-                {plan === subscription.plan && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">Current Plan</Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl">{plan}</CardTitle>
-                  <CardDescription>
-                    <div className="text-3xl font-bold">
-                      ${planPrices[plan as keyof typeof planPrices]}
-                      <span className="text-sm font-normal text-muted-foreground">/month</span>
-                    </div>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {features.students === -1 ? 'Unlimited' : features.students} students
+          <div className="grid md:grid-cols-2 gap-6">
+            {paymentMethods.map((method) => (
+              <Card key={method.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      {getPaymentMethodIcon(method.type)}
+                      <span className="font-medium">
+                        {method.brand?.toUpperCase()} {method.type.replace('_', ' ')}
                       </span>
+                      {method.isDefault && (
+                        <Badge className="bg-blue-100 text-blue-800">Default</Badge>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {features.users === -1 ? 'Unlimited' : features.users} users
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Database className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {features.storage === -1 ? 'Unlimited' : `${Math.round(features.storage / 1024)}GB`} storage
-                      </span>
-                    </div>
+                    <Badge className={getStatusColor(method.status)}>
+                      {method.status}
+                    </Badge>
                   </div>
-                  
-                  <div className="space-y-2">
-                    {features.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-sm">{feature}</span>
-                      </div>
-                    ))}
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    {method.last4 && (
+                      <div>•••• •••• •••• {method.last4}</div>
+                    )}
+                    {method.expiryMonth && method.expiryYear && (
+                      <div>Expires {method.expiryMonth}/{method.expiryYear}</div>
+                    )}
                   </div>
-
-                  <Button 
-                    className="w-full" 
-                    variant={plan === subscription.plan ? "outline" : "default"}
-                    onClick={() => handleUpgradePlan(plan)}
-                    disabled={plan === subscription.plan}
-                  >
-                    {plan === subscription.plan ? 'Current Plan' : 'Upgrade'}
-                  </Button>
+                  <div className="flex gap-2 mt-4">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Edit
+                    </Button>
+                    {!method.isDefault && (
+                      <Button variant="outline" size="sm">
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
-      </Tabs>
 
-      {/* Upgrade Plan Dialog */}
-      <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upgrade to {selectedPlan}</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to upgrade your subscription to the {selectedPlan} plan?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <p className="font-medium">Plan Details:</p>
-              <p className="text-sm text-muted-foreground">
-                Monthly cost: ${planPrices[selectedPlan as keyof typeof planPrices]}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Students: {planFeatures[selectedPlan as keyof typeof planFeatures].students === -1 ? 'Unlimited' : planFeatures[selectedPlan as keyof typeof planFeatures].students}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Users: {planFeatures[selectedPlan as keyof typeof planFeatures].users === -1 ? 'Unlimited' : planFeatures[selectedPlan as keyof typeof planFeatures].users}
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUpgradeDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmUpgrade}>
-              Confirm Upgrade
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <TabsContent value="billing-info" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Billing Information</CardTitle>
+              <CardDescription>Manage your billing address and contact information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="company">Company Name</Label>
+                    <Input id="company" defaultValue="Education Agency Inc." />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Billing Email</Label>
+                    <Input id="email" defaultValue="billing@agency.com" />
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" defaultValue="+1 (555) 123-4567" />
+                  </div>
+                  <div>
+                    <Label htmlFor="taxId">Tax ID (Optional)</Label>
+                    <Input id="taxId" placeholder="Tax identification number" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" defaultValue="123 Business Street" />
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input id="city" defaultValue="New York" />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input id="state" defaultValue="NY" />
+                  </div>
+                  <div>
+                    <Label htmlFor="zip">ZIP Code</Label>
+                    <Input id="zip" defaultValue="10001" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Select defaultValue="US">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="US">United States</SelectItem>
+                      <SelectItem value="CA">Canada</SelectItem>
+                      <SelectItem value="UK">United Kingdom</SelectItem>
+                      <SelectItem value="AU">Australia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button>Save Changes</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
