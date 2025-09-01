@@ -6,14 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   FileText, 
   Search, 
@@ -29,7 +30,19 @@ import {
   Clock,
   AlertCircle,
   MoreHorizontal,
-  Loader2
+  Loader2,
+  ArrowRight,
+  BookOpen,
+  MapPin,
+  DollarSign,
+  Users,
+  FileCheck,
+  MessageSquare,
+  Video,
+  Plane,
+  CreditCard,
+  Award,
+  Target
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -40,19 +53,95 @@ interface Application {
     firstName: string
     lastName: string
     email: string
+    currentEducation?: string
+    gpa?: number
+    englishProficiency?: string
+    testScores?: string
   }
   universityId: string
   university: {
     name: string
     country: string
+    city: string
+    website?: string
+    subjects: string[]
+    studyLevels: string[]
+    tuitionFeeRange?: {
+      min: number
+      max: number
+      currency: string
+    }
   }
   program: string
-  intake: string
+  programCode?: string
+  programLevel?: string
+  studyMode?: string
+  duration?: number
+  intake?: string
+  intakeYear?: number
+  startDate?: string
+  expectedEndDate?: string
   status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN'
-  documents: string[]
-  payments: any[]
-  communications: any[]
-  assignedTo: string
+  subStatus?: string
+  priority?: string
+  applicationFee?: number
+  applicationFeeCurrency?: string
+  applicationFeePaid: boolean
+  submissionDate?: string
+  deadlineDate?: string
+  currentEducation?: string
+  gpa?: number
+  englishProficiency?: string
+  testScores?: string
+  tuitionFee?: number
+  tuitionFeeCurrency?: string
+  scholarshipAmount?: number
+  scholarshipCurrency?: string
+  totalCost?: number
+  fundingSource?: string[]
+  progressPercentage: number
+  currentStage?: string
+  stageHistory?: string[]
+  nextStep?: string
+  nextStepDeadline?: string
+  internalNotes?: string
+  studentNotes?: string
+  universityNotes?: string
+  interviewRequired: boolean
+  interviewScheduled: boolean
+  interviewDate?: string
+  interviewType?: string
+  interviewStatus?: string
+  interviewNotes?: string
+  decisionDate?: string
+  decisionMadeBy?: string
+  decisionReason?: string
+  conditions?: string[]
+  offerReceived: boolean
+  offerReceivedAt?: string
+  offerAccepted: boolean
+  offerAcceptedAt?: string
+  offerRejected: boolean
+  offerRejectedAt?: string
+  enrollmentConfirmed: boolean
+  enrollmentConfirmedAt?: string
+  visaRequired: boolean
+  visaApplied: boolean
+  visaAppliedAt?: string
+  visaApproved: boolean
+  visaApprovedAt?: string
+  visaRejected: boolean
+  visaRejectedAt?: string
+  visaNotes?: string
+  payments?: any[]
+  paymentPlan?: any
+  financialAid?: any
+  scholarships?: any
+  assignedTo?: string
+  assignedAt?: string
+  lastContactAt?: string
+  nextFollowUpAt?: string
+  autoFilledFields?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -62,14 +151,61 @@ interface Student {
   firstName: string
   lastName: string
   email: string
-  status: 'PROSPECT' | 'APPLIED' | 'ACCEPTED' | 'ENROLLED' | 'GRADUATED' | 'WITHDRAWN'
+  phone?: string
+  dateOfBirth?: string
+  nationality?: string
+  currentEducation?: string
+  educationLevel?: string
+  institution?: string
+  gpa?: number
+  testScores?: string
+  englishProficiency?: string
+  preferredCountries: string[]
+  preferredCourses: string[]
+  preferredStudyLevels: string[]
+  budget?: number
+  budgetCurrency?: string
+  availableIntakes: string[]
+  studyMode?: string
+  address?: string
+  city?: string
+  state?: string
+  country?: string
+  postalCode?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  emergencyContactRelation?: string
 }
 
 interface University {
   id: string
   name: string
   country: string
+  city: string
+  state?: string
+  website?: string
+  description?: string
+  worldRanking?: number
+  nationalRanking?: number
+  type?: string
   programs: string[]
+  subjects: string[]
+  studyLevels: string[]
+  tuitionFeeRange?: {
+    min: number
+    max: number
+    currency: string
+  }
+  acceptanceRate?: number
+  requirements?: {
+    academic: string[]
+    language: string[]
+    financial: string[]
+    documents: string[]
+  }
+  contactEmail?: string
+  contactPhone?: string
+  address?: string
 }
 
 const statusColors = {
@@ -90,6 +226,34 @@ const statusLabels = {
   WITHDRAWN: 'Withdrawn'
 }
 
+const studyModes = [
+  { value: 'FULL_TIME', label: 'Full Time' },
+  { value: 'PART_TIME', label: 'Part Time' },
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'HYBRID', label: 'Hybrid' }
+]
+
+const programLevels = [
+  { value: 'UNDERGRADUATE', label: 'Undergraduate' },
+  { value: 'POSTGRADUATE', label: 'Postgraduate' },
+  { value: 'PHD', label: 'PhD' },
+  { value: 'FOUNDATION', label: 'Foundation' },
+  { value: 'DIPLOMA', label: 'Diploma' },
+  { value: 'CERTIFICATE', label: 'Certificate' }
+]
+
+const priorities = [
+  { value: 'LOW', label: 'Low' },
+  { value: 'NORMAL', label: 'Normal' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'URGENT', label: 'Urgent' }
+]
+
+const intakes = [
+  'Fall 2024', 'Spring 2025', 'Summer 2025', 'Fall 2025',
+  'Spring 2026', 'Summer 2026', 'Fall 2026'
+]
+
 export default function ApplicationsPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
@@ -103,15 +267,54 @@ export default function ApplicationsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
-  const [newApplication, setNewApplication] = useState({
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Form state with auto-fill
+  const [formData, setFormData] = useState({
     studentId: '',
     universityId: '',
     program: '',
+    programCode: '',
+    programLevel: '',
+    studyMode: '',
+    duration: '',
     intake: '',
-    status: 'DRAFT'
+    intakeYear: new Date().getFullYear() + 1,
+    startDate: '',
+    expectedEndDate: '',
+    status: 'DRAFT',
+    subStatus: '',
+    priority: 'NORMAL',
+    applicationFee: '',
+    applicationFeeCurrency: 'USD',
+    applicationFeePaid: false,
+    submissionDate: '',
+    deadlineDate: '',
+    currentEducation: '',
+    gpa: '',
+    englishProficiency: '',
+    testScores: '',
+    tuitionFee: '',
+    tuitionFeeCurrency: 'USD',
+    scholarshipAmount: '',
+    scholarshipCurrency: 'USD',
+    totalCost: '',
+    fundingSource: [] as string[],
+    interviewRequired: false,
+    interviewDate: '',
+    interviewType: '',
+    visaRequired: false,
+    notes: '',
+    // Auto-fill tracking
+    autoFilledFields: [] as string[]
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+
+  // Available options based on selections
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>([])
+  const [availablePrograms, setAvailablePrograms] = useState<string[]>([])
+  const [availableStudyLevels, setAvailableStudyLevels] = useState<string[]>([])
 
   // Load data from API
   useEffect(() => {
@@ -153,6 +356,68 @@ export default function ApplicationsPage() {
     }
   }
 
+  // Auto-fill student data when student is selected
+  useEffect(() => {
+    if (formData.studentId) {
+      const student = students.find(s => s.id === formData.studentId)
+      if (student) {
+        const autoFilled = [
+          'currentEducation', 'gpa', 'englishProficiency', 'testScores',
+          'studyMode', 'preferredStudyLevels', 'availableIntakes'
+        ]
+        
+        setFormData(prev => ({
+          ...prev,
+          currentEducation: student.currentEducation || '',
+          gpa: student.gpa?.toString() || '',
+          englishProficiency: student.englishProficiency || '',
+          testScores: student.testScores || '',
+          studyMode: student.studyMode || '',
+          autoFilledFields: [...prev.autoFilledFields, ...autoFilled]
+        }))
+      }
+    }
+  }, [formData.studentId, students])
+
+  // Update available options when university is selected
+  useEffect(() => {
+    if (formData.universityId) {
+      const university = universities.find(u => u.id === formData.universityId)
+      if (university) {
+        setAvailableSubjects(university.subjects || [])
+        setAvailablePrograms(university.programs || [])
+        setAvailableStudyLevels(university.studyLevels || [])
+        
+        // Auto-fill tuition fee if available
+        if (university.tuitionFeeRange) {
+          setFormData(prev => ({
+            ...prev,
+            tuitionFee: university.tuitionFeeRange.max?.toString() || '',
+            tuitionFeeCurrency: university.tuitionFeeRange.currency || 'USD',
+            autoFilledFields: [...prev.autoFilledFields, 'tuitionFee', 'tuitionFeeCurrency']
+          }))
+        }
+      }
+    } else {
+      setAvailableSubjects([])
+      setAvailablePrograms([])
+      setAvailableStudyLevels([])
+    }
+  }, [formData.universityId, universities])
+
+  // Calculate expected end date based on duration and start date
+  useEffect(() => {
+    if (formData.startDate && formData.duration) {
+      const startDate = new Date(formData.startDate)
+      const duration = parseInt(formData.duration)
+      const expectedEndDate = new Date(startDate.setFullYear(startDate.getFullYear() + duration))
+      setFormData(prev => ({
+        ...prev,
+        expectedEndDate: expectedEndDate.toISOString().split('T')[0]
+      }))
+    }
+  }, [formData.startDate, formData.duration])
+
   useEffect(() => {
     let filtered = applications
 
@@ -172,19 +437,135 @@ export default function ApplicationsPage() {
     setFilteredApplications(filtered)
   }, [applications, searchTerm, statusFilter])
 
+  const handleInputChange = (field: string, value: string | string[] | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleStudentChange = (studentId: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      studentId,
+      universityId: '', // Reset university when student changes
+      program: '', // Reset program when student changes
+      autoFilledFields: [] // Reset auto-fill tracking
+    }))
+  }
+
+  const handleUniversityChange = (universityId: string) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      universityId,
+      program: '', // Reset program when university changes
+      programLevel: '', // Reset program level when university changes
+      autoFilledFields: prev.autoFilledFields.filter(field => 
+        !['tuitionFee', 'tuitionFeeCurrency'].includes(field)
+      ) // Remove university-specific auto-fills
+    }))
+  }
+
+  const handleProgramChange = (program: string) => {
+    setFormData(prev => ({ ...prev, program }))
+    
+    // Auto-fill program level based on program selection
+    const university = universities.find(u => u.id === prev.universityId)
+    if (university) {
+      const programLevel = program.toLowerCase().includes('phd') ? 'PHD' :
+                           program.toLowerCase().includes('master') || program.toLowerCase().includes('mba') ? 'POSTGRADUATE' :
+                           program.toLowerCase().includes('bachelor') ? 'UNDERGRADUATE' :
+                           program.toLowerCase().includes('foundation') ? 'FOUNDATION' :
+                           program.toLowerCase().includes('diploma') ? 'DIPLOMA' :
+                           program.toLowerCase().includes('certificate') ? 'CERTIFICATE' : ''
+      
+      if (programLevel) {
+        setFormData(prev => ({
+          ...prev,
+          programLevel,
+          autoFilledFields: [...prev.autoFilledFields, 'programLevel']
+        }))
+      }
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      studentId: '',
+      universityId: '',
+      program: '',
+      programCode: '',
+      programLevel: '',
+      studyMode: '',
+      duration: '',
+      intake: '',
+      intakeYear: new Date().getFullYear() + 1,
+      startDate: '',
+      expectedEndDate: '',
+      status: 'DRAFT',
+      subStatus: '',
+      priority: 'NORMAL',
+      applicationFee: '',
+      applicationFeeCurrency: 'USD',
+      applicationFeePaid: false,
+      submissionDate: '',
+      deadlineDate: '',
+      currentEducation: '',
+      gpa: '',
+      englishProficiency: '',
+      testScores: '',
+      tuitionFee: '',
+      tuitionFeeCurrency: 'USD',
+      scholarshipAmount: '',
+      scholarshipCurrency: 'USD',
+      totalCost: '',
+      fundingSource: [] as string[],
+      interviewRequired: false,
+      interviewDate: '',
+      interviewType: '',
+      visaRequired: false,
+      notes: '',
+      autoFilledFields: [] as string[]
+    })
+    setAvailableSubjects([])
+    setAvailablePrograms([])
+    setAvailableStudyLevels([])
+  }
+
   const handleAddApplication = async () => {
-    if (!newApplication.studentId || !newApplication.universityId || !newApplication.program) {
-      setError('Please fill in all required fields')
+    if (!formData.studentId || !formData.universityId || !formData.program) {
+      setError('Please fill in all required fields: Student, University, and Program')
       return
     }
 
+    setSubmitting(true)
     try {
+      const applicationData = {
+        ...formData,
+        gpa: formData.gpa ? parseFloat(formData.gpa) : undefined,
+        applicationFee: formData.applicationFee ? parseFloat(formData.applicationFee) : undefined,
+        tuitionFee: formData.tuitionFee ? parseFloat(formData.tuitionFee) : undefined,
+        scholarshipAmount: formData.scholarshipAmount ? parseFloat(formData.scholarshipAmount) : undefined,
+        totalCost: formData.totalCost ? parseFloat(formData.totalCost) : undefined,
+        duration: formData.duration ? parseInt(formData.duration) : undefined,
+        intakeYear: formData.intakeYear ? parseInt(formData.intakeYear) : undefined,
+        progressPercentage: 0,
+        currentStage: 'DRAFT',
+        interviewRequired: formData.interviewRequired,
+        interviewScheduled: false,
+        visaRequired: formData.visaRequired,
+        offerReceived: false,
+        offerAccepted: false,
+        enrollmentConfirmed: false,
+        visaApplied: false,
+        visaApproved: false,
+        autoFilledFields: formData.autoFilledFields,
+        fundingSource: formData.fundingSource.length > 0 ? formData.fundingSource : undefined
+      }
+
       const response = await fetch(`/api/${subdomain}/applications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newApplication),
+        body: JSON.stringify(applicationData),
       })
 
       if (!response.ok) {
@@ -199,43 +580,14 @@ export default function ApplicationsPage() {
       setApplications([createdApplication, ...applications])
       
       // Reset form and close dialog
-      setNewApplication({
-        studentId: '',
-        universityId: '',
-        program: '',
-        intake: '',
-        status: 'DRAFT'
-      })
+      resetForm()
       setIsAddDialogOpen(false)
       setError('')
     } catch (err) {
       setError('Error creating application')
       console.error('Error creating application:', err)
-    }
-  }
-
-  const handleDeleteApplication = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this application?')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/${subdomain}/applications/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        setError(errorData.error || 'Failed to delete application')
-        return
-      }
-
-      // Remove the application from the list
-      setApplications(applications.filter(app => app.id !== id))
-      setError('')
-    } catch (err) {
-      setError('Error deleting application')
-      console.error('Error deleting application:', err)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -259,6 +611,15 @@ export default function ApplicationsPage() {
       { key: 'approved', label: 'Approved', completed: status === 'APPROVED' }
     ]
     return steps
+  }
+
+  const stats = {
+    total: applications.length,
+    underReview: applications.filter(app => app.status === 'UNDER_REVIEW').length,
+    approved: applications.filter(app => app.status === 'APPROVED').length,
+    successRate: applications.length > 0 
+      ? Math.round((applications.filter(app => app.status === 'APPROVED').length / applications.length) * 100)
+      : 0
   }
 
   return (
@@ -292,109 +653,359 @@ export default function ApplicationsPage() {
             <Loader2 className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            if (!open) resetForm()
+            setIsAddDialogOpen(open)
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
                 New Application
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Application</DialogTitle>
                 <DialogDescription>
-                  Create a new university application for a student
+                  Create a new university application for a student. Fields will auto-fill based on your selections.
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="student" className="text-right">
-                    Student
-                  </Label>
-                  <Select
-                    value={newApplication.studentId}
-                    onValueChange={(value) => setNewApplication({...newApplication, studentId: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select student" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students.map((student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.firstName} {student.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+              {/* Auto-fill Indicator */}
+              {formData.autoFilledFields.length > 0 && (
+                <Alert>
+                  <Target className="h-4 w-4" />
+                  <AlertDescription>
+                    Auto-filled fields: {formData.autoFilledFields.join(', ')}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="student">Student *</Label>
+                    <Select value={formData.studentId} onValueChange={handleStudentChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select student" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {students.map((student) => (
+                          <SelectItem key={student.id} value={student.id}>
+                            {student.firstName} {student.lastName} - {student.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="university">University *</Label>
+                    <Select value={formData.universityId} onValueChange={handleUniversityChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select university" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {universities.map((university) => (
+                          <SelectItem key={university.id} value={university.id}>
+                            {university.name} - {university.country}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="university" className="text-right">
-                    University
-                  </Label>
-                  <Select
-                    value={newApplication.universityId}
-                    onValueChange={(value) => setNewApplication({...newApplication, universityId: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select university" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {universities.map((university) => (
-                        <SelectItem key={university.id} value={university.id}>
-                          {university.name} - {university.country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                {/* Program Details */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="program">Program *</Label>
+                    {availablePrograms.length > 0 ? (
+                      <Select value={formData.program} onValueChange={handleProgramChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select program" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availablePrograms.map((program) => (
+                            <SelectItem key={program} value={program}>
+                              {program}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="program"
+                        placeholder="Enter program name"
+                        value={formData.program}
+                        onChange={(e) => handleInputChange('program', e.target.value)}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="programLevel">Program Level</Label>
+                    <Select value={formData.programLevel} onValueChange={(value) => handleInputChange('programLevel', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableStudyLevels.length > 0 ? (
+                          availableStudyLevels.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {level.replace('_', ' ')}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          programLevels.map((level) => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="studyMode">Study Mode</Label>
+                    <Select value={formData.studyMode} onValueChange={(value) => handleInputChange('studyMode', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {studyModes.map((mode) => (
+                          <SelectItem key={mode.value} value={mode.value}>
+                            {mode.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="program" className="text-right">
-                    Program
-                  </Label>
-                  <Input
-                    id="program"
-                    value={newApplication.program}
-                    onChange={(e) => setNewApplication({...newApplication, program: e.target.value})}
-                    className="col-span-3"
+
+                {/* Duration and Dates */}
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="duration">Duration (years)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      placeholder="4"
+                      value={formData.duration}
+                      onChange={(e) => handleInputChange('duration', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="intake">Intake</Label>
+                    <Select value={formData.intake} onValueChange={(value) => handleInputChange('intake', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select intake" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {intakes.map((intake) => (
+                          <SelectItem key={intake} value={intake}>
+                            {intake}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={formData.startDate}
+                      onChange={(e) => handleInputChange('startDate', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="expectedEndDate">Expected End Date</Label>
+                    <Input
+                      id="expectedEndDate"
+                      type="date"
+                      value={formData.expectedEndDate}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+
+                {/* Academic Information (Auto-filled from Student) */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="currentEducation">Current Education</Label>
+                    <Input
+                      id="currentEducation"
+                      placeholder="Current education"
+                      value={formData.currentEducation}
+                      onChange={(e) => handleInputChange('currentEducation', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gpa">GPA</Label>
+                    <Input
+                      id="gpa"
+                      type="number"
+                      step="0.1"
+                      placeholder="3.5"
+                      value={formData.gpa}
+                      onChange={(e) => handleInputChange('gpa', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="englishProficiency">English Proficiency</Label>
+                    <Input
+                      id="englishProficiency"
+                      placeholder="IELTS 7.0, TOEFL 100, etc."
+                      value={formData.englishProficiency}
+                      onChange={(e) => handleInputChange('englishProficiency', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Financial Information */}
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="applicationFee">Application Fee</Label>
+                    <Input
+                      id="applicationFee"
+                      type="number"
+                      step="0.01"
+                      placeholder="50.00"
+                      value={formData.applicationFee}
+                      onChange={(e) => handleInputChange('applicationFee', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tuitionFee">Tuition Fee</Label>
+                    <Input
+                      id="tuitionFee"
+                      type="number"
+                      step="0.01"
+                      placeholder="25000"
+                      value={formData.tuitionFee}
+                      onChange={(e) => handleInputChange('tuitionFee', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="scholarshipAmount">Scholarship Amount</Label>
+                    <Input
+                      id="scholarshipAmount"
+                      type="number"
+                      step="0.01"
+                      placeholder="5000"
+                      value={formData.scholarshipAmount}
+                      onChange={(e) => handleInputChange('scholarshipAmount', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="totalCost">Total Cost</Label>
+                    <Input
+                      id="totalCost"
+                      type="number"
+                      step="0.01"
+                      placeholder="30000"
+                      value={formData.totalCost}
+                      onChange={(e) => handleInputChange('totalCost', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Application Status */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DRAFT">Draft</SelectItem>
+                        <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                        <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                        <SelectItem value="APPROVED">Approved</SelectItem>
+                        <SelectItem value="REJECTED">Rejected</SelectItem>
+                        <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="priority">Priority</Label>
+                    <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {priorities.map((priority) => (
+                          <SelectItem key={priority.value} value={priority.value}>
+                            {priority.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="deadlineDate">Deadline</Label>
+                    <Input
+                      id="deadlineDate"
+                      type="date"
+                      value={formData.deadlineDate}
+                      onChange={(e) => handleInputChange('deadlineDate', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Requirements */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="interviewRequired"
+                      checked={formData.interviewRequired}
+                      onCheckedChange={(checked) => handleInputChange('interviewRequired', checked as boolean)}
+                    />
+                    <Label htmlFor="interviewRequired">Interview Required</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="visaRequired"
+                      checked={formData.visaRequired}
+                      onCheckedChange={(checked) => handleInputChange('visaRequired', checked as boolean)}
+                    />
+                    <Label htmlFor="visaRequired">Visa Required</Label>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Additional notes about this application..."
+                    rows={3}
+                    value={formData.notes}
+                    onChange={(e) => handleInputChange('notes', e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="intake" className="text-right">
-                    Intake
-                  </Label>
-                  <Input
-                    id="intake"
-                    value={newApplication.intake}
-                    onChange={(e) => setNewApplication({...newApplication, intake: e.target.value})}
-                    className="col-span-3"
-                    placeholder="e.g., Fall 2024"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
-                    Status
-                  </Label>
-                  <Select
-                    value={newApplication.status}
-                    onValueChange={(value) => setNewApplication({...newApplication, status: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DRAFT">Draft</SelectItem>
-                      <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                      <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                      <SelectItem value="APPROVED">Approved</SelectItem>
-                      <SelectItem value="REJECTED">Rejected</SelectItem>
-                      <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddApplication} disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Application
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-              <DialogFooter>
-                <Button onClick={handleAddApplication}>Create Application</Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
@@ -408,7 +1019,7 @@ export default function ApplicationsPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{applications.length}</div>
+            <div className="text-2xl font-bold">{stats.total}</div>
             <p className="text-xs text-muted-foreground">
               +2 from last month
             </p>
@@ -421,7 +1032,7 @@ export default function ApplicationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {applications.filter(app => app.status === 'UNDER_REVIEW').length}
+              {stats.underReview}
             </div>
             <p className="text-xs text-muted-foreground">
               Pending decisions
@@ -435,7 +1046,7 @@ export default function ApplicationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {applications.filter(app => app.status === 'APPROVED').length}
+              {stats.approved}
             </div>
             <p className="text-xs text-muted-foreground">
               Successful applications
@@ -449,9 +1060,7 @@ export default function ApplicationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {applications.length > 0 
-                ? Math.round((applications.filter(app => app.status === 'APPROVED').length / applications.length) * 100)
-                : 0}%
+              {stats.successRate}%
             </div>
             <p className="text-xs text-muted-foreground">
               Approval rate
@@ -460,19 +1069,19 @@ export default function ApplicationsPage() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Applications Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Application List</CardTitle>
+          <CardTitle>Applications Overview</CardTitle>
           <CardDescription>
-            View and manage all student applications
+            Track all student applications and their progress
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <div className="mb-4">
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search applications..."
                   value={searchTerm}
@@ -480,254 +1089,289 @@ export default function ApplicationsPage() {
                   className="pl-10"
                 />
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                  <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                <SelectItem value="UNDER_REVIEW">Under Review</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-                <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>University</TableHead>
-                  <TableHead>Program</TableHead>
-                  <TableHead>Intake</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Progress</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead>University</TableHead>
+                <TableHead>Program</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead>Intake</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredApplications.map((application) => (
+                <TableRow key={application.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">
+                        {application.student.firstName} {application.student.lastName}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {application.student.email}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{application.university.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {application.university.city}, {application.university.country}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{application.program}</div>
+                      {application.programLevel && (
+                        <div className="text-sm text-muted-foreground">
+                          {application.programLevel.replace('_', ' ')}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={statusColors[application.status]}>
+                      {statusLabels[application.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <Progress value={getWorkflowProgress(application.status)} className="w-20" />
+                      <div className="text-xs text-muted-foreground">
+                        {getWorkflowProgress(application.status)}%
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {application.intake || 'N/A'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => {
+                        setSelectedApplication(application)
+                        setIsViewDialogOpen(true)
+                      }}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredApplications.map((application) => (
-                  <TableRow key={application.id}>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {application.student.firstName} {application.student.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {application.student.email}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary/10">
-                          <GraduationCap className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{application.university.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {application.university.country}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{application.program}</TableCell>
-                    <TableCell>{application.intake}</TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[application.status]}>
-                        {statusLabels[application.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="w-20">
-                        <Progress value={getWorkflowProgress(application.status)} className="h-2" />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {getWorkflowProgress(application.status)}%
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(application.createdAt), 'MMM dd, yyyy')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedApplication(application)
-                            setIsViewDialogOpen(true)
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteApplication(application.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
+
+          {filteredApplications.length === 0 && (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No applications found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'Try adjusting your search criteria.' 
+                  : 'Get started by creating your first application.'
+                }
+              </p>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Application
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* View Application Dialog */}
+      {/* Application Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Application Details</DialogTitle>
             <DialogDescription>
-              View detailed application information and workflow progress
+              Full application information and progress tracking
             </DialogDescription>
           </DialogHeader>
+          
           {selectedApplication && (
             <div className="space-y-6">
-              <Tabs defaultValue="overview" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="workflow">Workflow</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="communications">Communications</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="overview" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+              {/* Header Information */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Student Information</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Name:</span> {selectedApplication.student.firstName} {selectedApplication.student.lastName}</p>
+                    <p><span className="font-medium">Email:</span> {selectedApplication.student.email}</p>
+                    <p><span className="font-medium">Current Education:</span> {selectedApplication.student.currentEducation || 'N/A'}</p>
+                    <p><span className="font-medium">GPA:</span> {selectedApplication.student.gpa || 'N/A'}</p>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">University Information</h3>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Name:</span> {selectedApplication.university.name}</p>
+                    <p><span className="font-medium">Location:</span> {selectedApplication.university.city}, {selectedApplication.university.country}</p>
+                    <p><span className="font-medium">Website:</span> 
+                      {selectedApplication.university.website ? (
+                        <a href={selectedApplication.university.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Visit Website
+                        </a>
+                      ) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Program Details */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Program Details</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Program</Label>
+                    <p className="font-medium">{selectedApplication.program}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Program Level</Label>
+                    <p>{selectedApplication.programLevel?.replace('_', ' ') || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Study Mode</Label>
+                    <p>{selectedApplication.studyMode?.replace('_', ' ') || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Duration</Label>
+                    <p>{selectedApplication.duration ? `${selectedApplication.duration} years` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Intake</Label>
+                    <p>{selectedApplication.intake || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Start Date</Label>
+                    <p>{selectedApplication.startDate ? format(new Date(selectedApplication.startDate), 'PPP') : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Financial Information</h3>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Application Fee</Label>
+                    <p>{selectedApplication.applicationFee ? `${selectedApplication.applicationFeeCurrency} ${selectedApplication.applicationFee}` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Tuition Fee</Label>
+                    <p>{selectedApplication.tuitionFee ? `${selectedApplication.tuitionFeeCurrency} ${selectedApplication.tuitionFee}` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Scholarship</Label>
+                    <p>{selectedApplication.scholarshipAmount ? `${selectedApplication.scholarshipCurrency} ${selectedApplication.scholarshipAmount}` : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Total Cost</Label>
+                    <p>{selectedApplication.totalCost ? `${selectedApplication.tuitionFeeCurrency} ${selectedApplication.totalCost}` : 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Tracking */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Application Progress</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium">Overall Progress</span>
+                      <span className="text-sm text-muted-foreground">{selectedApplication.progressPercentage}%</span>
+                    </div>
+                    <Progress value={selectedApplication.progressPercentage} className="w-full" />
+                  </div>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <Label className="text-sm font-medium">Student</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedApplication.student.firstName} {selectedApplication.student.lastName}
-                      </p>
+                      <Label className="text-sm font-medium text-muted-foreground">Current Stage</Label>
+                      <p>{selectedApplication.currentStage || 'N/A'}</p>
                     </div>
                     <div>
-                      <Label className="text-sm font-medium">University</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedApplication.university.name}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Program</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedApplication.program}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Intake</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedApplication.intake}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Status</Label>
-                      <Badge className={statusColors[selectedApplication.status]}>
-                        {statusLabels[selectedApplication.status]}
-                      </Badge>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Created</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(selectedApplication.createdAt), 'MMM dd, yyyy')}
-                      </p>
+                      <Label className="text-sm font-medium text-muted-foreground">Next Step</Label>
+                      <p>{selectedApplication.nextStep || 'N/A'}</p>
                     </div>
                   </div>
-                </TabsContent>
-                
-                <TabsContent value="workflow" className="space-y-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium">Progress</Label>
-                      <Progress value={getWorkflowProgress(selectedApplication.status)} className="mt-2" />
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {getWorkflowProgress(selectedApplication.status)}% Complete
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Workflow Steps</Label>
-                      <div className="mt-2 space-y-2">
-                        {getWorkflowSteps(selectedApplication.status).map((step, index) => (
-                          <div key={step.key} className="flex items-center space-x-2">
-                            <div className={`w-4 h-4 rounded-full border-2 ${
-                              step.completed 
-                                ? 'bg-green-500 border-green-500' 
-                                : 'border-gray-300'
-                            }`}>
-                              {step.completed && (
-                                <CheckCircle className="w-3 h-3 text-white" />
-                              )}
-                            </div>
-                            <span className={`text-sm ${
-                              step.completed ? 'text-foreground' : 'text-muted-foreground'
-                            }`}>
-                              {step.label}
-                            </span>
-                          </div>
-                        ))}
+                </div>
+              </div>
+
+              {/* Requirements */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Requirements</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <FileCheck className={`h-5 w-5 ${selectedApplication.interviewRequired ? 'text-orange-500' : 'text-gray-400'}`} />
+                    <span>Interview {selectedApplication.interviewRequired ? 'Required' : 'Not Required'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Plane className={`h-5 w-5 ${selectedApplication.visaRequired ? 'text-blue-500' : 'text-gray-400'}`} />
+                    <span>Visa {selectedApplication.visaRequired ? 'Required' : 'Not Required'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Timeline */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Application Timeline</h3>
+                <div className="space-y-3">
+                  {getWorkflowSteps(selectedApplication.status).map((step, index) => (
+                    <div key={step.key} className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        step.completed 
+                          ? 'bg-green-500 border-green-500' 
+                          : 'border-gray-300'
+                      }`}>
+                        {step.completed && (
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        )}
                       </div>
-                    </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="documents" className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Required Documents</Label>
-                    <div className="mt-2 space-y-2">
-                      {selectedApplication.documents?.length > 0 ? (
-                        selectedApplication.documents.map((doc, index) => (
-                          <div key={index} className="flex items-center justify-between p-2 border rounded">
-                            <span className="text-sm">{doc}</span>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                      <span className={`font-medium ${step.completed ? 'text-green-600' : 'text-gray-500'}`}>
+                        {step.label}
+                      </span>
+                      {index < getWorkflowSteps(selectedApplication.status).length - 1 && (
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
                       )}
                     </div>
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="communications" className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Communication History</Label>
-                    <div className="mt-2 space-y-2">
-                      {selectedApplication.communications?.length > 0 ? (
-                        selectedApplication.communications.map((comm, index) => (
-                          <div key={index} className="p-3 border rounded">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-medium">{comm.type}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(comm.date), 'MMM dd, yyyy')}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{comm.message}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No communications recorded</p>
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedApplication.internalNotes && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Internal Notes</h3>
+                  <p className="text-sm bg-muted p-3 rounded-md">
+                    {selectedApplication.internalNotes}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
