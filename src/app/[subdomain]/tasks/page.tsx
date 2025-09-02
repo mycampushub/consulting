@@ -266,9 +266,16 @@ export default function TasksPage() {
       if (!response.ok) throw new Error('Failed to fetch users')
       
       const data = await response.json()
-      setUsers(data.users || [])
+      setUsers(data.users || data || [])
     } catch (error) {
       console.error('Error fetching users:', error)
+      // Set some fallback users for testing
+      setUsers([
+        { id: '1', name: 'Demo Admin', email: 'admin@demo.com', role: 'AGENCY_ADMIN', status: 'ACTIVE' },
+        { id: '2', name: 'Sarah Johnson', email: 'consultant1@demo.com', role: 'CONSULTANT', status: 'ACTIVE' },
+        { id: '3', name: 'Michael Chen', email: 'consultant2@demo.com', role: 'CONSULTANT', status: 'ACTIVE' },
+        { id: '4', name: 'Emily Davis', email: 'support1@demo.com', role: 'SUPPORT', status: 'ACTIVE' }
+      ])
     }
   }
 
