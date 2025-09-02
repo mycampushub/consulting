@@ -3011,6 +3011,9 @@ enum WorkflowCategory {
   FOLLOW_UP
   NOTIFICATION
   INTEGRATION
+  MARKETING
+  SALES
+  SUPPORT
 }
 
 enum WorkflowStatus {

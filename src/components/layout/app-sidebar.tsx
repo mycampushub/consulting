@@ -74,6 +74,12 @@ const menuItems = [
     badge: "New"
   },
   {
+    title: "Student Portal",
+    url: "/student/portal",
+    icon: GraduationCap,
+    description: "Student self-service portal"
+  },
+  {
     title: "Students",
     url: "/students",
     icon: Users,

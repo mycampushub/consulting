@@ -1265,5 +1265,3 @@ export default function StudentPortal() {
     </div>
   )
 }
-
-export default StudentPortal

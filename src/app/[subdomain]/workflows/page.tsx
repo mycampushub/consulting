@@ -807,9 +807,18 @@ export default function WorkflowsPage() {
   const fetchWorkflowsData = async () => {
     try {
       setLoading(true)
+      setError(null)
       
       const response = await fetch(`/api/${subdomain}/workflows?limit=50`)
-      if (!response.ok) throw new Error('Failed to fetch workflows')
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to fetch workflows (Status: ${response.status})`)
+        }
+      }
       
       const data = await response.json()
       setWorkflows(data.workflows || [])
@@ -828,7 +837,10 @@ export default function WorkflowsPage() {
       setStats(workflowStats)
       
     } catch (err) {
+      console.error('Error fetching workflows:', err)
       setError(err instanceof Error ? err.message : 'Unknown error')
+      setWorkflows([])
+      setStats(null)
     } finally {
       setLoading(false)
     }
@@ -862,8 +874,12 @@ export default function WorkflowsPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to create workflow (Status: ${response.status})`)
+        }
       }
 
       await fetchWorkflowsData()
@@ -929,8 +945,12 @@ export default function WorkflowsPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to update workflow (Status: ${response.status})`)
+        }
       }
 
       await fetchWorkflowsData()
@@ -954,12 +974,17 @@ export default function WorkflowsPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to delete workflow (Status: ${response.status})`)
+        }
       }
 
       await fetchWorkflowsData()
     } catch (err) {
+      console.error('Error deleting workflow:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete workflow')
     }
   }
@@ -975,8 +1000,12 @@ export default function WorkflowsPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to toggle workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to toggle workflow (Status: ${response.status})`)
+        }
       }
 
       await fetchWorkflowsData()
@@ -1013,7 +1042,12 @@ export default function WorkflowsPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save workflow')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        if (response.status === 404) {
+          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
+        } else {
+          throw new Error(errorData.error || `Failed to save workflow (Status: ${response.status})`)
+        }
       }
 
       alert('Workflow saved successfully!')
