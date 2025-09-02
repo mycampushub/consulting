@@ -132,7 +132,6 @@ import {
   Pentagon,
   Octagon,
   ArrowRight,
-  ArrowLeft,
   ArrowUp,
   ArrowDown,
   ArrowUpRight,

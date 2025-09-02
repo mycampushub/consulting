@@ -67,7 +67,6 @@ import {
   HelpCircle,
   Video,
   Image,
-  Link,
   Share2,
   Download,
   Upload,
