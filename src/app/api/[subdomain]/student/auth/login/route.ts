@@ -3,13 +3,21 @@ import { db } from '@/lib/db'
 import { getSubdomainForAPI } from '@/lib/utils'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(6),
+  rememberMe: z.boolean().optional().default(false),
+  deviceInfo: z.object({
+    userAgent: z.string().optional(),
+    ipAddress: z.string().optional(),
+    deviceType: z.enum(['desktop', 'mobile', 'tablet']).optional(),
+    browser: z.string().optional()
+  }).optional()
 })
 
-// Demo credentials for easy testing
+// Enhanced demo credentials with more realistic data
 const DEMO_STUDENTS = [
   {
     email: 'alex.thompson@demo.com',
@@ -22,6 +30,9 @@ const DEMO_STUDENTS = [
     gpa: 3.8,
     status: 'APPLIED' as const,
     stage: 'APPLICATION' as const,
+    profileComplete: true,
+    lastLogin: new Date('2024-01-15T10:00:00Z'),
+    twoFactorEnabled: false
   },
   {
     email: 'maria.garcia@demo.com',
@@ -34,6 +45,9 @@ const DEMO_STUDENTS = [
     gpa: 3.6,
     status: 'ACCEPTED' as const,
     stage: 'DOCUMENTATION' as const,
+    profileComplete: true,
+    lastLogin: new Date('2024-01-16T14:30:00Z'),
+    twoFactorEnabled: true
   },
   {
     email: 'james.wilson@demo.com',
@@ -46,13 +60,38 @@ const DEMO_STUDENTS = [
     gpa: 3.9,
     status: 'ENROLLED' as const,
     stage: 'PRE_DEPARTURE' as const,
+    profileComplete: true,
+    lastLogin: new Date('2024-01-17T09:15:00Z'),
+    twoFactorEnabled: false
   }
 ]
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password } = loginSchema.parse(body)
+    const { email, password, rememberMe, deviceInfo } = loginSchema.parse(body)
+
+    // Rate limiting check (simple implementation)
+    const clientIP = request.headers.get('x-forwarded-for') || 'unknown'
+    const userAgent = request.headers.get('user-agent') || 'unknown'
+    
+    // Check for too many failed attempts
+    const recentFailedAttempts = await db.activityLog.count({
+      where: {
+        action: 'STUDENT_LOGIN_FAILED',
+        ipAddress: clientIP,
+        createdAt: {
+          gte: new Date(Date.now() - 15 * 60 * 1000) // Last 15 minutes
+        }
+      }
+    })
+
+    if (recentFailedAttempts >= 5) {
+      return NextResponse.json(
+        { error: 'Too many failed attempts. Please try again later.' },
+        { status: 429 }
+      )
+    }
 
     // Check demo credentials first
     const demoStudent = DEMO_STUDENTS.find(
@@ -110,23 +149,67 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Generate session ID for security
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      
+      // Generate JWT token with enhanced security
+      const token = jwt.sign(
+        { 
+          studentId: student.id, 
+          agencyId: agency.id, 
+          email: student.email,
+          type: 'student',
+          sessionId: sessionId,
+          deviceInfo: deviceInfo || {},
+          iat: Math.floor(Date.now() / 1000)
+        },
+        process.env.NEXTAUTH_SECRET || 'fallback-secret',
+        { expiresIn: rememberMe ? '30d' : '24h' }
+      )
+
+      // Log successful login
+      await db.activityLog.create({
+        data: {
+          agencyId: agency.id,
+          action: 'STUDENT_LOGIN_SUCCESS',
+          entityType: 'Student',
+          entityId: student.id,
+          changes: JSON.stringify({ 
+            sessionId, 
+            deviceInfo: deviceInfo || {},
+            loginMethod: 'demo'
+          }),
+          ipAddress: clientIP,
+          userAgent: userAgent
+        }
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Demo student login successful',
+        token,
+        sessionId,
         student: {
           id: student.id,
           firstName: student.firstName,
           lastName: student.lastName,
           email: student.email,
           status: student.status,
-          stage: student.stage
+          stage: student.stage,
+          profileComplete: demoStudent.profileComplete,
+          twoFactorEnabled: demoStudent.twoFactorEnabled,
+          lastLogin: demoStudent.lastLogin
         },
         agency: {
           id: agency.id,
           name: agency.name,
           subdomain: agency.subdomain
         },
-        isDemo: true
+        isDemo: true,
+        security: {
+          sessionId,
+          requiresTwoFactor: demoStudent.twoFactorEnabled
+        }
       })
     }
 
@@ -139,6 +222,19 @@ export async function POST(request: NextRequest) {
     })
 
     if (!student) {
+      // Log failed attempt for non-existent student
+      await db.activityLog.create({
+        data: {
+          agencyId: 'unknown',
+          action: 'STUDENT_LOGIN_FAILED',
+          entityType: 'Student',
+          entityId: 'unknown',
+          changes: JSON.stringify({ reason: 'Student not found', email }),
+          ipAddress: clientIP,
+          userAgent: userAgent
+        }
+      })
+      
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -159,6 +255,20 @@ export async function POST(request: NextRequest) {
       // Validate password using bcrypt
       const isPasswordValid = await bcrypt.compare(password, userAccount.password)
       if (!isPasswordValid) {
+        // Log failed login attempt
+        await db.activityLog.create({
+          data: {
+            agencyId: student.agencyId,
+            userId: userAccount.id,
+            action: 'STUDENT_LOGIN_FAILED',
+            entityType: 'Student',
+            entityId: student.id,
+            changes: JSON.stringify({ reason: 'Invalid password' }),
+            ipAddress: clientIP,
+            userAgent: userAgent
+          }
+        })
+        
         return NextResponse.json(
           { error: 'Invalid email or password' },
           { status: 401 }
@@ -178,23 +288,75 @@ export async function POST(request: NextRequest) {
         }
       })
     }
+
+    // Generate session ID for security
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Generate JWT token with enhanced security
+    const token = jwt.sign(
+      { 
+        studentId: student.id, 
+        agencyId: student.agencyId, 
+        email: student.email,
+        type: 'student',
+        sessionId: sessionId,
+        deviceInfo: deviceInfo || {},
+        iat: Math.floor(Date.now() / 1000)
+      },
+      process.env.NEXTAUTH_SECRET || 'fallback-secret',
+      { expiresIn: rememberMe ? '30d' : '24h' }
+    )
+
+    // Update student's last login
+    await db.student.update({
+      where: { id: student.id },
+      data: { lastLoginAt: new Date() }
+    })
+
+    // Log successful login
+    await db.activityLog.create({
+      data: {
+        agencyId: student.agencyId,
+        userId: userAccount?.id,
+        action: 'STUDENT_LOGIN_SUCCESS',
+        entityType: 'Student',
+        entityId: student.id,
+        changes: JSON.stringify({ 
+          sessionId, 
+          deviceInfo: deviceInfo || {},
+          loginMethod: 'standard'
+        }),
+        ipAddress: clientIP,
+        userAgent: userAgent
+      }
+    })
+
     return NextResponse.json({
       success: true,
       message: 'Login successful',
+      token,
+      sessionId,
       student: {
         id: student.id,
         firstName: student.firstName,
         lastName: student.lastName,
         email: student.email,
         status: student.status,
-        stage: student.stage
+        stage: student.stage,
+        profileComplete: true, // Could be calculated based on profile completion
+        twoFactorEnabled: false, // Could be enhanced with 2FA
+        lastLogin: new Date()
       },
       agency: {
         id: student.agency.id,
         name: student.agency.name,
         subdomain: student.agency.subdomain
       },
-      isDemo: false
+      isDemo: false,
+      security: {
+        sessionId,
+        requiresTwoFactor: false
+      }
     })
 
   } catch (error) {

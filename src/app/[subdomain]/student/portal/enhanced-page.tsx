@@ -125,7 +125,7 @@ interface Task {
   assignedTo?: string
 }
 
-export default function StudentPortal() {
+export default function EnhancedStudentPortal() {
   const [student, setStudent] = useState<Student | null>(null)
   const [applications, setApplications] = useState<Application[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -1265,5 +1265,3 @@ export default function StudentPortal() {
     </div>
   )
 }
-
-export default StudentPortal

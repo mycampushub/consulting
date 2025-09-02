@@ -173,28 +173,66 @@ export default function StudentPortal() {
     password: ""
   })
   
-  const [student] = useState<Student>(mockStudent)
-  const [applications] = useState<Application[]>(mockApplications)
-  const [documents] = useState<Document[]>(mockDocuments)
+  const [student, setStudent] = useState<Student>(mockStudent)
+  const [applications, setApplications] = useState<Application[]>(mockApplications)
+  const [documents, setDocuments] = useState<Document[]>(mockDocuments)
+  const [stats, setStats] = useState({
+    totalApplications: 0,
+    activeApplications: 0,
+    completedApplications: 0,
+    totalDocuments: 0,
+    approvedDocuments: 0,
+    pendingDocuments: 0,
+    profileCompletion: 0,
+    unreadNotifications: 0,
+    pendingTasks: 0,
+    upcomingAppointments: 0
+  })
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([])
+  const [pendingTasks, setPendingTasks] = useState<any[]>([])
+  const [unreadNotifications, setUnreadNotifications] = useState<any[]>([])
 
   useEffect(() => {
     // Check if student is already logged in
     const isAuthenticated = localStorage.getItem('studentAuth')
     const studentData = localStorage.getItem('studentData')
+    const token = localStorage.getItem('studentToken')
     
-    if (isAuthenticated && studentData) {
+    if (isAuthenticated && studentData && token) {
       try {
         const parsedData = JSON.parse(studentData)
-        // Update student data with real data from API
         setStudent(parsedData.student)
         setIsLoggedIn(true)
+        // Fetch real student data
+        fetchStudentData(parsedData.student.id, parsedData.agency.id)
       } catch (error) {
         console.error('Error parsing student data:', error)
         localStorage.removeItem('studentAuth')
         localStorage.removeItem('studentData')
+        localStorage.removeItem('studentToken')
       }
     }
   }, [])
+
+  const fetchStudentData = async (studentId: string, agencyId: string) => {
+    try {
+      const response = await fetch(`/${subdomain}/api/student/portal?studentId=${studentId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setStudent(data.student)
+        setApplications(data.applicationProgress)
+        setDocuments(data.requiredDocuments)
+        setStats(data.stats)
+        setRecentActivity(data.recentActivity)
+        setUpcomingAppointments(data.upcomingAppointments)
+        setPendingTasks(data.pendingTasks)
+        setUnreadNotifications(data.unreadNotifications)
+      }
+    } catch (error) {
+      console.error('Error fetching student data:', error)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -207,13 +245,17 @@ export default function StudentPortal() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(loginForm),
+        body: JSON.stringify({
+          ...loginForm,
+          rememberMe: true
+        }),
       })
 
       const result = await response.json()
 
       if (result.success) {
         // Store authentication data
+        localStorage.setItem('studentToken', result.token)
         localStorage.setItem('studentAuth', 'true')
         localStorage.setItem('studentData', JSON.stringify({
           student: result.student,
@@ -221,6 +263,9 @@ export default function StudentPortal() {
           isDemo: result.isDemo
         }))
         setIsLoggedIn(true)
+        
+        // Fetch real student data
+        fetchStudentData(result.student.id, result.agency.id)
       } else {
         setLoginError(result.error || "Invalid email or password")
       }
@@ -234,6 +279,7 @@ export default function StudentPortal() {
   const handleLogout = () => {
     localStorage.removeItem('studentAuth')
     localStorage.removeItem('studentData')
+    localStorage.removeItem('studentToken')
     setIsLoggedIn(false)
   }
 
@@ -414,9 +460,14 @@ export default function StudentPortal() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="relative">
                 <Bell className="h-4 w-4 mr-2" />
                 Notifications
+                {stats.unreadNotifications > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {stats.unreadNotifications}
+                  </span>
+                )}
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -457,25 +508,26 @@ export default function StudentPortal() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="applications">Applications</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Quick Stats */}
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Applications</CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{applications.length}</div>
+                  <div className="text-2xl font-bold">{stats.totalApplications}</div>
                   <p className="text-xs text-muted-foreground">
-                    {applications.filter(app => app.status === 'UNDER_REVIEW').length} under review
+                    {stats.activeApplications} active, {stats.completedApplications} completed
                   </p>
                 </CardContent>
               </Card>
@@ -486,9 +538,9 @@ export default function StudentPortal() {
                   <Upload className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{documents.filter(d => d.status === 'APPROVED').length}/{documents.length}</div>
+                  <div className="text-2xl font-bold">{stats.approvedDocuments}/{stats.totalDocuments}</div>
                   <p className="text-xs text-muted-foreground">
-                    Documents approved
+                    {stats.pendingDocuments} pending review
                   </p>
                 </CardContent>
               </Card>
@@ -499,9 +551,22 @@ export default function StudentPortal() {
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{Math.round((documents.filter(d => d.status === 'APPROVED').length / documents.length) * 100)}%</div>
+                  <div className="text-2xl font-bold">{stats.profileCompletion}%</div>
                   <p className="text-xs text-muted-foreground">
                     Profile completion
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Tasks</CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Pending tasks
                   </p>
                 </CardContent>
               </Card>
@@ -529,6 +594,15 @@ export default function StudentPortal() {
                         <p className="text-xs text-muted-foreground mt-1">
                           {application.documentsSubmitted}/{application.documentsRequired} docs
                         </p>
+                        <div className="mt-1">
+                          <div className="w-16 bg-muted rounded-full h-1">
+                            <div 
+                              className="bg-primary h-1 rounded-full" 
+                              style={{ width: `${application.progress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{application.progress}%</p>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -544,7 +618,21 @@ export default function StudentPortal() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {documents.filter(d => d.status !== 'APPROVED').map((document) => (
+                  {pendingTasks.slice(0, 3).map((task) => (
+                    <div key={task.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Assigned to: {task.assignedTo} | Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {task.priority}
+                      </Badge>
+                    </div>
+                  ))}
+                  {documents.filter(d => d.status !== 'APPROVED').slice(0, 2).map((document) => (
                     <div key={document.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <AlertTriangle className="h-4 w-4 text-yellow-600" />
                       <div className="flex-1">
@@ -554,6 +642,68 @@ export default function StudentPortal() {
                       <Button size="sm" variant="outline">
                         Upload
                       </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Appointments */}
+            {upcomingAppointments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Appointments</CardTitle>
+                  <CardDescription>Your scheduled meetings and consultations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {upcomingAppointments.slice(0, 3).map((appointment) => (
+                      <div key={appointment.id} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{appointment.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(appointment.scheduledAt).toLocaleDateString()} at {new Date(appointment.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                          <p className="text-xs text-muted-foreground">With: {appointment.consultant}</p>
+                        </div>
+                        {appointment.meetingLink && (
+                          <Button size="sm" variant="outline">
+                            Join
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest updates on your applications and documents</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentActivity.slice(0, 5).map((activity) => (
+                    <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className={`w-2 h-2 rounded-full ${
+                        activity.type === 'application' ? 'bg-blue-500' :
+                        activity.type === 'document' ? 'bg-green-500' :
+                        activity.type === 'task' ? 'bg-orange-500' : 'bg-gray-500'
+                      }`}></div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{activity.action}</p>
+                        <p className="text-xs text-muted-foreground">{activity.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {activity.status}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -662,6 +812,47 @@ export default function StudentPortal() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>Stay updated with your application progress and important announcements</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {unreadNotifications.length > 0 ? (
+                    unreadNotifications.map((notification) => (
+                      <div key={notification.id} className="flex items-start gap-3 p-4 border rounded-lg bg-blue-50">
+                        <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{notification.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="outline" className="text-xs">
+                              {notification.type}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(notification.createdAt).toLocaleDateString()} at {new Date(notification.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline">
+                          Mark as Read
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No New Notifications</h3>
+                      <p className="text-muted-foreground">You're all caught up! Check back later for updates.</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
