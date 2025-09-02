@@ -53,7 +53,8 @@ import {
   Plug,
   Users as TeamIcon,
   User,
-  FileSignature
+  FileSignature,
+  ListTodo
 } from "lucide-react"
 
 interface ServerSidebarProps {
@@ -66,6 +67,19 @@ const menuItems = [
     url: "/dashboard",
     icon: LayoutDashboard,
     description: "Overview and analytics"
+  },
+  {
+    title: "Tasks",
+    url: "/tasks",
+    icon: ListTodo,
+    description: "Task management",
+    badge: "New"
+  },
+  {
+    title: "Student Portal",
+    url: "/student/portal",
+    icon: GraduationCap,
+    description: "Student self-service portal"
   },
   {
     title: "Students",

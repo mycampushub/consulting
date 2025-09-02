@@ -361,13 +361,17 @@ const WorkflowBuilder = ({
   onSave: (nodes: WorkflowNode[], edges: WorkflowEdge[]) => void;
   onClose: () => void;
 }) => {
-  const [nodes, setNodes] = useState<Node[]>(initialNodes.map(node => ({
+  // Ensure initialNodes and initialEdges are arrays
+  const safeInitialNodes = Array.isArray(initialNodes) ? initialNodes : []
+  const safeInitialEdges = Array.isArray(initialEdges) ? initialEdges : []
+  
+  const [nodes, setNodes] = useState<Node[]>(safeInitialNodes.map(node => ({
     id: node.id,
     type: 'custom',
     position: node.position,
     data: node.data
   })))
-  const [edges, setEdges] = useState<Edge[]>(initialEdges.map(edge => ({
+  const [edges, setEdges] = useState<Edge[]>(safeInitialEdges.map(edge => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
@@ -1419,8 +1423,20 @@ export default function WorkflowsPage() {
         <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden p-0">
           <ReactFlowProvider>
             <WorkflowBuilder
-              initialNodes={selectedWorkflow?.nodes || []}
-              initialEdges={selectedWorkflow?.edges || []}
+              initialNodes={selectedWorkflow?.nodes ? (() => {
+                try {
+                  return JSON.parse(selectedWorkflow.nodes);
+                } catch {
+                  return [];
+                }
+              })() : []}
+              initialEdges={selectedWorkflow?.edges ? (() => {
+                try {
+                  return JSON.parse(selectedWorkflow.edges);
+                } catch {
+                  return [];
+                }
+              })() : []}
               onSave={saveWorkflowBuilder}
               onClose={() => setIsBuilderOpen(false)}
             />
