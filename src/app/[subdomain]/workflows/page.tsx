@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, usePathname } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -784,25 +785,11 @@ export default function WorkflowsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [isCreateWorkflowOpen, setIsCreateWorkflowOpen] = useState(false)
-  const [isEditWorkflowOpen, setIsEditWorkflowOpen] = useState(false)
   const [isBuilderOpen, setIsBuilderOpen] = useState(false)
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
-
-  // Form state
-  const [newWorkflow, setNewWorkflow] = useState({
-    name: "",
-    description: "",
-    category: "GENERAL" as Workflow['category'],
-    triggers: [] as any[],
-    nodes: [] as WorkflowNode[],
-    edges: [] as WorkflowEdge[],
-    isActive: false,
-    priority: 0
-  })
 
   useEffect(() => {
     fetchWorkflowsData()
@@ -850,121 +837,9 @@ export default function WorkflowsPage() {
     }
   }
 
-  const handleCreateWorkflow = async () => {
-    if (!newWorkflow.name) {
-      alert("Workflow name is required")
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      const workflowData = {
-        name: newWorkflow.name,
-        description: newWorkflow.description || undefined,
-        category: newWorkflow.category,
-        triggers: newWorkflow.triggers,
-        nodes: newWorkflow.nodes,
-        edges: newWorkflow.edges,
-        isActive: newWorkflow.isActive,
-        priority: newWorkflow.priority
-      }
-
-      const response = await fetch(`/api/${subdomain}/workflows`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(workflowData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        if (response.status === 404) {
-          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
-        } else {
-          throw new Error(errorData.error || `Failed to create workflow (Status: ${response.status})`)
-        }
-      }
-
-      await fetchWorkflowsData()
-      setIsCreateWorkflowOpen(false)
-      // Reset form
-      setNewWorkflow({
-        name: "",
-        description: "",
-        category: "GENERAL",
-        triggers: [],
-        nodes: [],
-        edges: [],
-        isActive: false,
-        priority: 0
-      })
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create workflow')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const handleEditWorkflow = (workflow: Workflow) => {
     setSelectedWorkflow(workflow)
-    setNewWorkflow({
-      name: workflow.name,
-      description: workflow.description || "",
-      category: workflow.category,
-      triggers: workflow.triggers,
-      nodes: workflow.nodes,
-      edges: workflow.edges,
-      isActive: workflow.isActive,
-      priority: workflow.priority
-    })
-    setIsEditWorkflowOpen(true)
-  }
-
-  const handleUpdateWorkflow = async () => {
-    if (!selectedWorkflow || !newWorkflow.name) {
-      alert("Workflow name is required")
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      const workflowData = {
-        name: newWorkflow.name,
-        description: newWorkflow.description || undefined,
-        category: newWorkflow.category,
-        triggers: newWorkflow.triggers,
-        nodes: newWorkflow.nodes,
-        edges: newWorkflow.edges,
-        isActive: newWorkflow.isActive,
-        priority: newWorkflow.priority
-      }
-
-      const response = await fetch(`/api/${subdomain}/workflows/${selectedWorkflow.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(workflowData),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        if (response.status === 404) {
-          throw new Error(`Agency "${subdomain}" not found. Please check the URL or contact support.`)
-        } else {
-          throw new Error(errorData.error || `Failed to update workflow (Status: ${response.status})`)
-        }
-      }
-
-      await fetchWorkflowsData()
-      setIsEditWorkflowOpen(false)
-      setSelectedWorkflow(null)
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update workflow')
-    } finally {
-      setSubmitting(false)
-    }
+    setIsBuilderOpen(true)
   }
 
   const handleDeleteWorkflow = async (workflowId: string) => {
@@ -1136,96 +1011,12 @@ export default function WorkflowsPage() {
           <p className="text-muted-foreground">Create and manage automated workflows with advanced node-based builder</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isCreateWorkflowOpen} onOpenChange={setIsCreateWorkflowOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Workflow
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Workflow</DialogTitle>
-                <DialogDescription>Design an automated workflow for your processes</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Workflow Name *</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="Student Onboarding Workflow"
-                    value={newWorkflow.name}
-                    onChange={(e) => setNewWorkflow(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea 
-                    id="description" 
-                    placeholder="Automate the student onboarding process..."
-                    value={newWorkflow.description}
-                    onChange={(e) => setNewWorkflow(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select onValueChange={(value) => setNewWorkflow(prev => ({ ...prev, category: value as Workflow['category'] }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GENERAL">General</SelectItem>
-                      <SelectItem value="LEAD_NURTURING">Lead Nurturing</SelectItem>
-                      <SelectItem value="STUDENT_ONBOARDING">Student Onboarding</SelectItem>
-                      <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
-                      <SelectItem value="NOTIFICATION">Notification</SelectItem>
-                      <SelectItem value="INTEGRATION">Integration</SelectItem>
-                      <SelectItem value="MARKETING">Marketing</SelectItem>
-                      <SelectItem value="SALES">Sales</SelectItem>
-                      <SelectItem value="SUPPORT">Support</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Active Status</Label>
-                    <p className="text-sm text-muted-foreground">Enable this workflow to run automatically</p>
-                  </div>
-                  <Switch 
-                    checked={newWorkflow.isActive}
-                    onCheckedChange={(checked) => setNewWorkflow(prev => ({ ...prev, isActive: checked }))}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select onValueChange={(value) => setNewWorkflow(prev => ({ ...prev, priority: parseInt(value) }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Low</SelectItem>
-                      <SelectItem value="1">Medium</SelectItem>
-                      <SelectItem value="2">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateWorkflowOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateWorkflow} disabled={submitting}>
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Create Workflow
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Link href={`/${subdomain}/workflows/create`}>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Workflow
+            </Button>
+          </Link>
         </div>
       </div>
 

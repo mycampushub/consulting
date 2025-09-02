@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10")
     const status = searchParams.get("status")
     const type = searchParams.get("type")
+    const channel = searchParams.get("channel")
 
     const agency = await db.agency.findUnique({
       where: { subdomain }
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
     const where = {
       agencyId: agency.id,
       ...(status && { status: status }),
-      ...(type && { type: type })
+      ...(type && { type: type }),
+      ...(channel && { channel: channel })
     }
 
     const [campaigns, total] = await Promise.all([
@@ -75,12 +77,14 @@ export async function POST(request: NextRequest) {
       name,
       description,
       type,
+      channel,
       targetAudience,
       content,
       templateId,
       workflowId,
-      budget,
-      scheduledAt
+      scheduledAt,
+      tools,
+      tags
     } = body
 
     const agency = await db.agency.findUnique({
@@ -97,12 +101,14 @@ export async function POST(request: NextRequest) {
         name,
         description,
         type,
+        channel,
         targetAudience: targetAudience ? JSON.stringify(targetAudience) : null,
         content: content ? JSON.stringify(content) : null,
         templateId,
         workflowId,
-        budget,
-        scheduledAt: scheduledAt ? new Date(scheduledAt) : null
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        tools: tools && tools.length > 0 ? JSON.stringify(tools) : null,
+        tags: tags && tags.length > 0 ? JSON.stringify(tags) : null
       },
       include: {
         workflow: true,

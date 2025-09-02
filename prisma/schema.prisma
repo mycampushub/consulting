@@ -78,6 +78,7 @@ model Agency {
   appointments    Appointment[]
   emailTemplates  EmailTemplate[]
   smsTemplates    SmsTemplate[]
+  whatsappTemplates WhatsAppTemplate[]
   emailCampaigns  EmailCampaign[]
   smsCampaigns    SmsCampaign[]
   emailMessages   EmailMessage[]
@@ -648,6 +649,7 @@ model MarketingCampaign {
   description     String?
   type            CampaignType
   status          CampaignStatus @default(DRAFT)
+  channel         CampaignChannel @default(EMAIL)
   
   // Targeting
   targetAudience  String? // JSON array of targeting criteria
@@ -667,9 +669,9 @@ model MarketingCampaign {
   clickedCount    Int      @default(0)
   conversionCount Int      @default(0)
   
-  // Budget
-  budget          Float?
-  spent           Float    @default(0)
+  // Tools & Tags
+  tools           String? // JSON array of tool names
+  tags            String? // JSON array of tags
   
   // Schedule
   scheduledAt     DateTime?
@@ -701,6 +703,13 @@ model Lead {
   
   // Status
   status          LeadStatus @default(NEW)
+  
+  // Engagement
+  engagementScore Int      @default(0)
+  lastContacted   DateTime?
+  
+  // Preferences
+  preferredChannels String? // JSON array of preferred contact channels
   
   // Assignment
   assignedTo      String? // User ID
@@ -1154,6 +1163,7 @@ model EmailTemplate {
   
   // Relations
   emailCampaigns  EmailCampaign[]
+  emailMessages   EmailMessage[]
   
   @@map("email_templates")
 }
@@ -1183,8 +1193,35 @@ model SmsTemplate {
   
   // Relations
   smsCampaigns    SmsCampaign[]
+  smsMessages     SmsMessage[]
   
   @@map("sms_templates")
+}
+
+model WhatsAppTemplate {
+  id              String   @id @default(cuid())
+  agencyId        String
+  agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  
+  // Template Details
+  name            String
+  description     String?
+  category        TemplateCategory @default(GENERAL)
+  
+  // Content
+  message         String
+  
+  // Variables
+  variables       String?  // JSON array of variables
+  
+  // Settings
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("whatsapp_templates")
 }
 
 model EmailCampaign {
@@ -1264,6 +1301,10 @@ model EmailMessage {
   campaignId      String
   campaign        EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   
+  // Template Reference
+  templateId      String?
+  template        EmailTemplate? @relation(fields: [templateId], references: [id])
+  
   // Message Details
   to              String
   subject         String
@@ -1296,6 +1337,10 @@ model SmsMessage {
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   campaignId      String
   campaign        SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Template Reference
+  templateId      String?
+  template        SmsTemplate? @relation(fields: [templateId], references: [id])
   
   // Message Details
   to              String
@@ -2963,6 +3008,7 @@ enum TransactionStatus {
 enum CampaignType {
   EMAIL
   SMS
+  WHATSAPP
   SOCIAL_MEDIA
   GOOGLE_ADS
   FACEBOOK_ADS
@@ -2978,6 +3024,40 @@ enum CampaignStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+enum CampaignChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  SOCIAL_MEDIA
+  SEARCH
+  DISPLAY
+  VIDEO
+  CONTENT
+}
+
+enum MarketingToolCategory {
+  EMAIL
+  SMS
+  WHATSAPP
+  SOCIAL_MEDIA
+  ANALYTICS
+  AUTOMATION
+  DESIGN
+  CRM
+}
+
+enum MarketingToolType {
+  NATIVE
+  INTEGRATION
+  THIRD_PARTY
+}
+
+enum MarketingToolStatus {
+  ACTIVE
+  INACTIVE
+  BETA
 }
 
 enum LeadStatus {
@@ -3014,6 +3094,9 @@ enum WorkflowCategory {
   MARKETING
   SALES
   SUPPORT
+  EMAIL_MARKETING
+  SMS_MARKETING
+  WHATSAPP_MARKETING
 }
 
 enum WorkflowStatus {
