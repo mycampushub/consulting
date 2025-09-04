@@ -34,10 +34,10 @@ export default function Footer() {
   }
 
   const socialLinks = [
-    { name: "Facebook", icon: Facebook, href: "#facebook" },
-    { name: "Twitter", icon: Twitter, href: "#twitter" },
-    { name: "LinkedIn", icon: Linkedin, href: "#linkedin" },
-    { name: "Instagram", icon: Instagram, href: "#instagram" },
+    { name: "Facebook", icon: Facebook, href: "https://facebook.com/edusaas" },
+    { name: "Twitter", icon: Twitter, href: "https://twitter.com/edusaas" },
+    { name: "LinkedIn", icon: Linkedin, href: "https://linkedin.com/company/edusaas" },
+    { name: "Instagram", icon: Instagram, href: "https://instagram.com/edusaas" },
   ]
 
   return (

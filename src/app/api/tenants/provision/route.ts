@@ -145,20 +145,85 @@ export async function POST(request: NextRequest) {
     const defaultRoles = [
       {
         name: "Senior Consultant",
+        slug: "senior-consultant",
         description: "Experienced education consultant with full access",
+        level: 2,
         permissions: ["students.read", "students.write", "applications.read", "applications.write", "universities.read"]
       },
       {
-        name: "Junior Consultant",
+        name: "Junior Consultant", 
+        slug: "junior-consultant",
         description: "Junior consultant with limited access",
+        level: 1,
         permissions: ["students.read", "applications.read", "universities.read"]
       },
       {
         name: "Support Staff",
+        slug: "support-staff", 
         description: "Support staff with basic access",
+        level: 0,
         permissions: ["students.read"]
       }
     ]
+
+    // Create permissions if they don't exist
+    const permissionMap = new Map()
+    const allPermissions = [
+      "students.read", "students.write", "applications.read", "applications.write", "universities.read"
+    ]
+
+    for (const permissionName of allPermissions) {
+      const [resource, action] = permissionName.split('.')
+      let permission = await db.permission.findFirst({
+        where: { 
+          AND: [
+            { resource },
+            { action }
+          ]
+        }
+      })
+
+      if (!permission) {
+        permission = await db.permission.create({
+          data: {
+            resource,
+            action,
+            name: `${resource.charAt(0).toUpperCase() + resource.slice(1)} ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+            description: `Permission to ${action} ${resource}`
+          }
+        })
+      }
+      permissionMap.set(permissionName, permission.id)
+    }
+
+    // Create roles with permissions
+    for (const roleData of defaultRoles) {
+      const role = await db.role.create({
+        data: {
+          agencyId: validatedData.agencyId,
+          name: roleData.name,
+          slug: roleData.slug,
+          description: roleData.description,
+          level: roleData.level,
+          scope: 'AGENCY'
+        }
+      })
+
+      // Assign permissions to role
+      for (const permissionName of roleData.permissions) {
+        const permissionId = permissionMap.get(permissionName)
+        if (permissionId) {
+          await db.rolePermission.create({
+            data: {
+              roleId: role.id,
+              permissionId: permissionId,
+              agencyId: validatedData.agencyId,
+              accessLevel: 'FULL'
+            }
+          })
+        }
+      }
+    }
 
     // Log provisioning activity
     await db.activityLog.create({
@@ -171,7 +236,9 @@ export async function POST(request: NextRequest) {
         changes: JSON.stringify({
           customDomain: validatedData.customDomain,
           features: validatedData.enableFeatures,
-          universitiesCreated: defaultUniversities.length
+          universitiesCreated: defaultUniversities.length,
+          rolesCreated: defaultRoles.length,
+          permissionsCreated: allPermissions.length
         }),
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown'
@@ -193,6 +260,8 @@ export async function POST(request: NextRequest) {
       },
       provisioning: {
         universitiesCreated: defaultUniversities.length,
+        rolesCreated: defaultRoles.length,
+        permissionsCreated: allPermissions.length,
         featuresEnabled: validatedData.enableFeatures || {
           crm: true,
           universityPartnerships: true,

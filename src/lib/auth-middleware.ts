@@ -139,32 +139,44 @@ export class AuthMiddleware {
 
   /**
    * Get user from authentication token
-   * This is a simplified version - in production, you'd use JWT or session validation
+   * Properly validates JWT tokens using JWTService
    */
   private static async getUserFromToken(token: string | null): Promise<any> {
     if (!token) return null
 
     try {
-      // For demo purposes, we'll use a simple token lookup
-      // In production, this would verify JWT tokens or session cookies
+      const { JWTService } = await import('./jwt')
+      
+      // Verify JWT token
+      const decoded = JWTService.verify(token)
+      if (!decoded) {
+        return null
+      }
+
       const { db } = await import('./db')
       
-      // This is a simplified approach - in production, use proper JWT validation
-      const user = await db.user.findFirst({
-        where: {
-          // This would typically be a session token or JWT subject
-          id: token, // Simplified for demo
-          status: 'ACTIVE'
-        },
+      // Get user with related data
+      const user = await db.user.findUnique({
+        where: { id: decoded.userId },
         include: {
           agency: true,
           branch: true
         }
       })
 
+      // Verify user is active and matches the token data
+      if (!user || user.status !== 'ACTIVE') {
+        return null
+      }
+
+      // Verify agency ID matches if present in token
+      if (decoded.agencyId && user.agencyId !== decoded.agencyId) {
+        return null
+      }
+
       return user
     } catch (error) {
-      console.error('Error getting user from token:', error)
+      console.error('Error validating token:', error)
       return null
     }
   }

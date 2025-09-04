@@ -18,11 +18,31 @@ export default function Header() {
   ]
 
   const features = [
-    { name: "Student CRM", description: "Complete student lifecycle management" },
-    { name: "Marketing Automation", description: "Advanced workflow builder like GoHighLevel" },
-    { name: "Landing Page Builder", description: "Drag-and-drop page creation" },
-    { name: "Form Builder", description: "Lead capture with Facebook/Google integration" },
-    { name: "Accounting Module", description: "Tenant-level financial tracking" },
+    { 
+      name: "Student CRM", 
+      description: "Complete student lifecycle management",
+      href: "/features/student-crm"
+    },
+    { 
+      name: "Marketing Automation", 
+      description: "Advanced workflow builder like GoHighLevel",
+      href: "/features/marketing-automation"
+    },
+    { 
+      name: "Landing Page Builder", 
+      description: "Drag-and-drop page creation",
+      href: "/features/landing-page-builder"
+    },
+    { 
+      name: "Form Builder", 
+      description: "Lead capture with Facebook/Google integration",
+      href: "/features/form-builder"
+    },
+    { 
+      name: "Accounting Module", 
+      description: "Tenant-level financial tracking",
+      href: "/features/accounting-module"
+    },
   ]
 
   return (
@@ -70,10 +90,15 @@ export default function Header() {
                 >
                   <div className="space-y-3">
                     {features.map((feature, index) => (
-                      <div key={index} className="p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                      <Link 
+                        key={index} 
+                        href={feature.href}
+                        className="block p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                        onClick={() => setIsFeaturesOpen(false)}
+                      >
                         <h4 className="font-semibold text-sm">{feature.name}</h4>
                         <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -122,9 +147,14 @@ export default function Header() {
                 <div className="text-sm font-medium text-muted-foreground mb-2">Features</div>
                 <div className="space-y-2 pl-4">
                   {features.map((feature, index) => (
-                    <div key={index} className="text-xs text-muted-foreground">
+                    <Link
+                      key={index}
+                      href={feature.href}
+                      className="block text-xs text-muted-foreground hover:text-primary transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
                       {feature.name}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

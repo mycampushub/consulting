@@ -41,24 +41,41 @@ export default function LoginPage() {
     setError("")
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // For demo purposes, accept any email/password combination
-      if (loginForm.email && loginForm.password) {
-        // Store a simple token in localStorage
-        localStorage.setItem('authToken', 'demo-token-' + Date.now())
-        localStorage.setItem('userEmail', loginForm.email)
-        localStorage.setItem('userSubdomain', loginForm.subdomain || 'demo')
-        
-        // Redirect to the subdomain dashboard
-        const subdomain = loginForm.subdomain || 'demo'
-        router.push(`/${subdomain}/dashboard`)
-      } else {
-        setError("Please fill in all required fields")
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginForm.email,
+          password: loginForm.password,
+          subdomain: loginForm.subdomain,
+          rememberMe: true,
+          deviceInfo: {
+            userAgent: navigator.userAgent,
+            deviceType: /Mobile|Android|iPhone/.test(navigator.userAgent) ? 'mobile' : 'desktop'
+          }
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
       }
+
+      // Store authentication data
+      localStorage.setItem('authToken', data.token)
+      localStorage.setItem('userEmail', data.user.email)
+      localStorage.setItem('userSubdomain', data.agency.subdomain)
+      localStorage.setItem('userData', JSON.stringify(data.user))
+      localStorage.setItem('agencyData', JSON.stringify(data.agency))
+      
+      // Redirect to the subdomain dashboard
+      router.push(`/${data.agency.subdomain}/dashboard`)
+      
     } catch (err) {
-      setError("Login failed. Please check your credentials.")
+      setError(err instanceof Error ? err.message : "Login failed. Please check your credentials.")
     } finally {
       setIsLoading(false)
     }
@@ -66,12 +83,10 @@ export default function LoginPage() {
 
   const handleSSOLogin = (provider: string) => {
     setIsLoading(true)
-    // Simulate SSO login
+    // For now, redirect to signup with SSO indication
+    // In a real implementation, this would integrate with OAuth providers
     setTimeout(() => {
-      localStorage.setItem('authToken', 'sso-token-' + Date.now())
-      localStorage.setItem('userEmail', `user@${provider}.com`)
-      localStorage.setItem('userSubdomain', 'demo')
-      router.push('/demo/dashboard')
+      router.push('/signup?sso=' + provider)
     }, 1000)
   }
 
@@ -246,17 +261,6 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Demo Credentials Notice */}
-        <div className="mt-6 text-center">
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription className="text-sm">
-              <strong>Demo Mode:</strong> Any email/password combination will work for testing.
-              Use a subdomain like "demo" to access the dashboard.
-            </AlertDescription>
-          </Alert>
-        </div>
       </div>
     </div>
   )

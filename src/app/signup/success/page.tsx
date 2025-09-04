@@ -22,8 +22,9 @@ function SignupSuccessContent() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          // Redirect to the agency's dashboard
-          window.location.replace(`http://${agency}.localhost:3001/dashboard`)
+          // Redirect to the agency's dashboard using the current domain
+          const currentDomain = window.location.origin
+          window.location.replace(`${currentDomain}/${agency}/dashboard`)
           return 0
         }
         return prev - 1
@@ -61,7 +62,7 @@ function SignupSuccessContent() {
             <p className="text-lg font-medium mb-2">Your Agency URL:</p>
             <div className="bg-muted p-3 rounded-lg">
               <code className="text-sm font-mono">
-                {agency}.localhost:3001
+                {window.location.origin}/{agency}
               </code>
             </div>
           </div>
@@ -80,7 +81,8 @@ function SignupSuccessContent() {
             
             <Button 
               onClick={() => {
-                window.location.replace(`http://${agency}.localhost:3001/dashboard`)
+                const currentDomain = window.location.origin
+                window.location.replace(`${currentDomain}/${agency}/dashboard`)
               }}
               className="w-full"
             >
