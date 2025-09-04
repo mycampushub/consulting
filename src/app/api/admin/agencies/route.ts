@@ -64,12 +64,9 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' }
         })
 
-        // Get billing status based on invoices
+        // Get billing status based on billing record
         const billingStatus = agency.billing ? 
-          (agency.invoices.length > 0 ? 
-            agency.invoices.some(inv => inv.status === 'OVERDUE') ? 'PAST_DUE' :
-            agency.invoices.some(inv => inv.status === 'CANCELLED') ? 'CANCELLED' : 'ACTIVE'
-          : 'ACTIVE') 
+          (agency.plan === 'FREE' ? 'ACTIVE' : 'ACTIVE') 
         : 'ACTIVE'
 
         // Calculate health score based on various factors
@@ -218,23 +215,21 @@ export async function POST(request: NextRequest) {
     await db.featureSettings.create({
       data: {
         agencyId: agency.id,
-        maxStudents: plan === 'FREE' ? 50 : plan === 'STARTER' ? 200 : plan === 'PROFESSIONAL' ? 1000 : Infinity,
-        maxUsers: plan === 'FREE' ? 3 : plan === 'STARTER' ? 10 : plan === 'PROFESSIONAL' ? 50 : Infinity,
-        maxStorage: plan === 'FREE' ? 1024 : plan === 'STARTER' ? 5120 : plan === 'PROFESSIONAL' ? 25600 : Infinity, // MB
-        features: {
-          customDomain: plan !== 'FREE',
-          whiteLabel: plan === 'ENTERPRISE',
-          apiAccess: plan !== 'FREE',
-          advancedAnalytics: plan !== 'FREE',
-          prioritySupport: plan === 'ENTERPRISE',
-          customIntegrations: plan !== 'FREE'
-        }
+        studentJourneyEnabled: plan !== 'FREE',
+        visualProgressTracker: plan !== 'FREE',
+        automatedMilestones: plan !== 'FREE',
+        knowledgeBaseEnabled: true,
+        guidelinesRepository: plan !== 'FREE',
+        automatedRecommendations: plan === 'ENTERPRISE',
+        aiChatbotEnabled: plan === 'ENTERPRISE',
+        twoWayMessaging: true,
+        whatsappIntegration: plan !== 'FREE'
       }
     })
 
     // Hash password
-    const bcrypt = require('bcryptjs')
-    const hashedPassword = await bcrypt.hash(adminPassword, 12)
+    const bcrypt = await import('bcryptjs')
+    const hashedPassword = await bcrypt.default.hash(adminPassword, 12)
 
     // Create admin user
     const adminUser = await db.user.create({

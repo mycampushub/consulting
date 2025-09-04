@@ -1223,29 +1223,6 @@ export default function AgencyDashboard() {
                 )}
               </div>
             </CardContent>
-                  <div key={activity.id} className="flex items-start space-x-4 p-4 border rounded-lg">
-                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                      {activity.type === 'student' && <User className="h-4 w-4" />}
-                      {activity.type === 'application' && <FileText className="h-4 w-4" />}
-                      {activity.type === 'university' && <GraduationCap className="h-4 w-4" />}
-                      {activity.type === 'document' && <Folder className="h-4 w-4" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{activity.action}</p>
-                      {activity.student && (
-                        <p className="text-sm text-muted-foreground">Student: {activity.student}</p>
-                      )}
-                      {activity.university && (
-                        <p className="text-sm text-muted-foreground">University: {activity.university}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        By {activity.user} • {activity.timestamp}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
