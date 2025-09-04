@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
         preferredCountries: JSON.stringify(validatedData.preferences.preferredCountries),
         preferredCourses: JSON.stringify(validatedData.preferences.preferredCourses),
         budget: validatedData.preferences.budget ? parseFloat(validatedData.preferences.budget) : null,
-        documents: JSON.stringify([])
+        documents: JSON.stringify([]),
+        password: hashedPassword  // Add password to student record for authentication
       }
     })
 

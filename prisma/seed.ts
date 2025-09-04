@@ -561,6 +561,33 @@ async function main() {
     })
   ])
 
+  // Create demo student with password for testing login
+  const demoStudent = await prisma.student.create({
+    data: {
+      agencyId: agency.id,
+      branchId: mainBranch.id,
+      firstName: 'Demo',
+      lastName: 'Student',
+      email: 'demo@student.com',
+      phone: '+1-555-9999',
+      dateOfBirth: new Date('2000-01-01'),
+      nationality: 'Demo',
+      status: 'ACTIVE',
+      stage: 'INQUIRY',
+      currentEducation: 'High School',
+      gpa: 3.5,
+      preferredCountries: JSON.stringify(['United States']),
+      preferredCourses: JSON.stringify(['Computer Science']),
+      budget: 50000,
+      password: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password: "password"
+      emailVerified: true,
+      assignedTo: user.id,
+      documents: JSON.stringify([])
+    }
+  })
+
+  console.log('Created demo student for login testing:', `${demoStudent.firstName} ${demoStudent.lastName}`)
+
   console.log('Created students:', students.map(s => `${s.firstName} ${s.lastName}`))
 
   // Create sample applications

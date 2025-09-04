@@ -295,120 +295,24 @@ const mockStats: DashboardStats = {
   completedTasksThisWeek: 18
 }
 
-const recentActivities = [
-  {
-    id: "1",
-    type: "student",
-    action: "New student registered",
-    student: "Priya Patel",
-    user: "Emma Rodriguez",
-    timestamp: "2 hours ago"
-  },
-  {
-    id: "2",
-    type: "application",
-    action: "Application submitted to Oxford",
-    student: "Maria Garcia",
-    user: "Michael Chen",
-    timestamp: "4 hours ago"
-  },
-  {
-    id: "3",
-    type: "task",
-    action: "Task completed: Document review",
-    student: "James Wilson",
-    user: "Michael Chen",
-    timestamp: "5 hours ago"
-  },
-  {
-    id: "4",
-    type: "university",
-    action: "New partnership established",
-    university: "University of Toronto",
-    user: "Sarah Johnson",
-    timestamp: "1 day ago"
-  },
-  {
-    id: "5",
-    type: "student",
-    action: "Student consultation completed",
-    student: "Alex Thompson",
-    user: "Michael Chen",
-    timestamp: "1 day ago"
-  },
-  {
-    id: "6",
-    type: "task",
-    action: "Overdue task: Follow up with student",
-    student: "Liu Wei",
-    user: "Emma Rodriguez",
-    timestamp: "2 days ago"
-  }
-]
-
-const recentTasks = [
-  {
-    id: "1",
-    title: "Review application documents",
-    assignee: "Michael Chen",
-    status: "COMPLETED",
-    priority: "HIGH",
-    dueDate: "2024-01-20",
-    student: "Maria Garcia"
-  },
-  {
-    id: "2",
-    title: "Follow up with student",
-    assignee: "Emma Rodriguez",
-    status: "PENDING",
-    priority: "MEDIUM",
-    dueDate: "2024-01-21",
-    student: "Alex Thompson"
-  },
-  {
-    id: "3",
-    title: "Schedule university meeting",
-    assignee: "David Kim",
-    status: "IN_PROGRESS",
-    priority: "LOW",
-    dueDate: "2024-01-22",
-    student: "Priya Patel"
-  },
-  {
-    id: "4",
-    title: "Visa documentation review",
-    assignee: "Michael Chen",
-    status: "OVERDUE",
-    priority: "URGENT",
-    dueDate: "2024-01-19",
-    student: "James Wilson"
-  },
-  {
-    id: "5",
-    title: "Pre-departure briefing",
-    assignee: "Emma Rodriguez",
-    status: "PENDING",
-    priority: "MEDIUM",
-    dueDate: "2024-01-25",
-    student: "Liu Wei"
-  }
-]
-
 export default function AgencyDashboard() {
   const params = useParams()
   const router = useRouter()
   const subdomain = params.subdomain as string
   
-  const [users] = useState<UserData[]>(mockUsers)
-  const [students] = useState<Student[]>(mockStudents)
-  const [universities] = useState<University[]>(mockUniversities)
-  const [stats] = useState<DashboardStats>(mockStats)
+  const [users, setUsers] = useState<UserData[]>([])
+  const [students, setStudents] = useState<Student[]>([])
+  const [universities, setUniversities] = useState<University[]>([])
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false)
   const [isAddUniversityOpen, setIsAddUniversityOpen] = useState(false)
   const [isInviteMemberOpen, setIsInviteMemberOpen] = useState(false)
-  const [notifications] = useState([
+  const [notifications, setNotifications] = useState([
     { id: 1, type: 'info', title: 'New student inquiry', message: 'Alex Thompson submitted an inquiry', time: '2 hours ago', read: false },
     { id: 2, type: 'success', title: 'Application approved', message: 'Maria Garcia accepted to Oxford', time: '4 hours ago', read: false },
     { id: 3, type: 'warning', title: 'Document pending', message: 'James Wilson needs to upload passport', time: '1 day ago', read: true },
@@ -438,7 +342,7 @@ export default function AgencyDashboard() {
     department: ''
   })
 
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Simulate real-time updates
   const [liveStats, setLiveStats] = useState({
@@ -446,6 +350,117 @@ export default function AgencyDashboard() {
     activeApplications: Math.floor(Math.random() * 5) + 25,
     todayActivities: Math.floor(Math.random() * 20) + 10,
   })
+
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/analytics`)
+      if (!response.ok) throw new Error('Failed to fetch analytics')
+      
+      const data = await response.json()
+      if (data.success) {
+        setAnalytics(data.data)
+        setStats(data.data.summary)
+      }
+    } catch (err) {
+      console.error('Error fetching analytics:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    }
+  }
+
+  // Fetch users data
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/users`)
+      if (!response.ok) throw new Error('Failed to fetch users')
+      
+      const data = await response.json()
+      if (data.users) {
+        setUsers(data.users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          title: user.title,
+          department: user.department,
+          lastLogin: user.lastLoginAt
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err)
+    }
+  }
+
+  // Fetch students data
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/students?limit=10`)
+      if (!response.ok) throw new Error('Failed to fetch students')
+      
+      const data = await response.json()
+      if (data.students) {
+        setStudents(data.students.map((student: any) => ({
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          status: student.status,
+          stage: student.stage,
+          nationality: student.nationality,
+          assignedTo: student.assignedTo,
+          createdAt: student.createdAt,
+          lastActivity: student.updatedAt
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err)
+    }
+  }
+
+  // Fetch universities data
+  const fetchUniversities = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/universities?limit=10`)
+      if (!response.ok) throw new Error('Failed to fetch universities')
+      
+      const data = await response.json()
+      if (data.universities) {
+        setUniversities(data.universities.map((university: any) => ({
+          id: university.id,
+          name: university.name,
+          country: university.country,
+          city: university.city,
+          partnershipLevel: university.partnershipLevel,
+          isPartner: university.isPartner,
+          worldRanking: university.worldRanking,
+          website: university.website
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching universities:', err)
+    }
+  }
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        await Promise.all([
+          fetchAnalytics(),
+          fetchUsers(),
+          fetchStudents(),
+          fetchUniversities()
+        ])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadData()
+  }, [subdomain])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1182,7 +1197,32 @@ export default function AgencyDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivities.map((activity) => (
+                {analytics?.recentActivities?.map((activity) => (
+                  <div key={activity.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                      {activity.type === 'student' && <User className="h-4 w-4" />}
+                      {activity.type === 'application' && <FileText className="h-4 w-4" />}
+                      {activity.type === 'task' && <ListTodo className="h-4 w-4" />}
+                      {activity.type === 'university' && <GraduationCap className="h-4 w-4" />}
+                      {activity.type === 'user' && <Users className="h-4 w-4" />}
+                      {!['student', 'application', 'task', 'university', 'user'].includes(activity.type) && <Activity className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activity.action}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.user} • {new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                )) || (
+                  <p className="text-center text-muted-foreground py-8">
+                    No recent activities found
+                  </p>
+                )}
+              </div>
+            </CardContent>
                   <div key={activity.id} className="flex items-start space-x-4 p-4 border rounded-lg">
                     <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                       {activity.type === 'student' && <User className="h-4 w-4" />}

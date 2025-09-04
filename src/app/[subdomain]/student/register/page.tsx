@@ -280,26 +280,6 @@ export default function StudentRegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      {/* Header */}
-      <div className="bg-background border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">EA</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Student Registration</h1>
-                <p className="text-sm text-muted-foreground">{subdomain}.eduagency.com</p>
-              </div>
-            </div>
-            <Button variant="ghost" onClick={() => router.push(`/${subdomain}/student`)}>
-              Already have an account?
-            </Button>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           {/* Progress Bar */}
