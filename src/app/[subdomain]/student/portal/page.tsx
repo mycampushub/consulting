@@ -152,21 +152,52 @@ export default function StudentPortal() {
       const subdomain = window.location.hostname.split('.')[0]
 
       if (!studentId) {
+        // Try to get student ID from authentication
+        const authRes = await fetch(`/api/${subdomain}/student/auth/me`, {
+          credentials: 'include'
+        })
+        if (authRes.ok) {
+          const authData = await authRes.json()
+          if (authData.student) {
+            localStorage.setItem('studentId', authData.student.id)
+            await fetchStudentDataWithId(authData.student.id, subdomain)
+            return
+          }
+        }
         loadEnhancedDemoData()
         return
       }
 
-      const [studentRes, applicationsRes, documentsRes, paymentsRes] = await Promise.all([
+      await fetchStudentDataWithId(studentId, subdomain)
+
+    } catch (error) {
+      console.error('Error fetching student data:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load student data. Using demo mode.",
+        variant: "destructive"
+      })
+      loadEnhancedDemoData()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchStudentDataWithId = async (studentId: string, subdomain: string) => {
+    try {
+      const [studentRes, applicationsRes, documentsRes, paymentsRes, communicationsRes] = await Promise.all([
         fetch(`/api/${subdomain}/student/portal?studentId=${studentId}`),
         fetch(`/api/${subdomain}/student/portal/applications?studentId=${studentId}`),
         fetch(`/api/${subdomain}/student/portal/documents?studentId=${studentId}`),
-        fetch(`/api/${subdomain}/student/portal/payments?studentId=${studentId}`)
+        fetch(`/api/${subdomain}/student/portal/payments?studentId=${studentId}`),
+        fetch(`/api/${subdomain}/student/portal/communications?studentId=${studentId}`)
       ])
 
       const studentData = await studentRes.json()
       const applicationsData = await applicationsRes.json()
       const documentsData = await documentsRes.json()
       const paymentsData = await paymentsRes.json()
+      const communicationsData = await communicationsRes.json()
 
       if (studentData.student) {
         setStudent(studentData.student)
@@ -180,19 +211,16 @@ export default function StudentPortal() {
       if (paymentsData.invoices) {
         setPayments(paymentsData.invoices)
       }
-
-      loadEnhancedMockCommunications()
+      if (communicationsData.conversations) {
+        setMessages(communicationsData.conversations[0]?.messages || [])
+      }
+      if (communicationsData.unreadNotificationsFormatted) {
+        setNotifications(communicationsData.unreadNotificationsFormatted)
+      }
 
     } catch (error) {
-      console.error('Error fetching student data:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load student data. Using demo mode.",
-        variant: "destructive"
-      })
-      loadEnhancedDemoData()
-    } finally {
-      setLoading(false)
+      console.error('Error fetching student data with ID:', error)
+      throw error
     }
   }
 
@@ -591,70 +619,127 @@ export default function StudentPortal() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+    const subdomain = window.location.hostname.split('.')[0]
+
+    if (!studentId) {
+      toast({
+        title: "Error",
+        description: "Student ID not found. Please log in again.",
+        variant: "destructive"
+      })
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
 
-    // Simulate upload progress
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval)
-          return 90
-        }
-        return prev + 10
-      })
-    }, 200)
+    try {
+      const formData = new FormData()
+      formData.append('studentId', studentId)
+      formData.append('documentType', 'UPLOADED')
+      formData.append('file', file)
 
-    // Simulate upload completion
-    setTimeout(() => {
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-      
-      // Add new document to the list
-      const newDocument: Document = {
-        id: `doc-${Date.now()}`,
-        name: file.name,
-        category: "UPLOADED",
-        type: file.type.split('/')[1].toUpperCase(),
-        status: "PENDING_VERIFICATION",
-        uploadedAt: new Date().toISOString(),
-        fileSize: file.size,
-        fileUrl: `/files/${file.name}`,
-        required: false
+      const response = await fetch(`/api/${subdomain}/student/portal/documents`, {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Upload failed')
       }
 
-      setDocuments(prev => [...prev, newDocument])
-      setIsUploading(false)
-      setUploadProgress(0)
+      const result = await response.json()
+      
+      // Refresh documents list
+      const documentsRes = await fetch(`/api/${subdomain}/student/portal/documents?studentId=${studentId}`)
+      const documentsData = await documentsRes.json()
+      if (documentsData.documents) {
+        setDocuments(documentsData.documents)
+      }
 
       toast({
         title: "Upload Successful",
-        description: `${file.name} has been uploaded successfully.`,
+        description: result.message || `${file.name} has been uploaded successfully.`,
       })
-    }, 2000)
+
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload file",
+        variant: "destructive"
+      })
+    } finally {
+      setIsUploading(false)
+      setUploadProgress(0)
+    }
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return
 
-    const message: Message = {
-      id: `msg-${Date.now()}`,
-      message: newMessage,
-      channel: "EMAIL",
-      direction: "OUTBOUND",
-      createdAt: new Date().toISOString()
+    const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+    const subdomain = window.location.hostname.split('.')[0]
+
+    if (!studentId) {
+      toast({
+        title: "Error",
+        description: "Student ID not found. Please log in again.",
+        variant: "destructive"
+      })
+      return
     }
 
-    setMessages(prev => [...prev, message])
-    setNewMessage("")
+    try {
+      const response = await fetch(`/api/${subdomain}/student/portal/communications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          studentId,
+          recipientId: 'consultant', // This would be dynamic in real implementation
+          content: newMessage,
+          type: 'TEXT'
+        })
+      })
 
-    toast({
-      title: "Message Sent",
-      description: "Your message has been sent to your consultant.",
-    })
+      if (!response.ok) {
+        throw new Error('Failed to send message')
+      }
+
+      const result = await response.json()
+      
+      // Add message to local state
+      const message: Message = {
+        id: `msg-${Date.now()}`,
+        message: newMessage,
+        channel: "EMAIL",
+        direction: "OUTBOUND",
+        createdAt: new Date().toISOString()
+      }
+
+      setMessages(prev => [...prev, message])
+      setNewMessage("")
+
+      toast({
+        title: "Message Sent",
+        description: result.message || "Your message has been sent to your consultant.",
+      })
+
+    } catch (error) {
+      console.error('Send message error:', error)
+      toast({
+        title: "Send Failed",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const markNotificationAsRead = (notificationId: string) => {
+  const markNotificationAsRead = async (notificationId: string) => {
     setNotifications(prev => 
       prev.map(notif => 
         notif.id === notificationId 
@@ -662,6 +747,372 @@ export default function StudentPortal() {
           : notif
       )
     )
+
+    // In a real implementation, you would also update the backend
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (studentId) {
+        await fetch(`/api/${subdomain}/notifications/${notificationId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ isRead: true })
+        })
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }
+
+  const handleViewApplicationDetails = async (applicationId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/${subdomain}/applications/${applicationId}?studentId=${studentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch application details')
+      }
+
+      const applicationData = await response.json()
+      setSelectedApplication(applicationData.application)
+      
+      // In a real implementation, you would open a modal or navigate to a details page
+      toast({
+        title: "Application Details",
+        description: "Application details loaded successfully.",
+      })
+
+    } catch (error) {
+      console.error('Error fetching application details:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load application details.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDownloadDocuments = async (applicationId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // In a real implementation, this would generate and download a ZIP file
+      const response = await fetch(`/api/${subdomain}/applications/${applicationId}/documents?studentId=${studentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to download documents')
+      }
+
+      // Create a blob from the response
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `application-${applicationId}-documents.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: "Download Started",
+        description: "Your documents are being downloaded.",
+      })
+
+    } catch (error) {
+      console.error('Error downloading documents:', error)
+      toast({
+        title: "Error",
+        description: "Failed to download documents.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleViewDocument = async (documentId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/${subdomain}/documents/${documentId}?studentId=${studentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch document')
+      }
+
+      const documentData = await response.json()
+      
+      // In a real implementation, this would open the document in a new tab
+      if (documentData.document.filePath) {
+        window.open(documentData.document.filePath, '_blank')
+      }
+
+      toast({
+        title: "Document Opened",
+        description: "Document opened in new tab.",
+      })
+
+    } catch (error) {
+      console.error('Error viewing document:', error)
+      toast({
+        title: "Error",
+        description: "Failed to open document.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDownloadDocument = async (documentId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/${subdomain}/documents/${documentId}/download?studentId=${studentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to download document')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `document-${documentId}.pdf` // This would be dynamic based on document type
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: "Download Started",
+        description: "Your document is being downloaded.",
+      })
+
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast({
+        title: "Error",
+        description: "Failed to download document.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleMakePayment = async (invoiceId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // In a real implementation, this would integrate with a payment processor
+      const response = await fetch(`/api/${subdomain}/student/portal/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          invoiceId,
+          amount: 0, // This would be the invoice amount
+          paymentMethod: 'STRIPE' // This would be selected by user
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process payment')
+      }
+
+      const result = await response.json()
+      
+      // Refresh payments data
+      const paymentsRes = await fetch(`/api/${subdomain}/student/portal/payments?studentId=${studentId}`)
+      const paymentsData = await paymentsRes.json()
+      if (paymentsData.invoices) {
+        setPayments(paymentsData.invoices)
+      }
+
+      toast({
+        title: "Payment Successful",
+        description: result.message || "Your payment has been processed successfully.",
+      })
+
+    } catch (error) {
+      console.error('Error processing payment:', error)
+      toast({
+        title: "Payment Failed",
+        description: error instanceof Error ? error.message : "Failed to process payment.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDownloadInvoice = async (invoiceId: string) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/${subdomain}/accounting/invoices/${invoiceId}/download?studentId=${studentId}`)
+      if (!response.ok) {
+        throw new Error('Failed to download invoice')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `invoice-${invoiceId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast({
+        title: "Download Started",
+        description: "Your invoice is being downloaded.",
+      })
+
+    } catch (error) {
+      console.error('Error downloading invoice:', error)
+      toast({
+        title: "Error",
+        description: "Failed to download invoice.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleScheduleMeeting = async () => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // In a real implementation, this would open a scheduling interface
+      toast({
+        title: "Meeting Scheduler",
+        description: "Meeting scheduling feature would open here.",
+      })
+
+    } catch (error) {
+      console.error('Error scheduling meeting:', error)
+      toast({
+        title: "Error",
+        description: "Failed to open meeting scheduler.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleUpdateProfile = async (profileData: any) => {
+    try {
+      const studentId = localStorage.getItem('studentId') || new URLSearchParams(window.location.search).get('studentId')
+      const subdomain = window.location.hostname.split('.')[0]
+
+      if (!studentId) {
+        toast({
+          title: "Error",
+          description: "Student ID not found. Please log in again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`/api/${subdomain}/students/${studentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(profileData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
+
+      const result = await response.json()
+      
+      // Refresh student data
+      const studentRes = await fetch(`/api/${subdomain}/student/portal?studentId=${studentId}`)
+      const studentData = await studentRes.json()
+      if (studentData.student) {
+        setStudent(studentData.student)
+      }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully.",
+      })
+
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      toast({
+        title: "Update Failed",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   const formatFileSize = (bytes: number) => {
@@ -816,19 +1267,35 @@ export default function StudentPortal() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => document.getElementById('file-upload')?.click()}
+                  >
                     <Upload className="h-6 w-6" />
                     <span className="text-sm">Upload Document</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={handleScheduleMeeting}
+                  >
                     <Calendar className="h-6 w-6" />
                     <span className="text-sm">Schedule Meeting</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveTab("communication")}
+                  >
                     <MessageSquare className="h-6 w-6" />
                     <span className="text-sm">Message Consultant</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveTab("payments")}
+                  >
                     <DollarSign className="h-6 w-6" />
                     <span className="text-sm">Make Payment</span>
                   </Button>
@@ -951,11 +1418,19 @@ export default function StudentPortal() {
                         )}
 
                         <div className="flex gap-2 mt-4">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleViewApplicationDetails(app.id)}
+                          >
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDownloadDocuments(app.id)}
+                          >
                             <Download className="h-4 w-4 mr-2" />
                             Download Documents
                           </Button>
@@ -1033,10 +1508,18 @@ export default function StudentPortal() {
                               <Badge variant="outline">Required</Badge>
                             )}
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleViewDocument(doc.id)}
+                              >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDownloadDocument(doc.id)}
+                              >
                                 <Download className="h-4 w-4" />
                               </Button>
                             </div>
@@ -1096,11 +1579,18 @@ export default function StudentPortal() {
 
                         {payment.status === "PENDING" && (
                           <div className="flex gap-2 mt-4">
-                            <Button size="sm">
+                            <Button 
+                              size="sm"
+                              onClick={() => handleMakePayment(payment.id)}
+                            >
                               <DollarSign className="h-4 w-4 mr-2" />
                               Pay Now
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleDownloadInvoice(payment.id)}
+                            >
                               <Download className="h-4 w-4 mr-2" />
                               Download Invoice
                             </Button>
@@ -1255,7 +1745,21 @@ export default function StudentPortal() {
                 </div>
                 
                 <div className="mt-6">
-                  <Button>Save Changes</Button>
+                  <Button onClick={() => {
+                    const profileData = {
+                      firstName: student?.firstName,
+                      lastName: student?.lastName,
+                      email: student?.email,
+                      phone: student?.phone,
+                      nationality: student?.nationality,
+                      currentEducation: student?.currentEducation,
+                      gpa: student?.gpa,
+                      budget: student?.budget
+                    }
+                    handleUpdateProfile(profileData)
+                  }}>
+                    Save Changes
+                  </Button>
                 </div>
               </CardContent>
             </Card>
