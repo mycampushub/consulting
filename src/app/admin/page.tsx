@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { 
   Building2, 
   Users, 
@@ -179,6 +182,32 @@ export default function AdminConsole() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
+  
+  // New Agency Form State
+  const [isNewAgencyDialogOpen, setIsNewAgencyDialogOpen] = useState(false)
+  const [newAgency, setNewAgency] = useState({
+    name: '',
+    subdomain: '',
+    customDomain: '',
+    plan: 'FREE' as 'FREE' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE',
+    adminEmail: '',
+    adminName: '',
+    adminPassword: ''
+  })
+  const [isCreatingAgency, setIsCreatingAgency] = useState(false)
+  const [agencyFormError, setAgencyFormError] = useState('')
+  
+  // Agency Details State
+  const [isAgencyDetailsOpen, setIsAgencyDetailsOpen] = useState(false)
+  const [selectedAgencyDetails, setSelectedAgencyDetails] = useState<Agency | null>(null)
+  
+  // User Management State
+  const [users, setUsers] = useState<any[]>([])
+  const [isUsersDialogOpen, setIsUsersDialogOpen] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  
+  // Export and Settings State
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false)
 
   // Fetch data on component mount
   useEffect(() => {
@@ -289,6 +318,134 @@ export default function AdminConsole() {
         notif.id === id ? { ...notif, read: true } : notif
       )
     )
+  }
+
+  // New Agency Form Handlers
+  const handleNewAgencyChange = (field: string, value: string) => {
+    setNewAgency(prev => ({ ...prev, [field]: value }))
+    if (agencyFormError) setAgencyFormError('')
+  }
+
+  const validateNewAgencyForm = () => {
+    if (!newAgency.name.trim()) return 'Agency name is required'
+    if (!newAgency.subdomain.trim()) return 'Subdomain is required'
+    if (!newAgency.adminEmail.trim()) return 'Admin email is required'
+    if (!newAgency.adminName.trim()) return 'Admin name is required'
+    if (!newAgency.adminPassword.trim()) return 'Admin password is required'
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newAgency.adminEmail)) return 'Invalid email format'
+    
+    // Validate subdomain format
+    const subdomainRegex = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
+    if (!subdomainRegex.test(newAgency.subdomain)) return 'Subdomain can only contain lowercase letters, numbers, and hyphens'
+    
+    return null
+  }
+
+  const handleCreateAgency = async () => {
+    const error = validateNewAgencyForm()
+    if (error) {
+      setAgencyFormError(error)
+      return
+    }
+
+    setIsCreatingAgency(true)
+    setAgencyFormError('')
+
+    try {
+      const response = await fetch('/api/admin/agencies', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newAgency),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        // Refresh agencies list
+        await fetchAgencies()
+        
+        // Reset form and close dialog
+        setNewAgency({
+          name: '',
+          subdomain: '',
+          customDomain: '',
+          plan: 'FREE',
+          adminEmail: '',
+          adminName: '',
+          adminPassword: ''
+        })
+        setIsNewAgencyDialogOpen(false)
+        
+        // Show success message (you could use a toast here)
+        alert('Agency created successfully!')
+      } else {
+        setAgencyFormError(result.error || 'Failed to create agency')
+      }
+    } catch (error) {
+      console.error('Error creating agency:', error)
+      setAgencyFormError('Network error. Please try again.')
+    } finally {
+      setIsCreatingAgency(false)
+    }
+  }
+
+  // Agency Details Handlers
+  const handleViewAgency = (agency: Agency) => {
+    setSelectedAgencyDetails(agency)
+    setIsAgencyDetailsOpen(true)
+  }
+
+  // User Management Handlers
+  const fetchUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      const response = await fetch('/api/admin/users')
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.data.users)
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleViewUsers = () => {
+    fetchUsers()
+    setIsUsersDialogOpen(true)
+  }
+
+  // Export and Settings Handlers
+  const handleExportData = () => {
+    const exportData = {
+      agencies: agencies,
+      stats: stats,
+      exportDate: new Date().toISOString(),
+      summary: {
+        totalAgencies: agencies.length,
+        activeAgencies: agencies.filter(a => a.status === 'ACTIVE').length,
+        totalUsers: agencies.reduce((sum, agency) => sum + agency.stats.userCount, 0),
+        totalStudents: agencies.reduce((sum, agency) => sum + agency.stats.studentCount, 0),
+        totalApplications: agencies.reduce((sum, agency) => sum + agency.stats.applicationCount, 0)
+      }
+    }
+    
+    const dataStr = JSON.stringify(exportData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `admin-export-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const unreadNotifications = notifications.filter(n => !n.read).length
@@ -455,11 +612,11 @@ export default function AdminConsole() {
                 {isRefreshing ? 'Refreshing...' : 'Refresh'}
               </Button>
               
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportData}>
                 <Download className="h-4 w-4 mr-2" />
                 Export Data
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setIsSettingsDialogOpen(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
@@ -607,10 +764,137 @@ export default function AdminConsole() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button>
-                <UserPlus className="h-4 w-4 mr-2" />
-                New Agency
-              </Button>
+              <Dialog open={isNewAgencyDialogOpen} onOpenChange={setIsNewAgencyDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    New Agency
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Create New Agency</DialogTitle>
+                    <DialogDescription>
+                      Create a new agency with an admin user. The admin will receive login credentials via email.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    {agencyFormError && (
+                      <Alert className="border-red-200 bg-red-50">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="text-red-800">
+                          {agencyFormError}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="name" className="text-right">
+                        Agency Name
+                      </Label>
+                      <Input
+                        id="name"
+                        value={newAgency.name}
+                        onChange={(e) => handleNewAgencyChange('name', e.target.value)}
+                        className="col-span-3"
+                        placeholder="Enter agency name"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="subdomain" className="text-right">
+                        Subdomain
+                      </Label>
+                      <Input
+                        id="subdomain"
+                        value={newAgency.subdomain}
+                        onChange={(e) => handleNewAgencyChange('subdomain', e.target.value)}
+                        className="col-span-3"
+                        placeholder="myagency"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="customDomain" className="text-right">
+                        Custom Domain
+                      </Label>
+                      <Input
+                        id="customDomain"
+                        value={newAgency.customDomain}
+                        onChange={(e) => handleNewAgencyChange('customDomain', e.target.value)}
+                        className="col-span-3"
+                        placeholder="agency.com (optional)"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="plan" className="text-right">
+                        Plan
+                      </Label>
+                      <Select value={newAgency.plan} onValueChange={(value) => handleNewAgencyChange('plan', value)}>
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select plan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FREE">Free</SelectItem>
+                          <SelectItem value="STARTER">Starter</SelectItem>
+                          <SelectItem value="PROFESSIONAL">Professional</SelectItem>
+                          <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="adminEmail" className="text-right">
+                        Admin Email
+                      </Label>
+                      <Input
+                        id="adminEmail"
+                        type="email"
+                        value={newAgency.adminEmail}
+                        onChange={(e) => handleNewAgencyChange('adminEmail', e.target.value)}
+                        className="col-span-3"
+                        placeholder="admin@agency.com"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="adminName" className="text-right">
+                        Admin Name
+                      </Label>
+                      <Input
+                        id="adminName"
+                        value={newAgency.adminName}
+                        onChange={(e) => handleNewAgencyChange('adminName', e.target.value)}
+                        className="col-span-3"
+                        placeholder="Admin Name"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="adminPassword" className="text-right">
+                        Admin Password
+                      </Label>
+                      <Input
+                        id="adminPassword"
+                        type="password"
+                        value={newAgency.adminPassword}
+                        onChange={(e) => handleNewAgencyChange('adminPassword', e.target.value)}
+                        className="col-span-3"
+                        placeholder="Enter password"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      onClick={handleCreateAgency} 
+                      disabled={isCreatingAgency}
+                    >
+                      {isCreatingAgency ? 'Creating...' : 'Create Agency'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="grid gap-4">
@@ -657,7 +941,11 @@ export default function AdminConsole() {
                           </span>
                         </div>
                         
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewAgency(agency)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                       </div>
@@ -667,6 +955,139 @@ export default function AdminConsole() {
               ))}
             </div>
           </TabsContent>
+
+          {/* Agency Details Dialog */}
+          <Dialog open={isAgencyDetailsOpen} onOpenChange={setIsAgencyDetailsOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Agency Details</DialogTitle>
+                <DialogDescription>
+                  Detailed information about the selected agency
+                </DialogDescription>
+              </DialogHeader>
+              {selectedAgencyDetails && (
+                <div className="grid gap-6 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Agency Name</h4>
+                      <p className="text-sm font-medium">{selectedAgencyDetails.name}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Subdomain</h4>
+                      <p className="text-sm font-medium">{selectedAgencyDetails.subdomain}</p>
+                    </div>
+                  </div>
+                  
+                  {selectedAgencyDetails.customDomain && (
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Custom Domain</h4>
+                      <p className="text-sm font-medium">{selectedAgencyDetails.customDomain}</p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Status</h4>
+                      <Badge className={getStatusColor(selectedAgencyDetails.status)}>
+                        {selectedAgencyDetails.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Plan</h4>
+                      <Badge className={getPlanColor(selectedAgencyDetails.plan)}>
+                        {selectedAgencyDetails.plan}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Health Score</h4>
+                      <div className="flex items-center gap-1">
+                        {getHealthIcon(selectedAgencyDetails.health)}
+                        <span className={`text-sm ${getHealthColor(selectedAgencyDetails.health)}`}>
+                          {selectedAgencyDetails.health}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Billing Status</h4>
+                      <Badge className={getBillingStatusColor(selectedAgencyDetails.billingStatus)}>
+                        {selectedAgencyDetails.billingStatus}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Created</h4>
+                      <p className="text-sm font-medium">
+                        {new Date(selectedAgencyDetails.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground">Last Activity</h4>
+                      <p className="text-sm font-medium">
+                        {selectedAgencyDetails.lastActivity 
+                          ? new Date(selectedAgencyDetails.lastActivity).toLocaleDateString()
+                          : 'No activity'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-sm text-muted-foreground mb-3">Statistics</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 border rounded-lg">
+                        <p className="text-lg font-bold">{selectedAgencyDetails.stats.userCount}</p>
+                        <p className="text-xs text-muted-foreground">Users</p>
+                      </div>
+                      <div className="text-center p-3 border rounded-lg">
+                        <p className="text-lg font-bold">{selectedAgencyDetails.stats.studentCount}</p>
+                        <p className="text-xs text-muted-foreground">Students</p>
+                      </div>
+                      <div className="text-center p-3 border rounded-lg">
+                        <p className="text-lg font-bold">{selectedAgencyDetails.stats.universityCount}</p>
+                        <p className="text-xs text-muted-foreground">Universities</p>
+                      </div>
+                      <div className="text-center p-3 border rounded-lg">
+                        <p className="text-lg font-bold">{selectedAgencyDetails.stats.applicationCount}</p>
+                        <p className="text-xs text-muted-foreground">Applications</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium text-sm text-muted-foreground mb-3">Performance Metrics</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Response Time</p>
+                        <p className="text-sm font-medium">{formatResponseTime(selectedAgencyDetails.performance.responseTime)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Uptime</p>
+                        <p className="text-sm font-medium">{formatUptime(selectedAgencyDetails.performance.uptime)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Error Rate</p>
+                        <p className="text-sm font-medium">{formatErrorRate(selectedAgencyDetails.performance.errorRate)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Session Duration</p>
+                        <p className="text-sm font-medium">{Math.round(selectedAgencyDetails.performance.avgSessionDuration)}s</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAgencyDetailsOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-6">
@@ -682,7 +1103,7 @@ export default function AdminConsole() {
                   <p className="text-muted-foreground mb-4">
                     View and manage users across all tenant agencies
                   </p>
-                  <Button>View All Users</Button>
+                  <Button onClick={handleViewUsers}>View All Users</Button>
                 </div>
               </CardContent>
             </Card>
@@ -707,6 +1128,124 @@ export default function AdminConsole() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Users Management Dialog */}
+          <Dialog open={isUsersDialogOpen} onOpenChange={setIsUsersDialogOpen}>
+            <DialogContent className="sm:max-w-[1000px] max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>User Management</DialogTitle>
+                <DialogDescription>
+                  View and manage users across all tenant agencies
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                {loadingUsers ? (
+                  <div className="flex items-center justify-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                    <span>Loading users...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {users.length} users across all agencies
+                      </div>
+                      <Button variant="outline" size="sm" onClick={fetchUsers}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                      </Button>
+                    </div>
+                    
+                    <div className="border rounded-lg">
+                      <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/50 font-medium text-sm">
+                        <div className="col-span-3">User</div>
+                        <div className="col-span-2">Agency</div>
+                        <div className="col-span-2">Role</div>
+                        <div className="col-span-2">Status</div>
+                        <div className="col-span-2">Last Login</div>
+                        <div className="col-span-1">Actions</div>
+                      </div>
+                      
+                      <div className="divide-y">
+                        {users.length === 0 ? (
+                          <div className="p-8 text-center text-muted-foreground">
+                            No users found
+                          </div>
+                        ) : (
+                          users.map((user) => (
+                            <div key={user.id} className="grid grid-cols-12 gap-4 p-4 items-center">
+                              <div className="col-span-3">
+                                <div className="flex items-center gap-3">
+                                  {user.avatar ? (
+                                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                                  ) : (
+                                    <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                      <span className="text-sm font-medium text-primary">
+                                        {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="font-medium text-sm">{user.name}</p>
+                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="col-span-2">
+                                <div className="text-sm">
+                                  <p className="font-medium">{user.agency?.name}</p>
+                                  <p className="text-xs text-muted-foreground">{user.agency?.subdomain}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="col-span-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {user.role}
+                                </Badge>
+                              </div>
+                              
+                              <div className="col-span-2">
+                                <Badge className={
+                                  user.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                                  user.status === 'INACTIVE' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-red-100 text-red-800'
+                                }>
+                                  {user.status}
+                                </Badge>
+                              </div>
+                              
+                              <div className="col-span-2">
+                                <p className="text-sm text-muted-foreground">
+                                  {user.lastLoginAt 
+                                    ? new Date(user.lastLoginAt).toLocaleDateString()
+                                    : 'Never'
+                                  }
+                                </p>
+                              </div>
+                              
+                              <div className="col-span-1">
+                                <Button variant="outline" size="sm">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsUsersDialogOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Monitoring Tab */}
           <TabsContent value="monitoring" className="space-y-6">
@@ -941,6 +1480,113 @@ export default function AdminConsole() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Admin Settings</DialogTitle>
+            <DialogDescription>
+              Configure admin console settings and preferences
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Display Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Auto-refresh</p>
+                    <p className="text-sm text-muted-foreground">Automatically refresh data every 30 seconds</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Compact view</p>
+                    <p className="text-sm text-muted-foreground">Show more data in less space</p>
+                  </div>
+                  <Switch />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Show notifications</p>
+                    <p className="text-sm text-muted-foreground">Display system notifications</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Data Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Data retention</p>
+                    <p className="text-sm text-muted-foreground">Keep logs for 90 days</p>
+                  </div>
+                  <Select defaultValue="90">
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30 days</SelectItem>
+                      <SelectItem value="60">60 days</SelectItem>
+                      <SelectItem value="90">90 days</SelectItem>
+                      <SelectItem value="180">180 days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Export format</p>
+                    <p className="text-sm text-muted-foreground">Default export format</p>
+                  </div>
+                  <Select defaultValue="json">
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="json">JSON</SelectItem>
+                      <SelectItem value="csv">CSV</SelectItem>
+                      <SelectItem value="xlsx">Excel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">System Settings</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Maintenance mode</p>
+                    <p className="text-sm text-muted-foreground">Temporarily disable user access</p>
+                  </div>
+                  <Switch />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Debug mode</p>
+                    <p className="text-sm text-muted-foreground">Enable debug logging</p>
+                  </div>
+                  <Switch />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setIsSettingsDialogOpen(false)}>
+              Save Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

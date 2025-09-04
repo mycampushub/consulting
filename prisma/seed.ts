@@ -572,7 +572,7 @@ async function main() {
       phone: '+1-555-9999',
       dateOfBirth: new Date('2000-01-01'),
       nationality: 'Demo',
-      status: 'ACTIVE',
+      status: 'PROSPECT',
       stage: 'INQUIRY',
       currentEducation: 'High School',
       gpa: 3.5,
