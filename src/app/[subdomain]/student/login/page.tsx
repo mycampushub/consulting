@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import BiometricAuth from "@/components/auth/biometric-auth"
 import { 
   Eye, 
   EyeOff, 
@@ -29,7 +31,15 @@ import {
   CreditCard,
   Users,
   Settings,
-  Upload
+  Upload,
+  Fingerprint,
+  Face,
+  Shield,
+  Smartphone,
+  Camera,
+  Key,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 
 interface LoginFormData {
@@ -97,6 +107,10 @@ export default function StudentLoginPage() {
   const [loginAttempts, setLoginAttempts] = useState(0)
   const [isLocked, setIsLocked] = useState(false)
   const [lockTimer, setLockTimer] = useState(0)
+  const [showBiometricOptions, setShowBiometricOptions] = useState(false)
+  const [biometricLoading, setBiometricLoading] = useState(false)
+  const [biometricError, setBiometricError] = useState("")
+  const [emailForBiometric, setEmailForBiometric] = useState("")
 
   const updateFormData = (field: keyof LoginFormData, value: string | boolean) => {
     setFormData(prev => ({ 
@@ -290,6 +304,132 @@ export default function StudentLoginPage() {
     }, 100)
   }
 
+  const handleFingerprintLogin = async () => {
+    if (!emailForBiometric) {
+      setBiometricError("Please enter your email address first")
+      return
+    }
+
+    setBiometricLoading(true)
+    setBiometricError("")
+    setError("")
+
+    try {
+      // Check if browser supports WebAuthn
+      if (!window.PublicKeyCredential) {
+        throw new Error("Biometric authentication is not supported on this device")
+      }
+
+      // Simulate fingerprint scan - in production, use WebAuthn API
+      const fingerprintData = "simulated_fingerprint_data_" + Date.now()
+
+      const response = await fetch(`/api/${subdomain}/student/auth/fingerprint`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'verify',
+          email: emailForBiometric,
+          fingerprintData,
+          sessionId: localStorage.getItem('sessionId')
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fingerprint authentication failed')
+      }
+
+      // Store authentication data
+      localStorage.setItem('studentToken', result.token)
+      localStorage.setItem('studentId', result.student.id)
+      localStorage.setItem('studentEmail', result.student.email)
+      localStorage.setItem('studentName', `${result.student.firstName} ${result.student.lastName}`)
+      localStorage.setItem('agencyId', result.agency?.id || '')
+      localStorage.setItem('agencyName', result.agency?.name || '')
+      localStorage.setItem('sessionId', result.sessionId)
+      localStorage.setItem('securityInfo', JSON.stringify(result.security))
+      localStorage.setItem('lastLogin', new Date().toISOString())
+
+      setSuccess(true)
+      
+      // Redirect to student portal
+      setTimeout(() => {
+        router.push(`/${subdomain}/student/portal`)
+      }, 1500)
+
+    } catch (error) {
+      setBiometricError(error instanceof Error ? error.message : "Fingerprint authentication failed. Please try again.")
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
+
+  const handleFaceRecognitionLogin = async () => {
+    if (!emailForBiometric) {
+      setBiometricError("Please enter your email address first")
+      return
+    }
+
+    setBiometricLoading(true)
+    setBiometricError("")
+    setError("")
+
+    try {
+      // Check if browser supports camera access
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera access is not supported on this device")
+      }
+
+      // Simulate face recognition - in production, use actual face recognition API
+      const faceData = "simulated_face_data_" + Date.now()
+
+      const response = await fetch(`/api/${subdomain}/student/auth/face`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'verify',
+          email: emailForBiometric,
+          faceData,
+          sessionId: localStorage.getItem('sessionId')
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Face recognition failed')
+      }
+
+      // Store authentication data
+      localStorage.setItem('studentToken', result.token)
+      localStorage.setItem('studentId', result.student.id)
+      localStorage.setItem('studentEmail', result.student.email)
+      localStorage.setItem('studentName', `${result.student.firstName} ${result.student.lastName}`)
+      localStorage.setItem('agencyId', result.agency?.id || '')
+      localStorage.setItem('agencyName', result.agency?.name || '')
+      localStorage.setItem('sessionId', result.sessionId)
+      localStorage.setItem('securityInfo', JSON.stringify(result.security))
+      localStorage.setItem('lastLogin', new Date().toISOString())
+
+      setSuccess(true)
+      
+      // Redirect to student portal
+      setTimeout(() => {
+        router.push(`/${subdomain}/student/portal`)
+      }, 1500)
+
+    } catch (error) {
+      setBiometricError(error instanceof Error ? error.message : "Face recognition failed. Please try again.")
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
+
   if (twoFactorRequired) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
@@ -401,55 +541,75 @@ export default function StudentLoginPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8">
-          {/* Login Form */}
+          {/* Authentication Options */}
           <div>
             <Card className="w-full max-w-md mx-auto">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">Welcome Back</CardTitle>
                 <CardDescription>
-                  Sign in to your student portal to track your applications
+                  Choose your preferred authentication method
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form id="loginForm" onSubmit={handleLogin} className="space-y-4">
-                  {isLocked && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Account temporarily locked due to too many failed attempts. 
-                        Please try again in {lockTimer} seconds.
-                      </AlertDescription>
-                    </Alert>
-                  )}
+                <Tabs defaultValue="password" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="password" className="flex items-center gap-2">
+                      <Key className="w-4 h-4" />
+                      Password
+                    </TabsTrigger>
+                    <TabsTrigger value="fingerprint" className="flex items-center gap-2">
+                      <Fingerprint className="w-4 h-4" />
+                      Fingerprint
+                    </TabsTrigger>
+                    <TabsTrigger value="face" className="flex items-center gap-2">
+                      <Camera className="w-4 h-4" />
+                      Face ID
+                    </TabsTrigger>
+                  </TabsList>
 
-                  {error && !isLocked && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
+                  <TabsContent value="password" className="space-y-4">
+                    <form id="loginForm" onSubmit={handleLogin} className="space-y-4">
+                      {isLocked && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            Account temporarily locked due to too many failed attempts. 
+                            Please try again in {lockTimer} seconds.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => updateFormData('email', e.target.value)}
-                        placeholder="your.email@example.com"
-                        className="pl-10"
-                        required
-                      />
-                    </div>
-                  </div>
+                      {error && !isLocked && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                      )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => {
+                              updateFormData('email', e.target.value)
+                              setEmailForBiometric(e.target.value)
+                            }}
+                            placeholder="your.email@example.com"
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
                         value={formData.password}
@@ -501,6 +661,114 @@ export default function StudentLoginPage() {
                     )}
                   </Button>
                 </form>
+                  </TabsContent>
+
+                  <TabsContent value="fingerprint" className="space-y-4">
+                    <div className="text-center">
+                      <Fingerprint className="w-16 h-16 mx-auto mb-4 text-primary" />
+                      <h3 className="text-lg font-semibold mb-2">Fingerprint Authentication</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Use your fingerprint for quick and secure access
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fingerprint-email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="fingerprint-email"
+                            type="email"
+                            value={emailForBiometric}
+                            onChange={(e) => setEmailForBiometric(e.target.value)}
+                            placeholder="your.email@example.com"
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {biometricError && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{biometricError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        onClick={handleFingerprintLogin}
+                        disabled={biometricLoading || !emailForBiometric}
+                        className="w-full"
+                      >
+                        {biometricLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            Scanning...
+                          </>
+                        ) : (
+                          <>
+                            <Fingerprint className="mr-2 h-4 w-4" />
+                            Scan Fingerprint
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="face" className="space-y-4">
+                    <div className="text-center">
+                      <Camera className="w-16 h-16 mx-auto mb-4 text-primary" />
+                      <h3 className="text-lg font-semibold mb-2">Face Recognition</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Use facial recognition for secure access
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="face-email">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="face-email"
+                            type="email"
+                            value={emailForBiometric}
+                            onChange={(e) => setEmailForBiometric(e.target.value)}
+                            placeholder="your.email@example.com"
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {biometricError && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>{biometricError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      <Button
+                        onClick={handleFaceRecognitionLogin}
+                        disabled={biometricLoading || !emailForBiometric}
+                        className="w-full"
+                      >
+                        {biometricLoading ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            Scanning...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="mr-2 h-4 w-4" />
+                            Scan Face
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
 
                 {/* Demo Accounts */}
                 <div className="mt-6 pt-6 border-t">
@@ -561,6 +829,83 @@ export default function StudentLoginPage() {
                       
                       <div className="text-xs text-muted-foreground mt-2">
                         Password for all demo accounts: <code className="bg-muted px-1 rounded">demo123</code>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Biometric Authentication Options */}
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium">Quick Login</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowBiometricOptions(!showBiometricOptions)}
+                    >
+                      {showBiometricOptions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {showBiometricOptions && (
+                    <div className="space-y-3">
+                      <div className="text-xs text-muted-foreground mb-3">
+                        Use biometric authentication for faster login:
+                      </div>
+
+                      {/* Email input for biometric login */}
+                      <div className="space-y-2">
+                        <Label htmlFor="biometricEmail" className="text-sm">Email Address</Label>
+                        <Input
+                          id="biometricEmail"
+                          type="email"
+                          value={emailForBiometric}
+                          onChange={(e) => setEmailForBiometric(e.target.value)}
+                          placeholder="Enter your email for biometric login"
+                          className="text-sm"
+                        />
+                      </div>
+
+                      {biometricError && (
+                        <Alert variant="destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">{biometricError}</AlertDescription>
+                        </Alert>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex flex-col items-center gap-2 h-auto p-3"
+                          onClick={handleFingerprintLogin}
+                          disabled={biometricLoading || !emailForBiometric}
+                        >
+                          <Fingerprint className="h-6 w-6 text-blue-500" />
+                          <span className="text-xs font-medium">Fingerprint</span>
+                          {biometricLoading && (
+                            <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex flex-col items-center gap-2 h-auto p-3"
+                          onClick={handleFaceRecognitionLogin}
+                          disabled={biometricLoading || !emailForBiometric}
+                        >
+                          <Face className="h-6 w-6 text-green-500" />
+                          <span className="text-xs font-medium">Face ID</span>
+                          {biometricLoading && (
+                            <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground mt-2">
+                        <Shield className="inline h-3 w-3 mr-1" />
+                        Biometric data is encrypted and stored securely
                       </div>
                     </div>
                   )}

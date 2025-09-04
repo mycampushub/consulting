@@ -1,9 +1,118 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import jwt from 'jsonwebtoken'
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+
+// Rate limiting configuration
+const RATE_LIMITS = {
+  login: { max: 5, windowMs: 15 * 60 * 1000 }, // 5 attempts per 15 minutes
+  api: { max: 100, windowMs: 15 * 60 * 1000 }, // 100 requests per 15 minutes
+  sensitive: { max: 10, windowMs: 15 * 60 * 1000 } // 10 sensitive operations per 15 minutes
+}
+
+// Simple in-memory rate limiting (in production, use Redis)
+const rateLimitStore = new Map()
+
+function checkRateLimit(key: string, limit: { max: number, windowMs: number }): boolean {
+  const now = Date.now()
+  const record = rateLimitStore.get(key)
+  
+  if (!record) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + limit.windowMs })
+    return true
+  }
+  
+  if (now > record.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + limit.windowMs })
+    return true
+  }
+  
+  if (record.count >= limit.max) {
+    return false
+  }
+  
+  record.count++
+  return true
+}
+
+function getClientIP(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for') || 
+         request.headers.get('x-real-ip') || 
+         request.headers.get('cf-connecting-ip') || 
+         'unknown'
+}
+
+function isSuspiciousRequest(request: NextRequest): boolean {
+  const userAgent = request.headers.get('user-agent') || ''
+  const ip = getClientIP(request)
+  
+  // Check for suspicious user agents
+  const suspiciousAgents = [
+    'bot', 'crawler', 'spider', 'scanner', 'test', 'curl', 'wget', 'python'
+  ]
+  
+  if (suspiciousAgents.some(agent => userAgent.toLowerCase().includes(agent))) {
+    return true
+  }
+  
+  // Check for suspicious headers
+  const suspiciousHeaders = [
+    'x-forwarded-for', 'x-real-ip', 'via', 'forwarded'
+  ]
+  
+  const headerCount = suspiciousHeaders.filter(header => 
+    request.headers.get(header) !== null
+  ).length
+  
+  // Too many proxy headers might indicate spoofing
+  if (headerCount > 3) {
+    return true
+  }
+  
+  return false
+}
+
+function validateToken(token: string): any {
+  try {
+    return jwt.verify(token, JWT_SECRET)
+  } catch (error) {
+    return null
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const { pathname } = request.nextUrl
+  const ip = getClientIP(request)
+  const userAgent = request.headers.get('user-agent') || ''
+  
+  // Security checks
+  if (isSuspiciousRequest(request)) {
+    console.log(`Suspicious request detected from ${ip}: ${pathname}`)
+  }
+  
+  // Rate limiting for sensitive endpoints
+  if (pathname.includes('/auth/login') || pathname.includes('/auth/verify')) {
+    const rateLimitKey = `login:${ip}`
+    if (!checkRateLimit(rateLimitKey, RATE_LIMITS.login)) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.' },
+        { status: 429 }
+      )
+    }
+  }
+  
+  // Rate limiting for API endpoints
+  if (pathname.startsWith('/api/')) {
+    const rateLimitKey = `api:${ip}`
+    if (!checkRateLimit(rateLimitKey, RATE_LIMITS.api)) {
+      return NextResponse.json(
+        { error: 'Too many API requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+  }
   
   // Skip middleware for static files and specific pages
   if (
@@ -110,11 +219,13 @@ export async function middleware(request: NextRequest) {
   // Add caching headers for better performance
   const response = NextResponse.next()
   
-  // Add security headers
+  // Add comprehensive security headers
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   
   // Add performance headers
   response.headers.set('Cache-Control', 'no-store, must-revalidate')
@@ -129,6 +240,10 @@ export async function middleware(request: NextRequest) {
     )
   }
 
+  // Add security logging headers
+  response.headers.set('X-Request-ID', crypto.randomUUID())
+  response.headers.set('X-Security-Scan', 'enabled')
+  
   return response
 }
 

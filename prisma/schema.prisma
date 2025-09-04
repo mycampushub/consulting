@@ -254,6 +254,33 @@ model Student {
   // Documents
   documents      String? // JSON array of document paths
   
+  // Authentication & Security
+  password       String?
+  emailVerified  Boolean  @default(false)
+  lastLoginAt    DateTime?
+  loginAttempts  Int      @default(0)
+  accountLocked  Boolean  @default(false)
+  lockedUntil    DateTime?
+  
+  // Two-Factor Authentication
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret   String?  // For TOTP
+  twoFactorBackupCodes String? // JSON array of backup codes
+  twoFactorMethod   TwoFactorMethod? // EMAIL, SMS, AUTHENTICATOR
+  
+  // Biometric Authentication
+  fingerprintEnabled Boolean  @default(false)
+  fingerprintData   String?  // Encrypted fingerprint template
+  fingerprintRegisteredAt DateTime?
+  
+  faceRecognitionEnabled Boolean  @default(false)
+  faceData           String?  // Encrypted face recognition template
+  faceRegisteredAt   DateTime?
+  
+  // Device Management
+  trustedDevices     String?  // JSON array of trusted devices
+  currentSessionId   String?
+  
   // Timeline
   assignedTo     String? // User ID
   createdAt      DateTime @default(now())
@@ -2943,6 +2970,12 @@ enum StudentStatus {
   ENROLLED
   GRADUATED
   WITHDRAWN
+}
+
+enum TwoFactorMethod {
+  EMAIL
+  SMS
+  AUTHENTICATOR
 }
 
 enum ApplicationStage {
