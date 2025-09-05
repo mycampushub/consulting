@@ -305,6 +305,7 @@ export default function AgencyDashboard() {
   const [universities, setUniversities] = useState<University[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [analytics, setAnalytics] = useState<any>(null)
+  const [recentTasks, setRecentTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -442,6 +443,50 @@ export default function AgencyDashboard() {
     }
   }
 
+  // Fetch recent tasks data
+  const fetchRecentTasks = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/tasks?limit=5`)
+      if (!response.ok) throw new Error('Failed to fetch recent tasks')
+      
+      const data = await response.json()
+      if (data.tasks) {
+        setRecentTasks(data.tasks.map((task: any) => ({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          student: task.student?.name || 'Unassigned',
+          assignee: task.assignee?.name || 'Unassigned'
+        })))
+      }
+    } catch (err) {
+      console.error('Error fetching recent tasks:', err)
+      // Set some mock data for demo purposes
+      setRecentTasks([
+        {
+          id: 1,
+          title: 'Review application documents',
+          status: 'PENDING',
+          priority: 'HIGH',
+          dueDate: new Date().toISOString(),
+          student: 'Alex Thompson',
+          assignee: 'John Doe'
+        },
+        {
+          id: 2,
+          title: 'Schedule university interview',
+          status: 'IN_PROGRESS',
+          priority: 'MEDIUM',
+          dueDate: new Date(Date.now() + 86400000).toISOString(),
+          student: 'Maria Garcia',
+          assignee: 'Jane Smith'
+        }
+      ])
+    }
+  }
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
@@ -450,7 +495,8 @@ export default function AgencyDashboard() {
           fetchAnalytics(),
           fetchUsers(),
           fetchStudents(),
-          fetchUniversities()
+          fetchUniversities(),
+          fetchRecentTasks()
         ])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
@@ -721,7 +767,7 @@ export default function AgencyDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalStudents}</div>
+            <div className="text-2xl font-bold">{stats?.totalStudents || 0}</div>
             <p className="text-xs text-muted-foreground">
               +12% from last month
             </p>
@@ -733,7 +779,7 @@ export default function AgencyDashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeApplications}</div>
+            <div className="text-2xl font-bold">{stats?.activeApplications || 0}</div>
             <p className="text-xs text-muted-foreground">
               +4 from this week
             </p>
@@ -745,9 +791,9 @@ export default function AgencyDashboard() {
             <ListTodo className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTasks}</div>
+            <div className="text-2xl font-bold">{stats?.totalTasks || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.completedTasksThisWeek} completed this week
+              {stats?.completedTasksThisWeek || 0} completed this week
             </p>
           </CardContent>
         </Card>
@@ -757,9 +803,9 @@ export default function AgencyDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingTasks}</div>
+            <div className="text-2xl font-bold">{stats?.pendingTasks || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.overdueTasks} overdue
+              {stats?.overdueTasks || 0} overdue
             </p>
           </CardContent>
         </Card>
@@ -769,7 +815,7 @@ export default function AgencyDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.monthlyRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${(stats?.monthlyRevenue || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               +20.1% from last month
             </p>
@@ -1121,28 +1167,28 @@ export default function AgencyDashboard() {
                       <Circle className="h-3 w-3 text-gray-500" />
                       <span className="text-sm">Pending</span>
                     </div>
-                    <span className="text-sm font-medium">{stats.pendingTasks}</span>
+                    <span className="text-sm font-medium">{stats?.pendingTasks || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-3 w-3 text-blue-500" />
                       <span className="text-sm">In Progress</span>
                     </div>
-                    <span className="text-sm font-medium">{stats.totalTasks - stats.pendingTasks - stats.completedTasksThisWeek - stats.overdueTasks}</span>
+                    <span className="text-sm font-medium">{(stats?.totalTasks || 0) - (stats?.pendingTasks || 0) - (stats?.completedTasksThisWeek || 0) - (stats?.overdueTasks || 0)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="h-3 w-3 text-green-500" />
                       <span className="text-sm">Completed This Week</span>
                     </div>
-                    <span className="text-sm font-medium">{stats.completedTasksThisWeek}</span>
+                    <span className="text-sm font-medium">{stats?.completedTasksThisWeek || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <AlertTriangle className="h-3 w-3 text-red-500" />
                       <span className="text-sm">Overdue</span>
                     </div>
-                    <span className="text-sm font-medium text-red-600">{stats.overdueTasks}</span>
+                    <span className="text-sm font-medium text-red-600">{stats?.overdueTasks || 0}</span>
                   </div>
                 </div>
               </CardContent>

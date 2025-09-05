@@ -178,8 +178,6 @@ export function ServerSidebar({ children }: ServerSidebarProps) {
         <Sidebar 
           collapsible="icon" 
           variant="inset"
-          state={sidebarState}
-          onStateChange={(state) => setSidebarState(state as "expanded" | "collapsed")}
         >
           <SidebarHeader className="border-b p-4">
             <div className="flex items-center gap-2">

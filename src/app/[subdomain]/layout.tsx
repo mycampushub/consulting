@@ -1,19 +1,19 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, use } from "react"
 import { useParams, usePathname } from "next/navigation"
 import { ServerSidebar } from "@/components/layout/server-sidebar"
 
 interface SubdomainLayoutProps {
   children: ReactNode
-  params: {
+  params: Promise<{
     subdomain: string
-  }
+  }>
 }
 
 export default function SubdomainLayout({ children, params }: SubdomainLayoutProps) {
   const pathname = usePathname()
-  const subdomain = params.subdomain as string
+  const { subdomain } = use(params)
   
   // Check if the current path is a student page
   // Student pages should NOT use the admin sidebar
