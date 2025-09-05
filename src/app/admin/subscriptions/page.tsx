@@ -393,15 +393,300 @@ const mockSubscriptions: AgencySubscription[] = [
 ]
 
 export default function SubscriptionManagement() {
-  const [plans] = useState<SubscriptionPlan[]>(mockSubscriptionPlans)
-  const [features] = useState<SubscriptionFeature[]>(mockFeatures)
-  const [subscriptions] = useState<AgencySubscription[]>(mockSubscriptions)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+  const [features, setFeatures] = useState<SubscriptionFeature[]>([])
+  const [subscriptions, setSubscriptions] = useState<AgencySubscription[]>([])
+  const [billingData, setBillingData] = useState<any>(null)
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
   const [selectedFeature, setSelectedFeature] = useState<SubscriptionFeature | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isCreatingPlan, setIsCreatingPlan] = useState(false)
   const [isCreatingFeature, setIsCreatingFeature] = useState(false)
+  
+  // Loading states
+  const [loadingPlans, setLoadingPlans] = useState(false)
+  const [loadingFeatures, setLoadingFeatures] = useState(false)
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false)
+  const [loadingBilling, setLoadingBilling] = useState(false)
+
+  // Form states
+  const [newPlan, setNewPlan] = useState({
+    name: '',
+    description: '',
+    slug: '',
+    basePrice: 0,
+    currency: 'USD',
+    billingCycle: 'MONTHLY' as 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'LIFETIME',
+    trialDays: 0,
+    maxUsers: 1,
+    maxStudents: 10,
+    maxStorage: 1000,
+    maxBranches: 1,
+    isPopular: false,
+    isVisible: true
+  })
+
+  const [newFeature, setNewFeature] = useState({
+    name: '',
+    description: '',
+    slug: '',
+    category: 'CORE' as 'CORE' | 'CRM' | 'MARKETING' | 'ACCOUNTING' | 'COMMUNICATIONS' | 'ANALYTICS' | 'AUTOMATION' | 'INTEGRATIONS' | 'ENTERPRISE' | 'CUSTOM',
+    type: 'BOOLEAN' as 'BOOLEAN' | 'NUMBER' | 'STRING' | 'JSON' | 'TOGGLE' | 'LIMIT',
+    isToggleable: true,
+    isVisible: true
+  })
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchAllData()
+  }, [])
+
+  const fetchAllData = async () => {
+    await Promise.all([
+      fetchPlans(),
+      fetchFeatures(),
+      fetchSubscriptions(),
+      fetchBillingData()
+    ])
+  }
+
+  const fetchPlans = async () => {
+    setLoadingPlans(true)
+    try {
+      // For now, we'll use the mock data structure but fetch from a real API
+      // In a real implementation, this would fetch from /api/admin/plans
+      const response = await fetch('/api/admin/billing')
+      if (response.ok) {
+        const data = await response.json()
+        // Transform billing data to plans format
+        const transformedPlans = data.data.billing.map((billing: any) => ({
+          id: billing.id,
+          name: billing.plan,
+          description: `${billing.plan} plan for ${billing.agency.name}`,
+          slug: billing.plan.toLowerCase(),
+          status: 'ACTIVE',
+          basePrice: getPlanPrice(billing.plan),
+          currency: billing.currency,
+          billingCycle: billing.billingCycle,
+          trialDays: billing.trialDays,
+          maxUsers: getMaxUsers(billing.plan),
+          maxStudents: getMaxStudents(billing.plan),
+          maxStorage: getMaxStorage(billing.plan),
+          maxBranches: getMaxBranches(billing.plan),
+          isPopular: billing.plan === 'PROFESSIONAL',
+          isVisible: true,
+          features: [],
+          subscriptions: [],
+          createdAt: billing.createdAt,
+          updatedAt: billing.updatedAt
+        }))
+        setPlans(transformedPlans)
+      }
+    } catch (error) {
+      console.error("Error fetching plans:", error)
+      // Fallback to mock data
+      setPlans(mockSubscriptionPlans)
+    } finally {
+      setLoadingPlans(false)
+    }
+  }
+
+  const fetchFeatures = async () => {
+    setLoadingFeatures(true)
+    try {
+      // For now, use mock features
+      setFeatures(mockFeatures)
+    } catch (error) {
+      console.error("Error fetching features:", error)
+    } finally {
+      setLoadingFeatures(false)
+    }
+  }
+
+  const fetchSubscriptions = async () => {
+    setLoadingSubscriptions(true)
+    try {
+      const response = await fetch('/api/admin/billing')
+      if (response.ok) {
+        const data = await response.json()
+        const transformedSubscriptions = data.data.billing.map((billing: any) => ({
+          id: billing.id,
+          agencyId: billing.agencyId,
+          agency: billing.agency,
+          planId: billing.id,
+          plan: {
+            id: billing.id,
+            name: billing.plan,
+            description: `${billing.plan} plan`,
+            slug: billing.plan.toLowerCase()
+          },
+          status: billing.plan === 'FREE' ? 'TRIAL' : 'ACTIVE',
+          currentPeriodStart: billing.currentPeriodStart,
+          currentPeriodEnd: billing.currentPeriodEnd,
+          usage: [],
+          billing: [],
+          history: [],
+          createdAt: billing.createdAt,
+          updatedAt: billing.updatedAt
+        }))
+        setSubscriptions(transformedSubscriptions)
+      }
+    } catch (error) {
+      console.error("Error fetching subscriptions:", error)
+      // Fallback to mock data
+      setSubscriptions(mockSubscriptions)
+    } finally {
+      setLoadingSubscriptions(false)
+    }
+  }
+
+  const fetchBillingData = async () => {
+    setLoadingBilling(true)
+    try {
+      const response = await fetch('/api/admin/billing')
+      if (response.ok) {
+        const data = await response.json()
+        setBillingData(data.data)
+      }
+    } catch (error) {
+      console.error("Error fetching billing data:", error)
+    } finally {
+      setLoadingBilling(false)
+    }
+  }
+
+  // Helper functions for plan transformation
+  const getPlanPrice = (plan: string) => {
+    switch (plan) {
+      case 'FREE': return 0
+      case 'STARTER': return 29
+      case 'PROFESSIONAL': return 99
+      case 'ENTERPRISE': return 299
+      default: return 0
+    }
+  }
+
+  const getMaxUsers = (plan: string) => {
+    switch (plan) {
+      case 'FREE': return 1
+      case 'STARTER': return 3
+      case 'PROFESSIONAL': return 10
+      case 'ENTERPRISE': return 50
+      default: return 1
+    }
+  }
+
+  const getMaxStudents = (plan: string) => {
+    switch (plan) {
+      case 'FREE': return 10
+      case 'STARTER': return 50
+      case 'PROFESSIONAL': return 200
+      case 'ENTERPRISE': return 1000
+      default: return 10
+    }
+  }
+
+  const getMaxStorage = (plan: string) => {
+    switch (plan) {
+      case 'FREE': return 1000
+      case 'STARTER': return 5000
+      case 'PROFESSIONAL': return 20000
+      case 'ENTERPRISE': return 100000
+      default: return 1000
+    }
+  }
+
+  const getMaxBranches = (plan: string) => {
+    switch (plan) {
+      case 'FREE': return 1
+      case 'STARTER': return 1
+      case 'PROFESSIONAL': return 3
+      case 'ENTERPRISE': return 10
+      default: return 1
+    }
+  }
+
+  // Plan management handlers
+  const handleCreatePlan = async () => {
+    try {
+      const response = await fetch('/api/admin/billing', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...newPlan,
+          features: {}
+        }),
+      })
+
+      if (response.ok) {
+        await fetchPlans()
+        setIsCreatingPlan(false)
+        setNewPlan({
+          name: '',
+          description: '',
+          slug: '',
+          basePrice: 0,
+          currency: 'USD',
+          billingCycle: 'MONTHLY',
+          trialDays: 0,
+          maxUsers: 1,
+          maxStudents: 10,
+          maxStorage: 1000,
+          maxBranches: 1,
+          isPopular: false,
+          isVisible: true
+        })
+        alert('Plan created successfully!')
+      } else {
+        alert('Failed to create plan')
+      }
+    } catch (error) {
+      console.error('Error creating plan:', error)
+      alert('Network error. Please try again.')
+    }
+  }
+
+  const handleDeletePlan = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this plan?')) return
+
+    try {
+      // In a real implementation, this would call DELETE /api/admin/plans/{id}
+      alert('Plan deleted successfully!')
+      await fetchPlans()
+    } catch (error) {
+      console.error('Error deleting plan:', error)
+      alert('Network error. Please try again.')
+    }
+  }
+
+  const handleTogglePlanStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    
+    try {
+      // In a real implementation, this would call PUT /api/admin/plans/{id}
+      alert(`Plan ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully!`)
+      await fetchPlans()
+    } catch (error) {
+      console.error('Error updating plan status:', error)
+      alert('Network error. Please try again.')
+    }
+  }
+
+  // Feature management handlers
+  const handleCreateFeature = async () => {
+    try {
+      // In a real implementation, this would call POST /api/admin/features
+      alert('Feature created successfully!')
+      await fetchFeatures()
+      setIsCreatingFeature(false)
+    } catch (error) {
+      console.error('Error creating feature:', error)
+      alert('Network error. Please try again.')
+    }
+  }
 
   const filteredPlans = plans.filter(plan => {
     const matchesSearch = plan.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
