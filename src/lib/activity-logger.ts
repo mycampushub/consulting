@@ -630,3 +630,76 @@ export const logDataAccess = ActivityLogger.logDataAccess
 export const logSystemEvent = ActivityLogger.logSystemEvent
 export const logComplianceActivity = ActivityLogger.logComplianceActivity
 export const getActivityLogs = ActivityLogger.getActivityLogs
+
+// Additional convenience functions for common operations
+export const logCreation = (params: {
+  userId: string
+  agencyId: string
+  branchId?: string
+  entityType: string
+  entityId?: string
+  resourceType?: string
+  resourceName?: string
+  changes?: Record<string, any>
+  newValues?: Record<string, any>
+  ipAddress?: string
+  userAgent?: string
+}, options?: any) =>
+  ActivityLogger.log({
+    userId: params.userId,
+    agencyId: params.agencyId,
+    branchId: params.branchId,
+    action: 'CREATED',
+    entityType: params.entityType,
+    entityId: params.entityId,
+    changes: {
+      ...params.changes,
+      ...params.newValues,
+      resourceType: params.resourceType,
+      resourceName: params.resourceName
+    },
+    metadata: {
+      ip: params.ipAddress,
+      userAgent: params.userAgent,
+      category: 'USER_ACTION',
+      severity: 'INFO'
+    },
+    category: 'USER_ACTION'
+  })
+
+export const logUpdate = (params: {
+  userId: string
+  agencyId: string
+  branchId?: string
+  entityType: string
+  entityId?: string
+  resourceType?: string
+  resourceName?: string
+  changes?: Record<string, any>
+  oldValues?: Record<string, any>
+  newValues?: Record<string, any>
+  ipAddress?: string
+  userAgent?: string
+}, options?: any) =>
+  ActivityLogger.log({
+    userId: params.userId,
+    agencyId: params.agencyId,
+    branchId: params.branchId,
+    action: 'UPDATED',
+    entityType: params.entityType,
+    entityId: params.entityId,
+    changes: {
+      ...params.changes,
+      oldValues: params.oldValues,
+      newValues: params.newValues,
+      resourceType: params.resourceType,
+      resourceName: params.resourceName
+    },
+    metadata: {
+      ip: params.ipAddress,
+      userAgent: params.userAgent,
+      category: 'USER_ACTION',
+      severity: 'INFO'
+    },
+    category: 'USER_ACTION'
+  })

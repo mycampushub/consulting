@@ -336,6 +336,7 @@ export class UnifiedAuth {
             { status: 401 }
           )
         }
+      }
 
       return {
         success: true,
@@ -458,3 +459,24 @@ export const requireAgencyAdmin = UnifiedAuth.requireAgencyAdmin
 export const requireBranchManager = UnifiedAuth.requireBranchManager
 export const requireGlobalAccess = UnifiedAuth.requireGlobalAccess
 export const requireResourceAccess = UnifiedAuth.requireResourceAccess
+
+// Cache management functions (placeholder implementations)
+export const clearUserCache = (userId: string) => {
+  // Simple in-memory cache clearing implementation
+  if (globalThis._userCache && globalThis._userCache[userId]) {
+    delete globalThis._userCache[userId]
+  }
+}
+
+export const clearAllCache = () => {
+  // Clear all cached data
+  if (globalThis._userCache) {
+    globalThis._userCache = {}
+  }
+  if (globalThis._agencyCache) {
+    globalThis._agencyCache = {}
+  }
+  if (globalThis._branchCache) {
+    globalThis._branchCache = {}
+  }
+}

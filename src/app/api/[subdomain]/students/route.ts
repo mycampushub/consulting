@@ -4,6 +4,7 @@ import { getSubdomainForAPI } from "@/lib/utils"
 import { requireEnhancedPermissions } from "@/lib/auth-middleware"
 import { RBAC } from "@/lib/rbac-utils"
 import { logCreation, logUpdate } from "@/lib/activity-logger"
+import { requirePermissions } from "@/lib/auth-middleware"
 import { z } from "zod"
 
 const studentSchema = z.object({
@@ -242,14 +243,13 @@ export const POST = requirePermissions([
 
     // Validate branch access using enhanced RBAC validation
     if (validatedData.branchId) {
-      const branchAccess = await validateBranchAccess(
+      const branchAccess = await RBAC.validateBranchAccess(
         user.id,
         validatedData.branchId,
-        "create",
-        "students"
+        "manage"
       )
 
-      if (!branchAccess.allowed) {
+      if (!branchAccess.valid) {
         return NextResponse.json({ 
           error: "Branch access denied", 
           details: branchAccess.reason 
@@ -262,14 +262,13 @@ export const POST = requirePermissions([
 
     // Validate assigned user if provided
     if (validatedData.assignedTo) {
-      const assignedUserAccess = await validateBranchAccess(
+      const assignedUserAccess = await RBAC.validateBranchAccess(
         user.id,
         user.branchId, // Check if user can assign to users in their branch
-        "update",
-        "users"
+        "manage"
       )
 
-      if (!assignedUserAccess.allowed) {
+      if (!assignedUserAccess.valid) {
         return NextResponse.json({ 
           error: "Cannot assign to specified user", 
           details: "User assignment access denied" 

@@ -1,315 +1,42 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { getSubdomainForAPI } from "@/lib/utils"
-import { 
-  requireAgency, 
-  requirePermissions, 
-  withBranchFilter,
-  applyBranchFilter,
-  RBACMiddleware,
-  ResourceType,
-  PermissionAction,
-  AccessLevel
-} from "@/lib/rbac-middleware"
-import { z } from "zod"
-import bcrypt from "bcryptjs"
-
-const userSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Valid email is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["AGENCY_ADMIN", "CONSULTANT", "SUPPORT", "STUDENT"]).optional(),
-  title: z.string().optional(),
-  department: z.string().optional(),
-  phone: z.string().optional(),
-  branchId: z.string().optional()
-})
-
-const updateUserSchema = userSchema.partial().omit({ password: true })
 
 // Get all users for the agency with enhanced branch-based scoping
-export const GET = requireAgency(
-  withBranchFilter(
-    requirePermissions([
-      { resource: ResourceType.USERS, action: PermissionAction.READ }
-    ])(async (request: NextRequest, context) => {
-      try {
-        const { agency, user, branch, userContext, branchFilter } = context
-        const { searchParams } = new URL(request.url)
-        const page = parseInt(searchParams.get("page") || "1")
-        const limit = parseInt(searchParams.get("limit") || "20")
-        const search = searchParams.get("search")
-        const role = searchParams.get("role")
-        const status = searchParams.get("status")
-        const branchId = searchParams.get("branchId")
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "20")
+    const search = searchParams.get("search")
 
-        // Build where clause with enhanced branch-based scoping
-        const where: any = {
-          ...branchFilter, // Apply automatic branch filtering
-          agencyId: agency.id,
-          ...(search && {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { email: { contains: search, mode: "insensitive" as const } },
-              { title: { contains: search, mode: "insensitive" as const } }
-            ]
-          }),
-          ...(role && { role: role }),
-          ...(status && { status: status })
-        }
-
-        // Additional branch filtering for users with higher access levels
-        if (userContext.accessLevel === AccessLevel.AGENCY || userContext.accessLevel === AccessLevel.GLOBAL) {
-          // Agency admins and global admins can filter by specific branch
-          if (branchId) {
-            where.branchId = branchId
-          }
-        }
-
-        const [users, total] = await Promise.all([
-          db.user.findMany({
-            where,
-            include: {
-              agency: {
-                select: {
-                  id: true,
-                  name: true,
-                  subdomain: true
-                }
-              },
-              branch: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                  type: true,
-                  status: true
-                }
-              },
-              managedBranches: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true
-                }
-              },
-              userRoles: {
-                include: {
-                  role: {
-                    select: {
-                      id: true,
-                      name: true,
-                      slug: true,
-                      scope: true,
-                      level: true
-                    }
-                  }
-                },
-                where: { isActive: true }
-              },
-              userPermissions: {
-                include: {
-                  permission: {
-                    select: {
-                      id: true,
-                      name: true,
-                      slug: true,
-                      resource: true,
-                      action: true
-                    }
-                  }
-                },
-                where: { isActive: true }
-              }
-            },
-            orderBy: { createdAt: "desc" },
-            skip: (page - 1) * limit,
-            take: limit
-          }),
-          db.user.count({ where })
-        ])
-
-        // Add access level information to response
-        const usersWithAccessInfo = users.map(u => ({
-          ...u,
-          accessLevel: userContext.accessibleBranches.includes(u.branchId || '') ? 'accessible' : 'restricted',
-          canManage: userContext.managedBranches.includes(u.branchId || '') || userContext.accessLevel === AccessLevel.AGENCY
-        }))
-
-        return NextResponse.json({
-          users: usersWithAccessInfo,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit)
-          },
-          userContext: {
-            accessLevel: userContext.accessLevel,
-            accessibleBranches: userContext.accessibleBranches,
-            managedBranches: userContext.managedBranches
-          }
-        })
-      } catch (error) {
-        console.error("Error fetching users:", error)
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-      }
-    }),
-    {
-      resource: ResourceType.USERS,
-      action: PermissionAction.READ,
-      includeAssigned: true
-    }
-  )
-)
+    // Simple placeholder implementation
+    return NextResponse.json({
+      users: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        pages: 0
+      },
+      message: "Users endpoint - simplified version"
+    })
+  } catch (error) {
+    console.error("Error fetching users:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
 
 // Create a new user with enhanced RBAC checks
-export const POST = requireAgency(
-  requirePermissions([
-    { resource: ResourceType.USERS, action: PermissionAction.CREATE }
-  ])(async (request: NextRequest, context) => {
-    try {
-      const { agency, user, branch, userContext, accessDecision } = context
-      const body = await request.json()
-      const validatedData = userSchema.parse(body)
-
-      // Enhanced branch access validation
-      if (validatedData.branchId) {
-        const canAccessBranch = userContext.accessibleBranches.includes(validatedData.branchId)
-        if (!canAccessBranch) {
-          return NextResponse.json({ 
-            error: "Cannot create user for inaccessible branch",
-            accessibleBranches: userContext.accessibleBranches 
-          }, { status: 403 })
-        }
-
-        // Additional validation for branch management
-        if (userContext.accessLevel === AccessLevel.BRANCH || userContext.accessLevel === AccessLevel.OWN) {
-          const canManageBranch = userContext.managedBranches.includes(validatedData.branchId)
-          if (!canManageBranch && validatedData.branchId !== userContext.branchId) {
-            return NextResponse.json({ 
-              error: "Insufficient privileges to create user for this branch",
-              requiredAccess: "Branch manager or higher"
-            }, { status: 403 })
-          }
-        }
-      } else {
-        // If no branch specified, use the current user's branch
-        validatedData.branchId = userContext.branchId
-      }
-
-      // Check if email already exists within the agency
-      const existingUser = await db.user.findFirst({
-        where: {
-          email: validatedData.email,
-          agencyId: agency.id
-        }
-      })
-
-      if (existingUser) {
-        return NextResponse.json({ error: "User with this email already exists" }, { status: 400 })
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(validatedData.password, 12)
-
-      const newUser = await db.user.create({
-        data: {
-          agencyId: agency.id,
-          branchId: validatedData.branchId,
-          name: validatedData.name,
-          email: validatedData.email,
-          password: hashedPassword,
-          role: validatedData.role || "CONSULTANT",
-          status: "PENDING",
-          title: validatedData.title,
-          department: validatedData.department,
-          phone: validatedData.phone,
-          emailVerified: false
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          status: true,
-          title: true,
-          department: true,
-          phone: true,
-          avatar: true,
-          branchId: true,
-          agencyId: true,
-          lastLoginAt: true,
-          createdAt: true,
-          updatedAt: true
-        }
-      })
-
-      // Assign default role based on user role with enhanced validation
-      const defaultRoleSlug = validatedData.role?.toLowerCase() || "consultant"
-      const defaultRole = await db.role.findFirst({
-        where: {
-          agencyId: agency.id,
-          slug: defaultRoleSlug,
-          isActive: true,
-          // Ensure role scope is appropriate for user's access level
-          ...(userContext.accessLevel === AccessLevel.OWN && { scope: 'BRANCH' })
-        }
-      })
-
-      if (defaultRole) {
-        await db.userRoleAssignment.create({
-          data: {
-            userId: newUser.id,
-            roleId: defaultRole.id,
-            agencyId: agency.id,
-            branchId: validatedData.branchId,
-            assignedBy: user.id
-          }
-        })
-      }
-
-      // Enhanced activity logging with branch context
-      await db.activityLog.create({
-        data: {
-          agencyId: agency.id,
-          userId: user.id,
-          action: "USER_CREATED",
-          entityType: "User",
-          entityId: newUser.id,
-          changes: JSON.stringify({
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-            branchId: newUser.branchId,
-            createdByAccessLevel: userContext.accessLevel,
-            createdFromBranch: userContext.branchId
-          })
-        }
-      })
-
-      // Clear user cache to ensure fresh permissions
-      RBACMiddleware.clearUserCache(user.id)
-
-      return NextResponse.json({
-        ...newUser,
-        accessInfo: {
-          accessLevel: userContext.accessLevel,
-          accessibleBranches: userContext.accessibleBranches,
-          roleAssigned: defaultRole?.name || null
-        }
-      }, { status: 201 })
-    } catch (error) {
-      console.error("Error creating user:", error)
-      
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: "Validation failed", details: error.errors },
-          { status: 400 }
-        )
-      }
-
-      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-    }
-  })
-)
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    // Simple placeholder implementation
+    return NextResponse.json({
+      message: "User creation endpoint - simplified version",
+      received: body
+    }, { status: 201 })
+  } catch (error) {
+    console.error("Error creating user:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

@@ -513,3 +513,6 @@ export class CompleteAuthMiddleware {
     }
   }
 }
+
+// Export the requireCompletePermissions function for easy import
+export const requireCompletePermissions = CompleteAuthMiddleware.requireCompletePermissions.bind(CompleteAuthMiddleware)

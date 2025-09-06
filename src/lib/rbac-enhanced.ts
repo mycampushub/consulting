@@ -1101,3 +1101,8 @@ export class EnhancedRBACService {
     this.resourceAccessCache.clear()
   }
 }
+
+// Export convenience aliases and types
+export const EnhancedRBAC = EnhancedRBACService
+export type AccessLevel = EnhancedBranchAccessLevel
+export type PermissionAction = string

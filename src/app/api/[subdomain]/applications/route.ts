@@ -18,13 +18,14 @@ const applicationSchema = z.object({
 })
 
 // Get all applications for the agency with branch-based scoping
-export const GET = requireCompletePermissions([
-  { resource: "applications", action: "read" }
-], {
-  resourceType: "applications",
-  enableDataFiltering: true,
-  auditLevel: "DETAILED"
-})(async (request: NextRequest, context) => {
+export async function GET(request: NextRequest) {
+  const handler = requireCompletePermissions([
+    { resource: "applications", action: "read" }
+  ], {
+    resourceType: "applications",
+    enableDataFiltering: true,
+    auditLevel: "DETAILED"
+  })(async (request: NextRequest, context) => {
   try {
     const { agency, user, accessibleBranches, branchScope } = context
     const { searchParams } = new URL(request.url)
@@ -131,6 +132,9 @@ export const GET = requireCompletePermissions([
     console.error("Error fetching applications:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
+})
+
+  return handler(request)
 }
 
 export async function POST(request: NextRequest) {

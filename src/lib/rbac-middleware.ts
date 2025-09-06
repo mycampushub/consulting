@@ -1,6 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { EnhancedRBAC, AccessLevel, ResourceType, PermissionAction, type EnhancedPermissionCheck, type ResourceAccess } from './rbac-enhanced'
+import { EnhancedRBACService, EnhancedBranchAccessLevel, EnhancedRBACAccessLevel, type EnhancedPermissionCheck, type EnhancedAccessDecision } from './rbac-enhanced'
 import { db } from './db'
+
+// Re-export types with the expected names for backward compatibility
+export type AccessLevel = EnhancedBranchAccessLevel
+export type ResourceType = string
+export type PermissionAction = string
+
+// Define ResourceAccess type for backward compatibility
+export interface ResourceAccess {
+  allowed: boolean
+  accessLevel: EnhancedBranchAccessLevel
+  accessibleBranches: string[]
+  reason?: string
+  fieldPermissions?: Record<string, string[]>
+  dataFilters?: Record<string, any>
+}
+
+// Define enum-like objects for backward compatibility
+export const ResourceType = {
+  USERS: 'users',
+  STUDENTS: 'students',
+  APPLICATIONS: 'applications',
+  BRANCHES: 'branches',
+  AGENCIES: 'agencies',
+  PERMISSIONS: 'permissions',
+  ROLES: 'roles'
+}
+
+export const PermissionAction = {
+  READ: 'read',
+  CREATE: 'create',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  MANAGE: 'manage'
+}
+
+export const AccessLevel = {
+  GLOBAL: EnhancedBranchAccessLevel.GLOBAL,
+  AGENCY: EnhancedBranchAccessLevel.AGENCY,
+  BRANCH: EnhancedBranchAccessLevel.BRANCH,
+  OWN: EnhancedBranchAccessLevel.OWN,
+  ASSIGNED: EnhancedBranchAccessLevel.ASSIGNED
+}
+
+// Create a wrapper for backward compatibility
+const EnhancedRBAC = {
+  getUserContext: (userId: string) => EnhancedRBACService.getUserContext(userId),
+  checkPermission: (userId: string, permission: any, context?: any) => EnhancedRBACService.checkPermission(userId, permission, context),
+  applyBranchFilter: (userId: string, baseWhere: any, options: any) => EnhancedRBACService.applyBranchFilter(userId, baseWhere, options)
+}
+
+// Export the EnhancedRBAC wrapper
+export { EnhancedRBAC }
 
 // ============================================================================
 // Enhanced Middleware Types
@@ -46,11 +98,12 @@ export class RBACMiddleware {
    * Main RBAC middleware with enhanced access control
    */
   static middleware(options: RBACMiddlewareOptions = {}) {
+    const self = this // Capture the class instance
     return function <T extends MiddlewareHandler>(handler: T) {
       return async (request: NextRequest, context: any = {}): Promise<NextResponse> => {
         try {
           // Extract authentication token
-          const authResult = await this.authenticate(request)
+          const authResult = await self.authenticate(request)
           
           if (!authResult.success) {
             return authResult.response!
@@ -86,7 +139,7 @@ export class RBACMiddleware {
 
           // Check minimum access level
           if (options.minAccessLevel) {
-            const hasRequiredLevel = this.checkAccessLevel(userContext.accessLevel, options.minAccessLevel)
+            const hasRequiredLevel = self.checkAccessLevel(userContext.accessLevel, options.minAccessLevel)
             if (!hasRequiredLevel) {
               return NextResponse.json(
                 { error: `Insufficient access level. Required: ${options.minAccessLevel}, Current: ${userContext.accessLevel}` },
@@ -113,7 +166,7 @@ export class RBACMiddleware {
 
               if (!decision.allowed) {
                 // Log permission denied
-                await this.logActivity({
+                await self.logActivity({
                   userId: user.id,
                   agencyId: agency?.id,
                   branchId: userContext.branchId,
@@ -182,7 +235,7 @@ export class RBACMiddleware {
 
           // Log successful access if audit level requires it
           if (options.auditLevel && options.auditLevel !== 'NONE') {
-            await this.logActivity({
+            await self.logActivity({
               userId: user.id,
               agencyId: agency?.id,
               branchId: userContext.branchId,
@@ -208,7 +261,7 @@ export class RBACMiddleware {
           console.error('RBACMiddleware error:', error)
           
           // Log error
-          await this.logActivity({
+          await self.logActivity({
             userId: context.user?.id,
             agencyId: context.agency?.id,
             branchId: context.branch?.id,
@@ -219,7 +272,7 @@ export class RBACMiddleware {
               options,
               stack: error instanceof Error ? error.stack : undefined
             }),
-            ipAddress: this.getClientIP(request),
+            ipAddress: self.getClientIP(request),
             userAgent: request.headers.get('user-agent') || ''
           })
 
@@ -236,21 +289,21 @@ export class RBACMiddleware {
    * Require authentication only
    */
   static requireAuth<T extends MiddlewareHandler>(handler: T) {
-    return this.middleware({ requireAuth: true })(handler)
+    return RBACMiddleware.middleware({ requireAuth: true })(handler)
   }
 
   /**
    * Require agency context
    */
   static requireAgency<T extends MiddlewareHandler>(handler: T) {
-    return this.middleware({ requireAuth: true, requireAgency: true })(handler)
+    return RBACMiddleware.middleware({ requireAuth: true, requireAgency: true })(handler)
   }
 
   /**
    * Require branch context
    */
   static requireBranch<T extends MiddlewareHandler>(handler: T, minAccessLevel: AccessLevel = AccessLevel.BRANCH) {
-    return this.middleware({ 
+    return RBACMiddleware.middleware({ 
       requireAuth: true, 
       requireAgency: true, 
       requireBranch: true,
@@ -259,17 +312,10 @@ export class RBACMiddleware {
   }
 
   /**
-   * Require specific permissions
-   */
-  static requirePermissions(permissions: EnhancedPermissionCheck[], options: Omit<RBACMiddlewareOptions, 'permissions'> = {}) {
-    return this.middleware({ ...options, permissions })
-  }
-
-  /**
    * Require agency admin access
    */
   static requireAgencyAdmin<T extends MiddlewareHandler>(handler: T) {
-    return this.middleware({
+    return RBACMiddleware.middleware({
       requireAuth: true,
       requireAgency: true,
       minAccessLevel: AccessLevel.AGENCY
@@ -280,7 +326,7 @@ export class RBACMiddleware {
    * Require branch manager access
    */
   static requireBranchManager<T extends MiddlewareHandler>(handler: T) {
-    return this.middleware({
+    return RBACMiddleware.middleware({
       requireAuth: true,
       requireAgency: true,
       requireBranch: true,
@@ -292,7 +338,7 @@ export class RBACMiddleware {
    * Require global access (super admin only)
    */
   static requireGlobalAccess<T extends MiddlewareHandler>(handler: T) {
-    return this.middleware({
+    return RBACMiddleware.middleware({
       requireAuth: true,
       minAccessLevel: AccessLevel.GLOBAL
     })(handler)
@@ -306,7 +352,7 @@ export class RBACMiddleware {
     action: PermissionAction = PermissionAction.READ,
     options: Omit<RBACMiddlewareOptions, 'resourceType' | 'action'> = {}
   ) {
-    return this.middleware({
+    return RBACMiddleware.middleware({
       ...options,
       resourceType,
       action,
@@ -322,7 +368,7 @@ export class RBACMiddleware {
     resourceType: ResourceType,
     resourceId?: string
   ) {
-    return this.middleware({
+    return RBACMiddleware.middleware({
       requireAuth: true,
       requireAgency: true,
       resourceType,

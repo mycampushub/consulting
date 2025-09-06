@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
-import { initializeRBAC } from './src/lib/init-rbac'
+import { initializeRBAC } from './lib/init-rbac'
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 

@@ -51,9 +51,9 @@ export function requireCompletePermissions(permissions: any[], options: any = {}
 // ===== Enhanced RBAC Middleware Functions =====
 
 /**
- * Require enhanced permissions with comprehensive checking
+ * Require basic enhanced permissions with comprehensive checking
  */
-export function requireEnhancedPermissions(permissions: any[], options: any = {}) {
+export function requireBasicEnhancedPermissions(permissions: any[], options: any = {}) {
   return UnifiedAuth.requirePermissions(permissions, options)
 }
 
