@@ -146,13 +146,76 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
     }
 
-    // Check if dependent task exists
+    // Validate foreign key references if provided
+    if (assignedTo) {
+      const user = await db.user.findUnique({
+        where: { id: assignedTo }
+      })
+      if (!user) {
+        return NextResponse.json({ error: 'Assigned user not found' }, { status: 404 })
+      }
+    }
+
+    if (studentId) {
+      const student = await db.student.findUnique({
+        where: { id: studentId }
+      })
+      if (!student) {
+        return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+      }
+    }
+
+    if (leadId) {
+      const lead = await db.lead.findUnique({
+        where: { id: leadId }
+      })
+      if (!lead) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+      }
+    }
+
+    if (applicationId) {
+      const application = await db.application.findUnique({
+        where: { id: applicationId }
+      })
+      if (!application) {
+        return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      }
+    }
+
+    if (universityId) {
+      const university = await db.university.findUnique({
+        where: { id: universityId }
+      })
+      if (!university) {
+        return NextResponse.json({ error: 'University not found' }, { status: 404 })
+      }
+    }
+
     if (dependsOn) {
       const dependentTask = await db.task.findUnique({
         where: { id: dependsOn }
       })
       if (!dependentTask) {
         return NextResponse.json({ error: 'Dependent task not found' }, { status: 404 })
+      }
+    }
+
+    if (templateId) {
+      const template = await db.taskTemplate.findUnique({
+        where: { id: templateId }
+      })
+      if (!template) {
+        return NextResponse.json({ error: 'Task template not found' }, { status: 404 })
+      }
+    }
+
+    if (assignmentRuleId) {
+      const assignmentRule = await db.assignmentRule.findUnique({
+        where: { id: assignmentRuleId }
+      })
+      if (!assignmentRule) {
+        return NextResponse.json({ error: 'Assignment rule not found' }, { status: 404 })
       }
     }
 

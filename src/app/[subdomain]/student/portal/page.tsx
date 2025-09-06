@@ -1141,53 +1141,6 @@ export default function StudentPortal() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/50">
-      {/* Header */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <GraduationCap className="text-primary-foreground h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                  Student Portal
-                </h1>
-                <p className="text-muted-foreground">
-                  Welcome back, {student?.firstName} {student?.lastName}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Bell className="h-6 w-6 text-muted-foreground cursor-pointer" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                    {unreadNotifications}
-                  </span>
-                )}
-              </div>
-              <div className="relative">
-                <MessageSquare className="h-6 w-6 text-muted-foreground cursor-pointer" />
-                {unreadMessages > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                    {unreadMessages}
-                  </span>
-                )}
-              </div>
-              <Button variant="outline" size="sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              <Button variant="outline" size="sm">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto p-6 space-y-6">
         {/* Dashboard Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

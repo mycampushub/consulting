@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
       if (!response.ok) throw new Error('Failed to fetch analytics')
       
       const data = await response.json()
-      setAnalytics(data)
+      setAnalytics(data.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
