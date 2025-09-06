@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   ArrowLeft,
@@ -208,7 +209,8 @@ import {
   Globe
 } from "lucide-react"
 
-import ReactFlow, {
+import {
+  ReactFlow,
   Controls,
   Background,
   applyNodeChanges,
@@ -227,8 +229,10 @@ import ReactFlow, {
   ReactFlowProvider,
   MarkerType,
   Position,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+  Handle,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import { workflowTemplates } from '@/templates/workflow-templates'
 
 interface WorkflowNode {
   id: string
@@ -327,21 +331,23 @@ const CustomNode = ({ data, selected }: { data: any; selected: boolean }) => {
         
         {/* Enhanced Connection Handles */}
         {data.inputs && data.inputs.map((input: string, index: number) => (
-          <div
+          <Handle
             key={`input-${index}`}
-            className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
-            data-handleid={`input-${index}`}
-            data-handlepos="left"
-          ></div>
+            type="target"
+            position={Position.Left}
+            id={`input-${index}`}
+            className="w-4 h-4 bg-white border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
+          />
         ))}
         
         {data.outputs && data.outputs.map((output: string, index: number) => (
-          <div
+          <Handle
             key={`output-${index}`}
-            className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
-            data-handleid={`output-${index}`}
-            data-handlepos="right"
-          ></div>
+            type="source"
+            position={Position.Right}
+            id={`output-${index}`}
+            className="w-4 h-4 bg-white border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
+          />
         ))}
       </div>
       
@@ -402,6 +408,10 @@ const WorkflowBuilder = ({
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [edgeType, setEdgeType] = useState<'smoothstep' | 'bezier' | 'straight' | 'step'>('smoothstep')
+  const [isNodeConfigOpen, setIsNodeConfigOpen] = useState(false)
+  const [isEdgeConfigOpen, setIsEdgeConfigOpen] = useState(false)
+  const [isNodeLibraryOpen, setIsNodeLibraryOpen] = useState(true)
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   
   const reactFlowInstance = useReactFlow()
 
@@ -785,6 +795,50 @@ const WorkflowBuilder = ({
     saveToHistory()
   }
 
+  // Load template to canvas
+  const loadTemplate = (templateId: string) => {
+    const template = workflowTemplates.find(t => t.id === templateId)
+    if (!template) {
+      alert('Template not found')
+      return
+    }
+
+    // Convert template nodes to ReactFlow nodes
+    const templateNodes = template.nodes.map(node => ({
+      id: node.id,
+      type: 'custom',
+      position: node.position,
+      data: {
+        ...node.data,
+        status: 'idle',
+        validationError: null
+      }
+    }))
+
+    // Convert template edges to ReactFlow edges
+    const templateEdges = template.edges.map(edge => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
+      label: edge.label,
+      type: edge.type || 'smoothstep',
+      animated: edge.animated || false,
+      style: { stroke: '#3b82f6', strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed },
+      data: edge.data
+    }))
+
+    // Clear existing nodes and edges, then load template
+    setNodes(templateNodes)
+    setEdges(templateEdges)
+    saveToHistory()
+    
+    // Show success message
+    alert(`Template "${template.name}" loaded successfully!`)
+  }
+
   const saveWorkflow = () => {
     if (!validateWorkflow()) {
       alert('Please fix validation errors before saving')
@@ -995,10 +1049,62 @@ const WorkflowBuilder = ({
         </div>
       )}
 
-      <div className="flex-1 flex">
-        {/* Node Palette */}
-        <div className="w-80 border-r bg-muted/30 p-4 overflow-y-auto">
-          <h3 className="font-medium mb-4">Node Library</h3>
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* Node Library - Collapsible Panel */}
+        <div className={`lg:w-80 border-r bg-muted/30 p-4 overflow-y-auto transition-all duration-300 ${isNodeLibraryOpen ? 'block' : 'hidden lg:block'}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium">Node Library</h3>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setIsNodeLibraryOpen(!isNodeLibraryOpen)}
+              className="lg:hidden"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Templates Section */}
+          <div className="mb-6">
+            <h4 className="font-medium text-sm mb-3">Ready-to-use Templates</h4>
+            <div className="space-y-2">
+              {workflowTemplates.map((template) => {
+                // Get the icon component from lucide-react
+                const IconComponent = (() => {
+                  switch (template.icon) {
+                    case 'Users': return Users
+                    case 'Target': return Target
+                    case 'MessageSquare': return MessageSquare
+                    case 'Bell': return Bell
+                    case 'FileText': return FileText
+                    default: return Zap
+                  }
+                })()
+                
+                return (
+                  <Card 
+                    key={template.id} 
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => loadTemplate(template.id)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2">
+                        <IconComponent className="h-4 w-4 text-primary" />
+                        <div className="flex-1">
+                          <h5 className="font-medium text-xs">{template.name}</h5>
+                          <p className="text-xs text-muted-foreground">{template.description}</p>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {template.category}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+
           <div className="space-y-4">
             {[
               { name: 'Triggers', nodes: ['trigger', 'webhook'], icon: Zap },
@@ -1047,184 +1153,23 @@ const WorkflowBuilder = ({
               </SelectContent>
             </Select>
           </div>
-
-          {/* Selected Node Configuration */}
-          {selectedNode && (
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">Node Configuration</h3>
-              <div className="border rounded-lg p-3 bg-muted/50">
-                <div className="flex items-center gap-2 mb-2">
-                  {selectedNode.data.icon && <selectedNode.data.icon className="w-4 h-4" />}
-                  <span className="font-medium text-sm">{selectedNode.data.label}</span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">{selectedNode.data.description}</p>
-                
-                <div className="space-y-2">
-                  <div>
-                    <Label className="text-xs">Label</Label>
-                    <Input 
-                      value={selectedNode.data.label} 
-                      onChange={(e) => {
-                        setNodes(nodes.map(node => 
-                          node.id === selectedNode.id 
-                            ? { ...node, data: { ...node.data, label: e.target.value } }
-                            : node
-                        ))
-                        saveToHistory()
-                      }}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-xs">Description</Label>
-                    <Textarea 
-                      value={selectedNode.data.description || ''} 
-                      onChange={(e) => {
-                        setNodes(nodes.map(node => 
-                          node.id === selectedNode.id 
-                            ? { ...node, data: { ...node.data, description: e.target.value } }
-                            : node
-                        ))
-                        saveToHistory()
-                      }}
-                      rows={2}
-                      className="text-xs"
-                    />
-                  </div>
-
-                  {/* Dynamic configuration based on node type */}
-                  {selectedNode.data.config && (
-                    <div className="space-y-2">
-                      <Label className="text-xs">Configuration</Label>
-                      <Textarea 
-                        value={JSON.stringify(selectedNode.data.config, null, 2)} 
-                        onChange={(e) => {
-                          try {
-                            const config = JSON.parse(e.target.value)
-                            setNodes(nodes.map(node => 
-                              node.id === selectedNode.id 
-                                ? { ...node, data: { ...node.data, config } }
-                                : node
-                            ))
-                            saveToHistory()
-                          } catch {
-                            // Invalid JSON, ignore
-                          }
-                        }}
-                        rows={4}
-                        className="text-xs font-mono"
-                      />
-                    </div>
-                  )}
-
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setNodes(nodes.filter(node => node.id !== selectedNode.id))
-                      setEdges(edges.filter(edge => edge.source !== selectedNode.id && edge.target !== selectedNode.id))
-                      setSelectedNode(null)
-                      saveToHistory()
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3 mr-2" />
-                    Delete Node
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Selected Edge Configuration */}
-          {selectedEdge && (
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">Edge Configuration</h3>
-              <div className="border rounded-lg p-3 bg-muted/50">
-                <div className="space-y-2">
-                  <div>
-                    <Label className="text-xs">Label</Label>
-                    <Input 
-                      value={selectedEdge.label || ''} 
-                      onChange={(e) => {
-                        setEdges(edges.map(edge => 
-                          edge.id === selectedEdge.id 
-                            ? { ...edge, label: e.target.value }
-                            : edge
-                        ))
-                        saveToHistory()
-                      }}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs">Condition (for conditional edges)</Label>
-                    <Input 
-                      value={selectedEdge.data?.condition || ''} 
-                      onChange={(e) => {
-                        setEdges(edges.map(edge => 
-                          edge.id === selectedEdge.id 
-                            ? { 
-                                ...edge, 
-                                data: { 
-                                  ...edge.data, 
-                                  condition: e.target.value 
-                                } 
-                              }
-                            : edge
-                        ))
-                        saveToHistory()
-                      }}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs">Priority</Label>
-                    <Input 
-                      type="number"
-                      value={selectedEdge.data?.priority || 1} 
-                      onChange={(e) => {
-                        setEdges(edges.map(edge => 
-                          edge.id === selectedEdge.id 
-                            ? { 
-                                ...edge, 
-                                data: { 
-                                  ...edge.data, 
-                                  priority: parseInt(e.target.value) || 1 
-                                } 
-                              }
-                            : edge
-                        ))
-                        saveToHistory()
-                      }}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setEdges(edges.filter(edge => edge.id !== selectedEdge.id))
-                      setSelectedEdge(null)
-                      saveToHistory()
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3 mr-2" />
-                    Delete Connection
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Canvas */}
+        {/* Main Canvas Area */}
         <div className="flex-1 relative">
+          {/* Mobile Node Library Toggle */}
+          {!isNodeLibraryOpen && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsNodeLibraryOpen(true)}
+              className="absolute top-4 left-4 z-10 lg:hidden"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nodes
+            </Button>
+          )}
+
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1234,14 +1179,18 @@ const WorkflowBuilder = ({
             onNodeClick={(_, node) => {
               setSelectedNode(node)
               setSelectedEdge(null)
+              setIsNodeConfigOpen(true)
             }}
             onEdgeClick={(_, edge) => {
               setSelectedEdge(edge)
               setSelectedNode(null)
+              setIsEdgeConfigOpen(true)
             }}
             onPaneClick={() => {
               setSelectedNode(null)
               setSelectedEdge(null)
+              setIsNodeConfigOpen(false)
+              setIsEdgeConfigOpen(false)
             }}
             nodeTypes={nodeTypes}
             fitView
@@ -1269,6 +1218,206 @@ const WorkflowBuilder = ({
           </ReactFlow>
         </div>
       </div>
+
+      {/* Node Configuration Dialog */}
+      <Dialog open={isNodeConfigOpen} onOpenChange={setIsNodeConfigOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Node Configuration</DialogTitle>
+            <DialogDescription>
+              Configure the selected workflow node
+            </DialogDescription>
+          </DialogHeader>
+          {selectedNode && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                {selectedNode.data.icon && <selectedNode.data.icon className="w-5 h-5" />}
+                <span className="font-medium">{selectedNode.data.label}</span>
+              </div>
+              
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-xs">Label</Label>
+                  <Input 
+                    value={selectedNode.data.label} 
+                    onChange={(e) => {
+                      setNodes(nodes.map(node => 
+                        node.id === selectedNode.id 
+                          ? { ...node, data: { ...node.data, label: e.target.value } }
+                          : node
+                      ))
+                      saveToHistory()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-xs">Description</Label>
+                  <Textarea 
+                    value={selectedNode.data.description || ''} 
+                    onChange={(e) => {
+                      setNodes(nodes.map(node => 
+                        node.id === selectedNode.id 
+                          ? { ...node, data: { ...node.data, description: e.target.value } }
+                          : node
+                      ))
+                      saveToHistory()
+                    }}
+                    rows={2}
+                    className="text-xs"
+                  />
+                </div>
+
+                {selectedNode.data.config && (
+                  <div>
+                    <Label className="text-xs">Configuration</Label>
+                    <Textarea 
+                      value={JSON.stringify(selectedNode.data.config, null, 2)} 
+                      onChange={(e) => {
+                        try {
+                          const config = JSON.parse(e.target.value)
+                          setNodes(nodes.map(node => 
+                            node.id === selectedNode.id 
+                              ? { ...node, data: { ...node.data, config } }
+                              : node
+                          ))
+                          saveToHistory()
+                        } catch {
+                          // Invalid JSON, ignore
+                        }
+                      }}
+                      rows={4}
+                      className="text-xs font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNodeConfigOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (selectedNode) {
+                  setNodes(nodes.filter(node => node.id !== selectedNode.id))
+                  setEdges(edges.filter(edge => edge.source !== selectedNode.id && edge.target !== selectedNode.id))
+                  setSelectedNode(null)
+                  setIsNodeConfigOpen(false)
+                  saveToHistory()
+                }
+              }}
+            >
+              Delete Node
+            </Button>
+            <Button onClick={() => setIsNodeConfigOpen(false)}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edge Configuration Dialog */}
+      <Dialog open={isEdgeConfigOpen} onOpenChange={setIsEdgeConfigOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Connection Configuration</DialogTitle>
+            <DialogDescription>
+              Configure the selected workflow connection
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEdge && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-xs">Label</Label>
+                  <Input 
+                    value={selectedEdge.label || ''} 
+                    onChange={(e) => {
+                      setEdges(edges.map(edge => 
+                        edge.id === selectedEdge.id 
+                          ? { ...edge, label: e.target.value }
+                          : edge
+                      ))
+                      saveToHistory()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Condition (for conditional edges)</Label>
+                  <Input 
+                    value={selectedEdge.data?.condition || ''} 
+                    onChange={(e) => {
+                      setEdges(edges.map(edge => 
+                        edge.id === selectedEdge.id 
+                          ? { 
+                              ...edge, 
+                              data: { 
+                                ...edge.data, 
+                                condition: e.target.value 
+                              } 
+                            }
+                          : edge
+                      ))
+                      saveToHistory()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Priority</Label>
+                  <Input 
+                    type="number"
+                    value={selectedEdge.data?.priority || 1} 
+                    onChange={(e) => {
+                      setEdges(edges.map(edge => 
+                        edge.id === selectedEdge.id 
+                          ? { 
+                              ...edge, 
+                              data: { 
+                                ...edge.data, 
+                                priority: parseInt(e.target.value) || 1 
+                              } 
+                            }
+                          : edge
+                      ))
+                      saveToHistory()
+                    }}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEdgeConfigOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (selectedEdge) {
+                  setEdges(edges.filter(edge => edge.id !== selectedEdge.id))
+                  setSelectedEdge(null)
+                  setIsEdgeConfigOpen(false)
+                  saveToHistory()
+                }
+              }}
+            >
+              Delete Connection
+            </Button>
+            <Button onClick={() => setIsEdgeConfigOpen(false)}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

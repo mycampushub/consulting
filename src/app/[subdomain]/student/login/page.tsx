@@ -15,27 +15,18 @@ import {
   EyeOff, 
   User, 
   Lock, 
-  GraduationCap, 
   AlertTriangle,
   CheckCircle,
   ArrowRight,
   Mail,
-  Phone,
-  BookOpen,
-  Globe,
-  Target,
   Calendar,
   FileText,
   MessageSquare,
   Bell,
   CreditCard,
-  Users,
-  Settings,
   Upload,
   Fingerprint,
-  Face,
   Shield,
-  Smartphone,
   Camera,
   Key,
   ChevronDown,
@@ -367,7 +358,7 @@ export default function StudentLoginPage() {
     }
   }
 
-  const handleFaceRecognitionLogin = async () => {
+  const handleBiometricRecognitionLogin = async () => {
     if (!emailForBiometric) {
       setBiometricError("Please enter your email address first")
       return
@@ -383,8 +374,8 @@ export default function StudentLoginPage() {
         throw new Error("Camera access is not supported on this device")
       }
 
-      // Simulate face recognition - in production, use actual face recognition API
-      const faceData = "simulated_face_data_" + Date.now()
+      // Simulate biometric recognition - in production, use actual biometric recognition API
+      const biometricData = "simulated_biometric_data_" + Date.now()
 
       const response = await fetch(`/api/${subdomain}/student/auth/face`, {
         method: 'POST',
@@ -394,7 +385,7 @@ export default function StudentLoginPage() {
         body: JSON.stringify({
           action: 'verify',
           email: emailForBiometric,
-          faceData,
+          biometricData,
           sessionId: localStorage.getItem('sessionId')
         }),
       })
@@ -402,7 +393,7 @@ export default function StudentLoginPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Face recognition failed')
+        throw new Error(result.error || 'Biometric recognition failed')
       }
 
       // Store authentication data
@@ -424,7 +415,7 @@ export default function StudentLoginPage() {
       }, 1500)
 
     } catch (error) {
-      setBiometricError(error instanceof Error ? error.message : "Face recognition failed. Please try again.")
+      setBiometricError(error instanceof Error ? error.message : "Biometric recognition failed. Please try again.")
     } finally {
       setBiometricLoading(false)
     }
@@ -699,9 +690,9 @@ export default function StudentLoginPage() {
                   <TabsContent value="face" className="space-y-4">
                     <div className="text-center">
                       <Camera className="w-16 h-16 mx-auto mb-4 text-primary" />
-                      <h3 className="text-lg font-semibold mb-2">Face Recognition</h3>
+                      <h3 className="text-lg font-semibold mb-2">Biometric Recognition</h3>
                       <p className="text-sm text-muted-foreground mb-4">
-                        Use facial recognition for secure access
+                        Use biometric recognition for secure access
                       </p>
                     </div>
 
@@ -730,7 +721,7 @@ export default function StudentLoginPage() {
                       )}
 
                       <Button
-                        onClick={handleFaceRecognitionLogin}
+                        onClick={handleBiometricRecognitionLogin}
                         disabled={biometricLoading || !emailForBiometric}
                         className="w-full"
                       >
@@ -742,7 +733,7 @@ export default function StudentLoginPage() {
                         ) : (
                           <>
                             <Camera className="mr-2 h-4 w-4" />
-                            Scan Face
+                            Scan Biometric
                           </>
                         )}
                       </Button>
@@ -872,11 +863,11 @@ export default function StudentLoginPage() {
                           variant="outline"
                           size="sm"
                           className="flex flex-col items-center gap-2 h-auto p-3"
-                          onClick={handleFaceRecognitionLogin}
+                          onClick={handleBiometricRecognitionLogin}
                           disabled={biometricLoading || !emailForBiometric}
                         >
-                          <Face className="h-6 w-6 text-green-500" />
-                          <span className="text-xs font-medium">Face ID</span>
+                          <User className="h-6 w-6 text-green-500" />
+                          <span className="text-xs font-medium">User ID</span>
                           {biometricLoading && (
                             <div className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                           )}
