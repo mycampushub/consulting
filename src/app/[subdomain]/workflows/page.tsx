@@ -213,8 +213,7 @@ import {
   Globe
 } from "lucide-react"
 
-import {
-  ReactFlow,
+import ReactFlow, {
   Controls,
   Background,
   applyNodeChanges,
@@ -231,11 +230,8 @@ import {
   Panel,
   useReactFlow,
   ReactFlowProvider,
-  MarkerType,
-  Position,
-  Handle,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
+} from 'reactflow'
+import 'reactflow/dist/style.css'
 
 interface Workflow {
   id: string
@@ -341,16 +337,8 @@ const CustomNode = ({ data, selected }: { data: any; selected: boolean }) => {
         )}
         
         {/* Connection handles */}
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="w-4 h-4 bg-white border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
-        />
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="w-4 h-4 bg-white border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
-        />
+        <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair"></div>
+        <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair"></div>
       </div>
     </div>
   )
