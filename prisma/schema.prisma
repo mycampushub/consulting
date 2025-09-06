@@ -317,6 +317,8 @@ model University {
   id            String   @id @default(cuid())
   agencyId      String
   agency        Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   
   // Basic Info
   name          String
@@ -344,6 +346,12 @@ model University {
   contactPhone  String?
   address       String?
   
+  // RBAC & Access Control
+  createdBy     String? // User ID
+  updatedBy     String? // User ID
+  isPublic      Boolean  @default(false) // Visible to all agencies
+  visibility    String   @default("AGENCY") // GLOBAL, AGENCY, BRANCH, PRIVATE
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -359,6 +367,8 @@ model Campus {
   id            String   @id @default(cuid())
   agencyId      String
   agency        Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   
   universityId  String
   university    University @relation(fields: [universityId], references: [id], onDelete: Cascade)
@@ -383,6 +393,12 @@ model Campus {
   // Facilities
   facilities    String? // JSON array of facilities
   
+  // RBAC & Access Control
+  createdBy     String? // User ID
+  updatedBy     String? // User ID
+  isActive      Boolean  @default(true)
+  visibility    String   @default("AGENCY") // GLOBAL, AGENCY, BRANCH, PRIVATE
+  
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -397,6 +413,8 @@ model Subject {
   id            String   @id @default(cuid())
   agencyId      String
   agency        Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?   @relation(fields: [branchId], references: [id])
   
   campusId      String
   campus        Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
@@ -427,6 +445,12 @@ model Subject {
   // Additional Info
   description   String?
   careerProspects String? // JSON array
+  
+  // RBAC & Access Control
+  createdBy     String? // User ID
+  updatedBy     String? // User ID
+  isActive      Boolean  @default(true)
+  visibility    String   @default("AGENCY") // GLOBAL, AGENCY, BRANCH, PRIVATE
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -514,6 +538,9 @@ model ActivityLog {
   userId        String?
   user          User?    @relation(fields: [userId], references: [id])
   
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  
   action        String
   entityType    String
   entityId      String
@@ -571,6 +598,8 @@ model Invoice {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   accountingId    String
   accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
   
@@ -608,6 +637,8 @@ model Transaction {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   accountingId    String
   accounting      Accounting @relation(fields: [accountingId], references: [id], onDelete: Cascade)
   
@@ -670,6 +701,8 @@ model MarketingCampaign {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Campaign Details
   name            String
@@ -780,6 +813,8 @@ model LandingPage {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Page Details
   name            String
@@ -824,6 +859,8 @@ model Form {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Form Details
   name            String
@@ -888,6 +925,8 @@ model Workflow {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Workflow Details
   name            String
@@ -1101,6 +1140,8 @@ model Appointment {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Appointment Details
   title           String
@@ -1465,6 +1506,8 @@ model Notification {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Notification Details
   type            NotificationType @default(INFO)
@@ -1508,6 +1551,8 @@ model Task {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Task Details
   title           String
@@ -1854,6 +1899,8 @@ model Pipeline {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Pipeline Details
   name            String
@@ -1888,6 +1935,8 @@ model PipelineEntry {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   pipelineId      String
   pipeline        Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   
@@ -2507,6 +2556,8 @@ model Event {
   id              String   @id @default(cuid())
   agencyId        String
   agency          Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?   @relation(fields: [branchId], references: [id])
   
   // Event Details
   title           String
@@ -3534,6 +3585,24 @@ model Branch {
   userPermissions UserPermission[]
   userRestrictions UserRestriction[]
   roleRestrictions RoleRestriction[]
+  
+  // Additional relations for models that reference branches
+  universities    University[]
+  campuses        Campus[]
+  subjects        Subject[]
+  activityLogs    ActivityLog[]
+  invoices        Invoice[]
+  transactions    Transaction[]
+  marketingCampaigns MarketingCampaign[]
+  landingPages    LandingPage[]
+  forms           Form[]
+  workflows       Workflow[]
+  appointments    Appointment[]
+  notifications   Notification[]
+  tasks           Task[]
+  pipelines       Pipeline[]
+  pipelineEntries PipelineEntry[]
+  events          Event[]
   
   @@map("branches")
 }

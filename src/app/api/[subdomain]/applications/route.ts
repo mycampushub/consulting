@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSubdomainForAPI } from "@/lib/utils"
+import { requireCompletePermissions } from "@/lib/auth-complete"
+import { CompleteRBAC } from "@/lib/rbac-complete"
 import { z } from "zod"
 
 const applicationSchema = z.object({
@@ -15,13 +17,16 @@ const applicationSchema = z.object({
   communications: z.array(z.any()).optional(),
 })
 
-export async function GET(request: NextRequest) {
+// Get all applications for the agency with branch-based scoping
+export const GET = requireCompletePermissions([
+  { resource: "applications", action: "read" }
+], {
+  resourceType: "applications",
+  enableDataFiltering: true,
+  auditLevel: "DETAILED"
+})(async (request: NextRequest, context) => {
   try {
-    const subdomain = getSubdomainForAPI(request)
-    if (!subdomain) {
-      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
-    }
-
+    const { agency, user, accessibleBranches, branchScope } = context
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -30,14 +35,7 @@ export async function GET(request: NextRequest) {
     const studentId = searchParams.get("studentId")
     const universityId = searchParams.get("universityId")
 
-    const agency = await db.agency.findUnique({
-      where: { subdomain }
-    })
-
-    if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
-    }
-
+    // Build base where clause
     const where = {
       agencyId: agency.id,
       ...(search && {
@@ -54,18 +52,57 @@ export async function GET(request: NextRequest) {
       ...(universityId && { universityId: universityId })
     }
 
+    // Apply branch-based filtering using Complete RBAC
+    const enhancedWhere = await CompleteRBAC.applyBranchFilter(user.id, where, {
+      resourceType: "applications",
+      action: "read",
+      includeAssigned: true
+    })
+
     const [applications, total] = await Promise.all([
       db.application.findMany({
-        where,
+        where: enhancedWhere,
         include: {
-          student: true,
-          university: true
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              status: true,
+              stage: true,
+              branchId: true
+            }
+          },
+          university: {
+            select: {
+              id: true,
+              name: true,
+              country: true,
+              city: true
+            }
+          },
+          branch: {
+            select: {
+              id: true,
+              name: true,
+              code: true
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              title: true
+            }
+          }
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit
       }),
-      db.application.count({ where })
+      db.application.count({ where: enhancedWhere })
     ])
 
     // Parse JSON fields
@@ -83,6 +120,11 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         pages: Math.ceil(total / limit)
+      },
+      metadata: {
+        branchScope,
+        accessibleBranches,
+        appliedFilters: Object.keys(enhancedWhere).filter(key => key !== 'agencyId')
       }
     })
   } catch (error) {

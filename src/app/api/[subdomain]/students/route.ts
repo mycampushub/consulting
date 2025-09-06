@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSubdomainForAPI } from "@/lib/utils"
+import { requireEnhancedPermissions } from "@/lib/auth-middleware"
+import { RBAC } from "@/lib/rbac-utils"
+import { logCreation, logUpdate } from "@/lib/activity-logger"
 import { z } from "zod"
 
 const studentSchema = z.object({
@@ -20,18 +23,23 @@ const studentSchema = z.object({
   preferredCourses: z.array(z.string()).optional(),
   budget: z.number().min(0).optional(),
   assignedTo: z.string().optional(),
+  branchId: z.string().optional(),
   notes: z.string().optional(),
 })
 
 const updateStudentSchema = studentSchema.partial()
 
-export async function GET(request: NextRequest) {
+// Get all students for the agency with enhanced branch-based scoping
+export const GET = requireEnhancedPermissions([
+  RBAC.permissions.STUDENT_READ()
+], {
+  resourceType: "students",
+  enableDataFiltering: true,
+  auditLevel: "DETAILED",
+  requireBranch: true
+})(async (request: NextRequest, context) => {
   try {
-    const subdomain = getSubdomainForAPI(request)
-    if (!subdomain) {
-      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
-    }
-
+    const { agency, user, accessibleBranches, branchAccessLevel } = context
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -39,16 +47,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const stage = searchParams.get("stage")
     const assignedTo = searchParams.get("assignedTo")
+    const branchId = searchParams.get("branchId")
 
-    const agency = await db.agency.findUnique({
-      where: { subdomain }
-    })
-
-    if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
-    }
-
-    const where = {
+    // Build base where clause with agency scope
+    const where: any = {
       agencyId: agency.id,
       ...(search && {
         OR: [
@@ -62,13 +64,66 @@ export async function GET(request: NextRequest) {
       ...(assignedTo && { assignedTo: assignedTo })
     }
 
+    // Apply enhanced branch-based filtering using new RBAC utils
+    const enhancedWhere = await RBAC.dataFilter.applyBranchFilter(user.id, "students", where, {
+      action: "read",
+      includeAssigned: true
+    })
+
+    // Apply additional branch filtering if specified and user has permission
+    if (branchId && accessibleBranches?.includes(branchId)) {
+      enhancedWhere.branchId = branchId
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit
+    const orderBy: any = {}
+    const sortBy = searchParams.get("sortBy") || "createdAt"
+    const sortOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc"
+    orderBy[sortBy] = sortOrder
+
     const [students, total] = await Promise.all([
       db.student.findMany({
-        where,
+        where: enhancedWhere,
         include: {
+          branch: {
+            select: {
+              id: true,
+              name: true,
+              code: true
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              title: true
+            }
+          },
           applications: {
             include: {
-              university: true
+              university: {
+                select: {
+                  id: true,
+                  name: true,
+                  country: true,
+                  city: true
+                }
+              },
+              campus: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              subject: {
+                select: {
+                  id: true,
+                  name: true,
+                  level: true
+                }
+              }
             },
             orderBy: { createdAt: "desc" }
           },
@@ -83,23 +138,73 @@ export async function GET(request: NextRequest) {
           leads: {
             orderBy: { createdAt: "desc" },
             take: 3
+          },
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  color: true
+                }
+              }
+            }
           }
         },
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
+        orderBy,
+        skip,
         take: limit
       }),
-      db.student.count({ where })
+      db.student.count({ where: enhancedWhere })
     ])
 
-    // Parse JSON fields
-    const processedStudents = students.map(student => ({
-      ...student,
-      preferredCountries: student.preferredCountries ? JSON.parse(student.preferredCountries) : [],
-      preferredCourses: student.preferredCourses ? JSON.parse(student.preferredCourses) : [],
-      testScores: student.testScores ? JSON.parse(student.testScores) : null,
-      documents: student.documents ? JSON.parse(student.documents) : []
-    }))
+    // Parse JSON fields and apply field-level filtering
+    const processedStudents = students.map(student => {
+      const studentData = {
+        ...student,
+        preferredCountries: student.preferredCountries ? JSON.parse(student.preferredCountries) : [],
+        preferredCourses: student.preferredCourses ? JSON.parse(student.preferredCourses) : [],
+        testScores: student.testScores ? JSON.parse(student.testScores) : null,
+        documents: student.documents ? JSON.parse(student.documents) : []
+      }
+
+      // Apply field-level filtering based on user permissions
+      if (context.fieldPermissions?.length) {
+        // Filter out fields that user doesn't have access to
+        const allowedFields = ['id', 'firstName', 'lastName', 'email', 'status', 'stage', 'createdAt', 'updatedAt', ...context.fieldPermissions]
+        const filteredStudent: any = {}
+        allowedFields.forEach(field => {
+          if (studentData[field] !== undefined) {
+            filteredStudent[field] = studentData[field]
+          }
+        })
+        return filteredStudent
+      }
+      
+      return studentData
+    })
+
+    // Log the activity with branch context
+    await logCreation({
+      userId: user.id,
+      agencyId: agency.id,
+      branchId: user.branchId,
+      entityType: "Student",
+      resourceType: "students",
+      changes: {
+        action: "LIST_STUDENTS",
+        filterCount: total,
+        branchScope: branchAccessLevel,
+        accessibleBranches: accessibleBranches?.length || 0,
+        appliedFilters: Object.keys(enhancedWhere).filter(key => key !== 'agencyId')
+      },
+      ipAddress: context.requestMetadata?.ip,
+      userAgent: context.requestMetadata?.userAgent
+    }, {
+      includeBranchContext: true,
+      includeRBACContext: true,
+      auditLevel: "DETAILED"
+    })
 
     return NextResponse.json({
       students: processedStudents,
@@ -108,33 +213,74 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         pages: Math.ceil(total / limit)
+      },
+      metadata: {
+        branchScope: branchAccessLevel,
+        accessibleBranches,
+        appliedFilters: Object.keys(enhancedWhere).filter(key => key !== 'agencyId'),
+        fieldPermissions: context.fieldPermissions || []
       }
     })
   } catch (error) {
     console.error("Error fetching students:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+// Create a new student with enhanced RBAC checks
+export const POST = requirePermissions([
+  { resource: "students", action: "create" }
+], {
+  resourceType: "students",
+  auditLevel: "COMPREHENSIVE",
+  requireBranch: true
+})(async (request: NextRequest, context) => {
   try {
-    const subdomain = getSubdomainForAPI(request)
-    if (!subdomain) {
-      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
-    }
-
+    const { agency, user, accessibleBranches, branchAccessLevel } = context
     const body = await request.json()
     const validatedData = studentSchema.parse(body)
 
-    const agency = await db.agency.findUnique({
-      where: { subdomain }
-    })
+    // Validate branch access using enhanced RBAC validation
+    if (validatedData.branchId) {
+      const branchAccess = await validateBranchAccess(
+        user.id,
+        validatedData.branchId,
+        "create",
+        "students"
+      )
 
-    if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+      if (!branchAccess.allowed) {
+        return NextResponse.json({ 
+          error: "Branch access denied", 
+          details: branchAccess.reason 
+        }, { status: 403 })
+      }
+    } else {
+      // If no branch specified, use the current user's branch
+      validatedData.branchId = user.branchId
     }
 
-    // Check if email already exists
+    // Validate assigned user if provided
+    if (validatedData.assignedTo) {
+      const assignedUserAccess = await validateBranchAccess(
+        user.id,
+        user.branchId, // Check if user can assign to users in their branch
+        "update",
+        "users"
+      )
+
+      if (!assignedUserAccess.allowed) {
+        return NextResponse.json({ 
+          error: "Cannot assign to specified user", 
+          details: "User assignment access denied" 
+        }, { status: 403 })
+      }
+    } else {
+      // If no assigned user, assign to current user
+      validatedData.assignedTo = user.id
+    }
+
+    // Check if email already exists within the agency
     const existingStudent = await db.student.findFirst({
       where: {
         agencyId: agency.id,
@@ -149,6 +295,7 @@ export async function POST(request: NextRequest) {
     const student = await db.student.create({
       data: {
         agencyId: agency.id,
+        branchId: validatedData.branchId,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         email: validatedData.email,
@@ -168,9 +315,26 @@ export async function POST(request: NextRequest) {
         documents: JSON.stringify([]) // Initialize empty documents array
       },
       include: {
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
+        assignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            title: true
+          }
+        },
         applications: {
           include: {
-            university: true
+            university: true,
+            campus: true,
+            subject: true
           }
         },
         invoices: true,
@@ -188,7 +352,33 @@ export async function POST(request: NextRequest) {
       documents: student.documents ? JSON.parse(student.documents) : []
     }
 
-    return NextResponse.json(processedStudent)
+    // Log enhanced activity with RBAC context
+    await logCreation({
+      userId: user.id,
+      agencyId: agency.id,
+      branchId: validatedData.branchId,
+      entityType: "Student",
+      entityId: student.id,
+      resourceType: "students",
+      resourceName: `${validatedData.firstName} ${validatedData.lastName}`,
+      newValues: {
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        branchId: student.branchId,
+        assignedTo: student.assignedTo,
+        status: student.status,
+        stage: student.stage
+      },
+      ipAddress: context.requestMetadata?.ip,
+      userAgent: context.requestMetadata?.userAgent
+    }, {
+      includeBranchContext: true,
+      includeRBACContext: true,
+      auditLevel: "COMPREHENSIVE"
+    })
+
+    return NextResponse.json(processedStudent, { status: 201 })
   } catch (error) {
     console.error("Error creating student:", error)
     
@@ -201,4 +391,4 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-}
+})

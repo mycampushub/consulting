@@ -1,319 +1,167 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { RBACService, type RBACContext, type PermissionCheck } from './rbac'
+import { UnifiedAuth, type AuthOptions, type AuthContext } from './auth-unified'
+import { EnhancedAuth, type EnhancedAuthOptions, type EnhancedAuthContext } from './auth-enhanced'
 
-export interface AuthOptions {
-  requireAuth?: boolean
-  permissions?: PermissionCheck[]
-  requireAgency?: boolean
-  requireBranch?: boolean
-  allowPublicAccess?: boolean
-}
+// Re-export the main types and interfaces from the unified system
+export type { AuthOptions, AuthContext } from './auth-unified'
+export type { EnhancedAuthOptions, EnhancedAuthContext } from './auth-enhanced'
 
-export class AuthMiddleware {
-  /**
-   * Main middleware function for route protection
-   */
-  static async protect(
-    request: NextRequest,
-    options: AuthOptions = {}
-  ): Promise<{ response: NextResponse | null; user?: any; agency?: any; branch?: any }> {
-    try {
-      // Get authorization header
-      const authHeader = request.headers.get('authorization')
-      const token = authHeader?.replace('Bearer ', '')
-
-      // If no auth required and public access allowed, proceed
-      if (!options.requireAuth && options.allowPublicAccess) {
-        return { response: null }
-      }
-
-      // If auth required but no token provided
-      if (options.requireAuth && !token) {
-        return {
-          response: NextResponse.json(
-            { error: 'Authentication required' },
-            { status: 401 }
-          )
-        }
-      }
-
-      // Get user from token (this would typically use JWT or session)
-      const user = await this.getUserFromToken(token)
-      
-      if (!user && options.requireAuth) {
-        return {
-          response: NextResponse.json(
-            { error: 'Invalid or expired token' },
-            { status: 401 }
-          )
-        }
-      }
-
-      // Check if user is active
-      if (user && user.status !== 'ACTIVE') {
-        return {
-          response: NextResponse.json(
-            { error: 'User account is not active' },
-            { status: 403 }
-          )
-        }
-      }
-
-      // Get agency and branch context
-      const agency = user?.agencyId ? await this.getAgency(user.agencyId) : null
-      const branch = user?.branchId ? await this.getBranch(user.branchId) : null
-
-      // Check agency requirement
-      if (options.requireAgency && !agency) {
-        return {
-          response: NextResponse.json(
-            { error: 'Agency context required' },
-            { status: 403 }
-          )
-        }
-      }
-
-      // Check branch requirement
-      if (options.requireBranch && !branch) {
-        return {
-          response: NextResponse.json(
-            { error: 'Branch context required' },
-            { status: 403 }
-          )
-        }
-      }
-
-      // Check permissions if specified
-      if (options.permissions && options.permissions.length > 0 && user) {
-        const context: RBACContext = {
-          userId: user.id,
-          agencyId: user.agencyId,
-          branchId: user.branchId,
-          ipAddress: this.getClientIP(request),
-          userAgent: request.headers.get('user-agent') || undefined
-        }
-
-        for (const permission of options.permissions) {
-          const decision = await RBACService.checkPermission(user.id, permission, context)
-          
-          // Log access attempt
-          await RBACService.logAccess({
-            userId: user.id,
-            agencyId: user.agencyId,
-            resource: permission.resource,
-            action: permission.action,
-            resourceId: permission.resourceId,
-            result: decision.allowed ? 'ALLOWED' : 'DENIED',
-            reason: decision.reason,
-            ipAddress: context.ipAddress,
-            userAgent: context.userAgent
-          })
-
-          if (!decision.allowed) {
-            return {
-              response: NextResponse.json(
-                { 
-                  error: 'Insufficient permissions',
-                  details: decision.reason,
-                  resource: permission.resource,
-                  action: permission.action
-                },
-                { status: 403 }
-              )
-            }
-          }
-        }
-      }
-
-      return { response: null, user, agency, branch }
-    } catch (error) {
-      console.error('Auth middleware error:', error)
-      return {
-        response: NextResponse.json(
-          { error: 'Internal server error' },
-          { status: 500 }
-        )
-      }
-    }
-  }
-
-  /**
-   * Get user from authentication token
-   * Properly validates JWT tokens using JWTService
-   */
-  private static async getUserFromToken(token: string | null): Promise<any> {
-    if (!token) return null
-
-    try {
-      const { JWTService } = await import('./jwt')
-      
-      // Verify JWT token
-      const decoded = JWTService.verify(token)
-      if (!decoded) {
-        return null
-      }
-
-      const { db } = await import('./db')
-      
-      // Get user with related data
-      const user = await db.user.findUnique({
-        where: { id: decoded.userId },
-        include: {
-          agency: true,
-          branch: true
-        }
-      })
-
-      // Verify user is active and matches the token data
-      if (!user || user.status !== 'ACTIVE') {
-        return null
-      }
-
-      // Verify agency ID matches if present in token
-      if (decoded.agencyId && user.agencyId !== decoded.agencyId) {
-        return null
-      }
-
-      return user
-    } catch (error) {
-      console.error('Error validating token:', error)
-      return null
-    }
-  }
-
-  /**
-   * Get agency by ID
-   */
-  private static async getAgency(agencyId: string): Promise<any> {
-    try {
-      const { db } = await import('./db')
-      return await db.agency.findUnique({
-        where: { id: agencyId }
-      })
-    } catch (error) {
-      console.error('Error getting agency:', error)
-      return null
-    }
-  }
-
-  /**
-   * Get branch by ID
-   */
-  private static async getBranch(branchId: string): Promise<any> {
-    try {
-      const { db } = await import('./db')
-      return await db.branch.findUnique({
-        where: { id: branchId }
-      })
-    } catch (error) {
-      console.error('Error getting branch:', error)
-      return null
-    }
-  }
-
-  /**
-   * Get client IP address from request
-   */
-  private static getClientIP(request: NextRequest): string {
-    return (
-      request.headers.get('x-forwarded-for') ||
-      request.headers.get('x-real-ip') ||
-      request.headers.get('cf-connecting-ip') ||
-      'unknown'
-    )
-  }
-
-  /**
-   * Create route handler with authentication
-   */
-  static withAuth(
-    handler: (request: NextRequest, context: any) => Promise<NextResponse>,
-    options: AuthOptions = {}
-  ) {
-    return async (request: NextRequest, context: any): Promise<NextResponse> => {
-      const authResult = await this.protect(request, options)
-      
-      if (authResult.response) {
-        return authResult.response
-      }
-
-      // Add user context to the handler
-      const enhancedContext = {
-        ...context,
-        user: authResult.user,
-        agency: authResult.agency,
-        branch: authResult.branch
-      }
-
-      return handler(request, enhancedContext)
-    }
-  }
-
-  /**
-   * Require specific permissions for API routes
-   */
-  static requirePermissions(permissions: PermissionCheck[]) {
-    return (handler: (request: NextRequest, context: any) => Promise<NextResponse>) => {
-      return AuthMiddleware.withAuth(handler, {
-        requireAuth: true,
-        permissions
-      })
-    }
-  }
-
-  /**
-   * Require authentication for API routes
-   */
-  static requireAuth(handler: (request: NextRequest, context: any) => Promise<NextResponse>) {
-    return AuthMiddleware.withAuth(handler, {
-      requireAuth: true
-    })
-  }
-
-  /**
-   * Require agency context for API routes
-   */
-  static requireAgency(handler: (request: NextRequest, context: any) => Promise<NextResponse>) {
-    return AuthMiddleware.withAuth(handler, {
-      requireAuth: true,
-      requireAgency: true
-    })
-  }
-
-  /**
-   * Require branch context for API routes
-   */
-  static requireBranch(handler: (request: NextRequest, context: any) => Promise<NextResponse>) {
-    return AuthMiddleware.withAuth(handler, {
-      requireAuth: true,
-      requireAgency: true,
-      requireBranch: true
-    })
-  }
+/**
+ * Require authentication for API routes
+ */
+export function requireAuth(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>) {
+  return UnifiedAuth.requireAuth(handler)
 }
 
 /**
- * Higher-order function for API route protection
+ * Require agency context for API routes
  */
-export function withAuth(
-  handler: (request: NextRequest, context: any) => Promise<NextResponse>,
-  options: AuthOptions = {}
+export function requireAgency(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>) {
+  return UnifiedAuth.requireAgency(handler)
+}
+
+/**
+ * Require permissions for API routes
+ */
+export function requirePermissions(permissions: any[], options: any = {}) {
+  return UnifiedAuth.requirePermissions(permissions, options)
+}
+
+/**
+ * Require branch context for API routes
+ */
+export function requireBranch(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>, branchScope: 'AGENCY' | 'BRANCH' | 'OWN' = 'BRANCH') {
+  return UnifiedAuth.requireBranch(handler, branchScope)
+}
+
+/**
+ * Require agency admin access
+ */
+export function requireAgencyAdmin(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>) {
+  return UnifiedAuth.requireAgencyAdmin(handler)
+}
+
+/**
+ * Require complete permissions with comprehensive checking
+ */
+export function requireCompletePermissions(permissions: any[], options: any = {}) {
+  return UnifiedAuth.requirePermissions(permissions, options)
+}
+
+// ===== Enhanced RBAC Middleware Functions =====
+
+/**
+ * Require enhanced permissions with comprehensive checking
+ */
+export function requireEnhancedPermissions(permissions: any[], options: any = {}) {
+  return UnifiedAuth.requirePermissions(permissions, options)
+}
+
+/**
+ * Require branch context with specific scope
+ */
+export function requireBranchScope(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>, scope: 'GLOBAL' | 'AGENCY' | 'BRANCH' | 'OWN' | 'ASSIGNED' | 'CHILDREN' = 'BRANCH', options: any = {}) {
+  return UnifiedAuth.requireBranch(handler, scope as any)
+}
+
+/**
+ * Require branch manager access
+ */
+export function requireBranchManager(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>, options: any = {}) {
+  return UnifiedAuth.requireBranchManager(handler)
+}
+
+/**
+ * Require agency-wide access
+ */
+export function requireAgencyWide(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>, options: any = {}) {
+  return UnifiedAuth.requireAgency(handler)
+}
+
+/**
+ * Require global access (super admin only)
+ */
+export function requireGlobalAccess(handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>, options: any = {}) {
+  return UnifiedAuth.requireGlobalAccess(handler)
+}
+
+/**
+ * Require resource-specific access with data filtering
+ */
+export function requireResourceAccess(resourceType: string, action: string = 'read', options: any = {}) {
+  return UnifiedAuth.requireResourceAccess(resourceType, action, options)
+}
+
+// ===== New Enhanced Middleware Functions =====
+
+/**
+ * Require enhanced authentication with improved features
+ */
+export function requireEnhancedAuth(handler: (request: NextRequest, context: EnhancedAuthContext) => Promise<NextResponse>) {
+  return EnhancedAuth.requireAuth(handler)
+}
+
+/**
+ * Require enhanced branch context with hierarchy support
+ */
+export function requireEnhancedBranch(
+  handler: (request: NextRequest, context: EnhancedAuthContext) => Promise<NextResponse>, 
+  branchScope: import('./rbac-enhanced').EnhancedBranchAccessLevel = import('./rbac-enhanced').EnhancedBranchAccessLevel.BRANCH,
+  options: Omit<EnhancedAuthOptions, 'requireBranch' | 'branchScope'> = {}
 ) {
-  return AuthMiddleware.withAuth(handler, options)
+  return EnhancedAuth.requireBranch(handler, branchScope, options)
 }
 
 /**
- * Permission requirement decorators
+ * Require enhanced permissions with field-level control
  */
-export const requirePermissions = (permissions: PermissionCheck[]) => 
-  (handler: (request: NextRequest, context: any) => Promise<NextResponse>) =>
-    AuthMiddleware.requirePermissions(permissions)(handler)
+export function requireEnhancedPermissions(
+  permissions: import('./rbac-enhanced').EnhancedPermissionCheck[], 
+  options: Omit<EnhancedAuthOptions, 'permissions'> = {}
+) {
+  return EnhancedAuth.requirePermissions(permissions, options)
+}
 
-export const requireAuth = (handler: (request: NextRequest, context: any) => Promise<NextResponse>) =>
-  AuthMiddleware.requireAuth(handler)
+/**
+ * Require field-level access control
+ */
+export function requireFieldAccess(
+  resourceType: string,
+  field: string,
+  action: string = 'read',
+  options: Omit<EnhancedAuthOptions, 'resourceType' | 'field'> = {}
+) {
+  return EnhancedAuth.requireFieldAccess(resourceType, field, action, options)
+}
 
-export const requireAgency = (handler: (request: NextRequest, context: any) => Promise<NextResponse>) =>
-  AuthMiddleware.requireAgency(handler)
+/**
+ * Require branch hierarchy-aware access
+ */
+export function requireBranchHierarchy(
+  handler: (request: NextRequest, context: EnhancedAuthContext) => Promise<NextResponse>,
+  options: {
+    scope: import('./rbac-enhanced').EnhancedBranchAccessLevel
+    includeChildren?: boolean
+    includeParent?: boolean
+  } & Omit<EnhancedAuthOptions, 'branchScope'>
+) {
+  return EnhancedAuth.requireBranchHierarchy(handler, options)
+}
 
-export const requireBranch = (handler: (request: NextRequest, context: any) => Promise<NextResponse>) =>
-  AuthMiddleware.requireBranch(handler)
+/**
+ * Require delegation-aware access
+ */
+export function requireDelegation(
+  handler: (request: NextRequest, context: EnhancedAuthContext) => Promise<NextResponse>,
+  options: Omit<EnhancedAuthOptions, 'enableDelegation'> = {}
+) {
+  return EnhancedAuth.requireDelegation(handler, options)
+}
+
+// Export the unified middleware classes for advanced usage
+export { UnifiedAuth as AuthMiddleware }
+export { EnhancedAuth as EnhancedAuthMiddleware }
+
+// Export utility functions for backward compatibility
+export { clearUserCache, clearAllCache } from './auth-unified'
+export { EnhancedRBACService } from './rbac-enhanced'

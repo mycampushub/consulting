@@ -21,6 +21,287 @@ async function main() {
 
   console.log('Created agency:', agency.name)
 
+  // Create default permissions for the agency
+  console.log('Creating default permissions...')
+  const defaultPermissions = [
+    // Core permissions
+    { name: 'View Users', slug: 'users.read', resource: 'users', action: 'read', category: 'CORE' },
+    { name: 'Create Users', slug: 'users.create', resource: 'users', action: 'create', category: 'CORE' },
+    { name: 'Update Users', slug: 'users.update', resource: 'users', action: 'update', category: 'CORE' },
+    { name: 'Delete Users', slug: 'users.delete', resource: 'users', action: 'delete', category: 'CORE' },
+    
+    // Student permissions
+    { name: 'View Students', slug: 'students.read', resource: 'students', action: 'read', category: 'CRM' },
+    { name: 'Create Students', slug: 'students.create', resource: 'students', action: 'create', category: 'CRM' },
+    { name: 'Update Students', slug: 'students.update', resource: 'students', action: 'update', category: 'CRM' },
+    { name: 'Delete Students', slug: 'students.delete', resource: 'students', action: 'delete', category: 'CRM' },
+    
+    // Branch permissions
+    { name: 'View Branches', slug: 'branches.read', resource: 'branches', action: 'read', category: 'CORE' },
+    { name: 'Create Branches', slug: 'branches.create', resource: 'branches', action: 'create', category: 'CORE' },
+    { name: 'Update Branches', slug: 'branches.update', resource: 'branches', action: 'update', category: 'CORE' },
+    { name: 'Delete Branches', slug: 'branches.delete', resource: 'branches', action: 'delete', category: 'CORE' },
+    
+    // Application permissions
+    { name: 'View Applications', slug: 'applications.read', resource: 'applications', action: 'read', category: 'CRM' },
+    { name: 'Create Applications', slug: 'applications.create', resource: 'applications', action: 'create', category: 'CRM' },
+    { name: 'Update Applications', slug: 'applications.update', resource: 'applications', action: 'update', category: 'CRM' },
+    { name: 'Delete Applications', slug: 'applications.delete', resource: 'applications', action: 'delete', category: 'CRM' },
+    
+    // Marketing permissions
+    { name: 'View Campaigns', slug: 'campaigns.read', resource: 'campaigns', action: 'read', category: 'MARKETING' },
+    { name: 'Create Campaigns', slug: 'campaigns.create', resource: 'campaigns', action: 'create', category: 'MARKETING' },
+    { name: 'Update Campaigns', slug: 'campaigns.update', resource: 'campaigns', action: 'update', category: 'MARKETING' },
+    { name: 'Delete Campaigns', slug: 'campaigns.delete', resource: 'campaigns', action: 'delete', category: 'MARKETING' },
+    
+    // Analytics permissions
+    { name: 'View Analytics', slug: 'analytics.read', resource: 'analytics', action: 'read', category: 'ANALYTICS' },
+    { name: 'Export Reports', slug: 'analytics.export', resource: 'analytics', action: 'export', category: 'ANALYTICS' },
+    
+    // Settings permissions
+    { name: 'View Settings', slug: 'settings.read', resource: 'settings', action: 'read', category: 'SETTINGS' },
+    { name: 'Update Settings', slug: 'settings.update', resource: 'settings', action: 'update', category: 'SETTINGS' },
+    
+    // Admin permissions
+    { name: 'Manage Roles', slug: 'roles.manage', resource: 'roles', action: 'manage', category: 'ADMIN' },
+    { name: 'Manage Permissions', slug: 'permissions.manage', resource: 'permissions', action: 'manage', category: 'ADMIN' },
+    { name: 'View Audit Logs', slug: 'audit.read', resource: 'audit', action: 'read', category: 'ADMIN' },
+  ]
+
+  for (const permData of defaultPermissions) {
+    await prisma.permission.upsert({
+      where: { slug: permData.slug },
+      update: {},
+      create: {
+        name: permData.name,
+        slug: permData.slug,
+        resource: permData.resource,
+        action: permData.action,
+        category: permData.category,
+        isSystemPermission: true,
+        isActive: true,
+      },
+    })
+  }
+
+  console.log('Created default permissions')
+
+  // Create default roles for the agency
+  console.log('Creating default roles...')
+  const agencyAdminRole = await prisma.role.upsert({
+    where: { 
+      agencyId_slug: {
+        agencyId: agency.id,
+        slug: 'agency-admin'
+      }
+    },
+    update: {},
+    create: {
+      agencyId: agency.id,
+      name: 'Agency Administrator',
+      slug: 'agency-admin',
+      description: 'Full access to all agency resources and settings',
+      level: 100,
+      scope: 'AGENCY',
+      isSystemRole: true,
+      isActive: true,
+    },
+  })
+
+  const consultantRole = await prisma.role.upsert({
+    where: { 
+      agencyId_slug: {
+        agencyId: agency.id,
+        slug: 'consultant'
+      }
+    },
+    update: {},
+    create: {
+      agencyId: agency.id,
+      name: 'Education Consultant',
+      slug: 'consultant',
+      description: 'Can manage students and applications within their branch',
+      level: 50,
+      scope: 'BRANCH',
+      isSystemRole: true,
+      isActive: true,
+    },
+  })
+
+  const supportRole = await prisma.role.upsert({
+    where: { 
+      agencyId_slug: {
+        agencyId: agency.id,
+        slug: 'support'
+      }
+    },
+    update: {},
+    create: {
+      agencyId: agency.id,
+      name: 'Support Specialist',
+      slug: 'support',
+      description: 'Can view and update student information within their branch',
+      level: 30,
+      scope: 'BRANCH',
+      isSystemRole: true,
+      isActive: true,
+    },
+  })
+
+  const studentRole = await prisma.role.upsert({
+    where: { 
+      agencyId_slug: {
+        agencyId: agency.id,
+        slug: 'student'
+      }
+    },
+    update: {},
+    create: {
+      agencyId: agency.id,
+      name: 'Student',
+      slug: 'student',
+      description: 'Limited access to own profile and applications',
+      level: 10,
+      scope: 'INDIVIDUAL',
+      isSystemRole: true,
+      isActive: true,
+    },
+  })
+
+  console.log('Created default roles')
+
+  // Assign permissions to roles
+  console.log('Assigning permissions to roles...')
+  
+  // Agency Admin gets all permissions
+  const allPermissions = await prisma.permission.findMany({
+    where: { isActive: true }
+  })
+
+  for (const permission of allPermissions) {
+    await prisma.rolePermission.upsert({
+      where: { 
+        roleId_permissionId_agencyId_branchId: {
+          roleId: agencyAdminRole.id,
+          permissionId: permission.id,
+          agencyId: agency.id,
+          branchId: ""
+        }
+      },
+      update: {},
+      create: {
+        roleId: agencyAdminRole.id,
+        permissionId: permission.id,
+        agencyId: agency.id,
+        branchId: null,
+        accessLevel: 'FULL',
+        isActive: true,
+      },
+    })
+  }
+
+  // Consultant gets limited permissions
+  const consultantPermissions = [
+    'users.read', 'students.read', 'students.create', 'students.update',
+    'applications.read', 'applications.create', 'applications.update',
+    'branches.read', 'campaigns.read', 'analytics.read'
+  ]
+
+  for (const permSlug of consultantPermissions) {
+    const permission = await prisma.permission.findUnique({
+      where: { slug: permSlug }
+    })
+    if (permission) {
+      await prisma.rolePermission.upsert({
+        where: { 
+          roleId_permissionId_agencyId_branchId: {
+            roleId: consultantRole.id,
+            permissionId: permission.id,
+            agencyId: agency.id,
+            branchId: ""
+          }
+        },
+        update: {},
+        create: {
+          roleId: consultantRole.id,
+          permissionId: permission.id,
+          agencyId: agency.id,
+          branchId: null,
+          accessLevel: 'FULL',
+          isActive: true,
+        },
+      })
+    }
+  }
+
+  // Support gets very limited permissions
+  const supportPermissions = [
+    'users.read', 'students.read', 'students.update',
+    'applications.read', 'applications.update',
+    'branches.read'
+  ]
+
+  for (const permSlug of supportPermissions) {
+    const permission = await prisma.permission.findUnique({
+      where: { slug: permSlug }
+    })
+    if (permission) {
+      await prisma.rolePermission.upsert({
+        where: { 
+          roleId_permissionId_agencyId_branchId: {
+            roleId: supportRole.id,
+            permissionId: permission.id,
+            agencyId: agency.id,
+            branchId: ""
+          }
+        },
+        update: {},
+        create: {
+          roleId: supportRole.id,
+          permissionId: permission.id,
+          agencyId: agency.id,
+          branchId: null,
+          accessLevel: 'EDIT',
+          isActive: true,
+        },
+      })
+    }
+  }
+
+  // Student gets minimal permissions
+  const studentPermissions = [
+    'students.read', 'applications.read'
+  ]
+
+  for (const permSlug of studentPermissions) {
+    const permission = await prisma.permission.findUnique({
+      where: { slug: permSlug }
+    })
+    if (permission) {
+      await prisma.rolePermission.upsert({
+        where: { 
+          roleId_permissionId_agencyId_branchId: {
+            roleId: studentRole.id,
+            permissionId: permission.id,
+            agencyId: agency.id,
+            branchId: null
+          }
+        },
+        update: {},
+        create: {
+          roleId: studentRole.id,
+          permissionId: permission.id,
+          agencyId: agency.id,
+          branchId: null,
+          accessLevel: 'VIEW',
+          isActive: true,
+        },
+      })
+    }
+  }
+
+  console.log('Assigned permissions to roles')
+
   // Create a test user
   const user = await prisma.user.upsert({
     where: { email: 'admin@demo.com' },
@@ -37,6 +318,29 @@ async function main() {
   })
 
   console.log('Created user:', user.email)
+
+  // Assign agency admin role to the user
+  await prisma.userRoleAssignment.upsert({
+    where: { 
+      userId_roleId_agencyId_branchId: {
+        userId: user.id,
+        roleId: agencyAdminRole.id,
+        agencyId: agency.id,
+        branchId: null
+      }
+    },
+    update: {},
+    create: {
+      userId: user.id,
+      roleId: agencyAdminRole.id,
+      agencyId: agency.id,
+      branchId: null,
+      assignedBy: user.id,
+      isActive: true,
+    },
+  })
+
+  console.log('Assigned agency admin role to user')
 
   // Create sample marketing campaigns
   const campaign1 = await prisma.marketingCampaign.create({

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { initializeRBAC } from './src/lib/init-rbac'
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
@@ -81,8 +82,48 @@ function validateToken(token: string): any {
   }
 }
 
+// Initialize RBAC when middleware loads
+let rbacInitialized = false
+
 export async function middleware(request: NextRequest) {
-  // Temporarily bypass all middleware logic for testing
+  // Initialize RBAC system on first request
+  if (!rbacInitialized) {
+    try {
+      await initializeRBAC()
+      rbacInitialized = true
+      console.log('RBAC system initialized via middleware')
+    } catch (error) {
+      console.error('Failed to initialize RBAC system:', error)
+      // Continue without RBAC initialization for now
+    }
+  }
+
+  // Apply rate limiting
+  const ip = getClientIP(request)
+  const url = new URL(request.url)
+  
+  // Check different rate limits based on endpoint
+  let rateLimitKey = `${ip}:${url.pathname}`
+  if (url.pathname.includes('/auth/login')) {
+    rateLimitKey = `login:${ip}`
+  } else if (url.pathname.includes('/api/')) {
+    rateLimitKey = `api:${ip}`
+  }
+  
+  if (!checkRateLimit(rateLimitKey, RATE_LIMITS.api)) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      { status: 429 }
+    )
+  }
+
+  // Check for suspicious requests
+  if (isSuspiciousRequest(request)) {
+    // Log suspicious activity but don't block yet
+    console.warn(`Suspicious request detected from IP: ${ip}`)
+  }
+
+  // Continue with the request
   return NextResponse.next()
 }
 
@@ -90,11 +131,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }

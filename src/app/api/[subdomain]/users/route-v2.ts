@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSubdomainForAPI } from "@/lib/utils"
 import { 
-  requireAgency, 
-  requirePermissions, 
-  withBranchFilter,
-  applyBranchFilter,
-  RBACMiddleware,
-  ResourceType,
+  RBACMiddlewareV2, 
+  ResourceType, 
   PermissionAction,
-  AccessLevel
-} from "@/lib/rbac-middleware"
+  type RBACContextV2
+} from "@/lib/rbac-middleware-v2"
+import { 
+  ActivityLogger,
+  logActivity,
+  logPermissionActivity,
+  logBranchActivity
+} from "@/lib/activity-logger"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
 
@@ -27,14 +29,14 @@ const userSchema = z.object({
 
 const updateUserSchema = userSchema.partial().omit({ password: true })
 
-// Get all users for the agency with enhanced branch-based scoping
-export const GET = requireAgency(
-  withBranchFilter(
-    requirePermissions([
+// Get all users for the agency with enhanced branch-based scoping v2
+export const GET = RBACMiddlewareV2.requireAgency(
+  RBACMiddlewareV2.withBranchFilter(
+    RBACMiddlewareV2.requirePermissions([
       { resource: ResourceType.USERS, action: PermissionAction.READ }
-    ])(async (request: NextRequest, context) => {
+    ])(async (request: NextRequest, context: RBACContextV2) => {
       try {
-        const { agency, user, branch, userContext, branchFilter } = context
+        const { agency, user, userContext, branchFilter } = context
         const { searchParams } = new URL(request.url)
         const page = parseInt(searchParams.get("page") || "1")
         const limit = parseInt(searchParams.get("limit") || "20")
@@ -59,7 +61,7 @@ export const GET = requireAgency(
         }
 
         // Additional branch filtering for users with higher access levels
-        if (userContext.accessLevel === AccessLevel.AGENCY || userContext.accessLevel === AccessLevel.GLOBAL) {
+        if (userContext.accessLevel === 'AGENCY' || userContext.accessLevel === 'GLOBAL') {
           // Agency admins and global admins can filter by specific branch
           if (branchId) {
             where.branchId = branchId
@@ -133,8 +135,15 @@ export const GET = requireAgency(
         const usersWithAccessInfo = users.map(u => ({
           ...u,
           accessLevel: userContext.accessibleBranches.includes(u.branchId || '') ? 'accessible' : 'restricted',
-          canManage: userContext.managedBranches.includes(u.branchId || '') || userContext.accessLevel === AccessLevel.AGENCY
+          canManage: userContext.managedBranches.includes(u.branchId || '') || userContext.accessLevel === 'AGENCY'
         }))
+
+        // Log data access activity
+        await logDataAccess(user.id, 'DATA_VIEWED', 'User', '', {
+          filter: { search, role, status, branchId },
+          count: total,
+          format: 'json'
+        })
 
         return NextResponse.json({
           users: usersWithAccessInfo,
@@ -147,11 +156,19 @@ export const GET = requireAgency(
           userContext: {
             accessLevel: userContext.accessLevel,
             accessibleBranches: userContext.accessibleBranches,
-            managedBranches: userContext.managedBranches
+            managedBranches: userContext.managedBranches,
+            effectiveRole: userContext.effectiveRole
           }
         })
       } catch (error) {
         console.error("Error fetching users:", error)
+        
+        // Log system event for error
+        await logSystemEvent('USERS_FETCH_ERROR', agency.id, {
+          component: 'users-api',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        })
+
         return NextResponse.json({ error: "Internal server error" }, { status: 500 })
       }
     }),
@@ -163,13 +180,13 @@ export const GET = requireAgency(
   )
 )
 
-// Create a new user with enhanced RBAC checks
-export const POST = requireAgency(
-  requirePermissions([
+// Create a new user with enhanced RBAC checks v2
+export const POST = RBACMiddlewareV2.requireAgency(
+  RBACMiddlewareV2.requirePermissions([
     { resource: ResourceType.USERS, action: PermissionAction.CREATE }
-  ])(async (request: NextRequest, context) => {
+  ])(async (request: NextRequest, context: RBACContextV2) => {
     try {
-      const { agency, user, branch, userContext, accessDecision } = context
+      const { agency, user, userContext, accessDecision } = context
       const body = await request.json()
       const validatedData = userSchema.parse(body)
 
@@ -177,6 +194,13 @@ export const POST = requireAgency(
       if (validatedData.branchId) {
         const canAccessBranch = userContext.accessibleBranches.includes(validatedData.branchId)
         if (!canAccessBranch) {
+          // Log permission denied activity
+          await logPermissionActivity(user.id, 'PERMISSION_DENIED', 'User', '', {
+            targetUserId: '',
+            reason: 'Cannot create user for inaccessible branch',
+            context: userContext
+          })
+
           return NextResponse.json({ 
             error: "Cannot create user for inaccessible branch",
             accessibleBranches: userContext.accessibleBranches 
@@ -184,12 +208,19 @@ export const POST = requireAgency(
         }
 
         // Additional validation for branch management
-        if (userContext.accessLevel === AccessLevel.BRANCH || userContext.accessLevel === AccessLevel.OWN) {
+        if (userContext.accessLevel === 'BRANCH' || userContext.accessLevel === 'OWN') {
           const canManageBranch = userContext.managedBranches.includes(validatedData.branchId)
           if (!canManageBranch && validatedData.branchId !== userContext.branchId) {
+            await logPermissionActivity(user.id, 'PERMISSION_DENIED', 'User', '', {
+              targetUserId: '',
+              reason: 'Insufficient privileges to create user for this branch',
+              context: userContext
+            })
+
             return NextResponse.json({ 
               error: "Insufficient privileges to create user for this branch",
-              requiredAccess: "Branch manager or higher"
+              requiredAccess: "Branch manager or higher",
+              currentAccessLevel: userContext.accessLevel
             }, { status: 403 })
           }
         }
@@ -253,7 +284,7 @@ export const POST = requireAgency(
           slug: defaultRoleSlug,
           isActive: true,
           // Ensure role scope is appropriate for user's access level
-          ...(userContext.accessLevel === AccessLevel.OWN && { scope: 'BRANCH' })
+          ...(userContext.accessLevel === 'OWN' && { scope: 'BRANCH' })
         }
       })
 
@@ -267,40 +298,74 @@ export const POST = requireAgency(
             assignedBy: user.id
           }
         })
+
+        // Log role assignment activity
+        await logPermissionActivity(user.id, 'ROLE_ASSIGNED', 'User', newUser.id, {
+          targetUserId: newUser.id,
+          roleId: defaultRole.id,
+          context: userContext
+        })
       }
 
       // Enhanced activity logging with branch context
-      await db.activityLog.create({
-        data: {
-          agencyId: agency.id,
-          userId: user.id,
-          action: "USER_CREATED",
-          entityType: "User",
-          entityId: newUser.id,
-          changes: JSON.stringify({
-            name: newUser.name,
-            email: newUser.email,
-            role: newUser.role,
-            branchId: newUser.branchId,
-            createdByAccessLevel: userContext.accessLevel,
-            createdFromBranch: userContext.branchId
-          })
+      await logActivity({
+        userId: user.id,
+        agencyId: agency.id,
+        branchId: userContext.branchId,
+        action: "USER_CREATED",
+        entityType: "User",
+        entityId: newUser.id,
+        changes: {
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          branchId: newUser.branchId,
+          createdByAccessLevel: userContext.accessLevel,
+          createdFromBranch: userContext.branchId,
+          userContext: {
+            accessLevel: userContext.accessLevel,
+            effectiveRole: userContext.effectiveRole,
+            accessibleBranches: userContext.accessibleBranches
+          }
+        },
+        metadata: {
+          category: 'USER_ACTION',
+          severity: 'INFO'
         }
       })
 
+      // Log branch activity if user is assigned to a different branch
+      if (validatedData.branchId && validatedData.branchId !== userContext.branchId) {
+        await logBranchActivity(user.id, 'BRANCH_ACCESS_GRANTED', validatedData.branchId, {
+          targetUserId: newUser.id,
+          branchName: (await db.branch.findUnique({ 
+            where: { id: validatedData.branchId }, 
+            select: { name: true } 
+          }))?.name,
+          reason: 'User assigned to branch during creation'
+        })
+      }
+
       // Clear user cache to ensure fresh permissions
-      RBACMiddleware.clearUserCache(user.id)
+      RBACMiddlewareV2.clearUserCache(user.id)
 
       return NextResponse.json({
         ...newUser,
         accessInfo: {
           accessLevel: userContext.accessLevel,
           accessibleBranches: userContext.accessibleBranches,
+          managedBranches: userContext.managedBranches,
           roleAssigned: defaultRole?.name || null
         }
       }, { status: 201 })
     } catch (error) {
       console.error("Error creating user:", error)
+      
+      // Log system event for error
+      await logSystemEvent('USER_CREATE_ERROR', context.agency?.id || '', {
+        component: 'users-api',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       
       if (error instanceof z.ZodError) {
         return NextResponse.json(

@@ -213,7 +213,8 @@ import {
   Globe
 } from "lucide-react"
 
-import ReactFlow, {
+import {
+  ReactFlow,
   Controls,
   Background,
   applyNodeChanges,
@@ -230,8 +231,8 @@ import ReactFlow, {
   Panel,
   useReactFlow,
   ReactFlowProvider,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 
 interface Workflow {
   id: string
