@@ -193,7 +193,7 @@ async function main() {
         roleId: agencyAdminRole.id,
         permissionId: permission.id,
         agencyId: agency.id,
-        branchId: null,
+        branchId: "",
         accessLevel: 'FULL',
         isActive: true,
       },
@@ -226,7 +226,7 @@ async function main() {
           roleId: consultantRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: null,
+          branchId: "",
           accessLevel: 'FULL',
           isActive: true,
         },
@@ -260,7 +260,7 @@ async function main() {
           roleId: supportRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: null,
+          branchId: "",
           accessLevel: 'EDIT',
           isActive: true,
         },
@@ -284,7 +284,7 @@ async function main() {
             roleId: studentRole.id,
             permissionId: permission.id,
             agencyId: agency.id,
-            branchId: null
+            branchId: ""
           }
         },
         update: {},
@@ -292,7 +292,7 @@ async function main() {
           roleId: studentRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: null,
+          branchId: "",
           accessLevel: 'VIEW',
           isActive: true,
         },
@@ -326,7 +326,7 @@ async function main() {
         userId: user.id,
         roleId: agencyAdminRole.id,
         agencyId: agency.id,
-        branchId: null
+        branchId: ""
       }
     },
     update: {},
@@ -334,7 +334,7 @@ async function main() {
       userId: user.id,
       roleId: agencyAdminRole.id,
       agencyId: agency.id,
-      branchId: null,
+      branchId: "",
       assignedBy: user.id,
       isActive: true,
     },

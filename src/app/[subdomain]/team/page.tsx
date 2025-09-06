@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Plus, 
   Search, 
@@ -214,15 +215,74 @@ export default function TeamPage() {
   const params = useParams()
   const subdomain = params.subdomain as string
   
-  const [teamMembers] = useState<TeamMember[]>(mockTeamMembers)
-  const [roles] = useState<Role[]>(mockRoles)
-  const [departments] = useState<Department[]>(mockDepartments)
-  const [loading, setLoading] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [roles, setRoles] = useState<Role[]>(mockRoles)
+  const [departments, setDepartments] = useState<Department[]>(mockDepartments)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+
+  useEffect(() => {
+    fetchTeamMembers()
+  }, [subdomain])
+
+  const fetchTeamMembers = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`/api/${subdomain}/users?limit=50`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch team members')
+      }
+      
+      const data = await response.json()
+      setTeamMembers(data.users || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Fallback to mock data if API fails
+      setTeamMembers(mockTeamMembers)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleInviteMember = async (formData: FormData) => {
+    try {
+      const inviteData = {
+        email: formData.get('email') as string,
+        name: formData.get('name') as string,
+        role: formData.get('role') as string,
+        department: formData.get('department') as string,
+        title: formData.get('title') as string,
+        message: formData.get('message') as string,
+      }
+
+      const response = await fetch(`/api/${subdomain}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inviteData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to send invitation')
+      }
+
+      await fetchTeamMembers()
+      setIsInviteOpen(false)
+      
+      // Show success message
+      alert('Invitation sent successfully!')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to send invitation')
+    }
+  }
 
   const filteredTeamMembers = teamMembers.filter(member => {
     const matchesSearch = member.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -273,7 +333,29 @@ export default function TeamPage() {
   }
 
   const activeMembers = teamMembers.filter(m => m.status === "ACTIVE")
-  const avgPerformance = teamMembers.reduce((sum, m) => sum + (m.performance || 0), 0) / teamMembers.length
+  const avgPerformance = teamMembers.length > 0 ? teamMembers.reduce((sum, m) => sum + (m.performance || 0), 0) / teamMembers.length : 0
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading team members...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Alert className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -295,14 +377,18 @@ export default function TeamPage() {
               <DialogTitle>Invite Team Member</DialogTitle>
               <DialogDescription>Send an invitation to join your team</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <form action={handleInviteMember} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" name="name" placeholder="John Doe" required />
+              </div>
               <div>
                 <Label htmlFor="email">Email Address</Label>
-                <Input id="email" type="email" placeholder="colleague@company.com" />
+                <Input id="email" name="email" type="email" placeholder="colleague@company.com" required />
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
-                <Select>
+                <Select name="role" required>
                   <SelectTrigger>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
@@ -316,7 +402,7 @@ export default function TeamPage() {
               </div>
               <div>
                 <Label htmlFor="department">Department</Label>
-                <Select>
+                <Select name="department" required>
                   <SelectTrigger>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
@@ -329,21 +415,21 @@ export default function TeamPage() {
               </div>
               <div>
                 <Label htmlFor="title">Job Title</Label>
-                <Input id="title" placeholder="e.g., Senior Consultant" />
+                <Input id="title" name="title" placeholder="e.g., Senior Consultant" required />
               </div>
               <div>
                 <Label htmlFor="message">Personal Message (Optional)</Label>
-                <Textarea id="message" placeholder="Add a personal note to the invitation" />
+                <Textarea id="message" name="message" placeholder="Add a personal note to the invitation" />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsInviteOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={() => setIsInviteOpen(false)}>
+                <Button type="submit">
                   Send Invitation
                 </Button>
               </DialogFooter>
-            </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>

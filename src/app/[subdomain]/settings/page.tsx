@@ -226,15 +226,58 @@ export default function SettingsPage() {
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(mockSecuritySettings)
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(mockIntegrationSettings)
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("general")
 
-  const handleSaveSettings = async () => {
-    setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
+  useEffect(() => {
+    fetchSettings()
+  }, [subdomain])
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`/api/${subdomain}/settings`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch settings')
+      }
+      
+      const data = await response.json()
+      setAgencySettings(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      // Keep mock data as fallback
+    } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSaveSettings = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(agencySettings),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings')
+      }
+
+      const result = await response.json()
+      
       // Show success message
-    }, 1000)
+      alert('Settings saved successfully!')
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,8 +296,8 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Settings</h1>
           <p className="text-muted-foreground">Configure your agency preferences and settings</p>
         </div>
-        <Button onClick={handleSaveSettings} disabled={loading}>
-          {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+        <Button onClick={handleSaveSettings} disabled={saving}>
+          {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           Save Changes
         </Button>
       </div>
