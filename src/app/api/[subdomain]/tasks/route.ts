@@ -4,82 +4,115 @@ import { getSubdomainForAPI } from '@/lib/utils'
 
 export async function GET(request: NextRequest) {
   try {
-    // Simple subdomain extraction from URL path
-    const url = new URL(request.url)
-    const pathname = url.pathname
-    const pathParts = pathname.split('/').filter(Boolean)
-    let subdomain = null
+    const subdomain = getSubdomainForAPI(request)
     
-    // Extract subdomain from path like /api/testagency/tasks
-    if (pathParts.length > 1 && pathParts[0] === 'api') {
-      subdomain = pathParts[1]
-    }
-    
-    console.log('Tasks API - Path:', pathname, 'Subdomain:', subdomain)
+    console.log('Tasks API - Subdomain:', subdomain)
     
     if (!subdomain) {
-      return NextResponse.json({ error: 'Subdomain required', debug: { pathname, pathParts } }, { status: 400 })
+      return NextResponse.json({ error: 'Subdomain required' }, { status: 400 })
     }
 
-    // Return mock tasks for testing
-    const mockTasks = [
-      {
-        id: '1',
-        title: 'Follow up with John Doe',
-        description: 'Call the prospective student about application status',
-        type: 'FOLLOW_UP',
-        category: 'GENERAL',
-        status: 'PENDING',
-        priority: 'MEDIUM',
-        progress: 0,
-        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        estimatedHours: 1,
-        actualHours: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        assignee: {
-          id: '2',
-          name: 'Sarah Johnson',
-          email: 'consultant1@demo.com'
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+    const status = searchParams.get("status")
+    const assignedTo = searchParams.get("assignedTo")
+    const studentId = searchParams.get("studentId")
+    const priority = searchParams.get("priority")
+    const type = searchParams.get("type")
+
+    const where: any = {
+      agencyId: agency.id,
+      ...(status && { status }),
+      ...(assignedTo && { assignedTo }),
+      ...(studentId && { studentId }),
+      ...(priority && { priority }),
+      ...(type && { type })
+    }
+
+    const [tasks, total] = await Promise.all([
+      db.task.findMany({
+        where,
+        include: {
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true
+            }
+          },
+          assigner: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          lead: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true
+            }
+          },
+          application: {
+            select: {
+              id: true,
+              program: true,
+              status: true
+            }
+          },
+          university: {
+            select: {
+              id: true,
+              name: true,
+              country: true
+            }
+          },
+          dependency: {
+            select: {
+              id: true,
+              title: true,
+              status: true
+            }
+          }
         },
-        taskComments: [],
-        taskTimeLogs: [],
-        taskAttachments: [],
-        taskAssignments: []
-      },
-      {
-        id: '2',
-        title: 'Review application documents',
-        description: 'Check and verify all submitted documents for university application',
-        type: 'DOCUMENT_REVIEW',
-        category: 'GENERAL',
-        status: 'IN_PROGRESS',
-        priority: 'HIGH',
-        progress: 50,
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        estimatedHours: 2,
-        actualHours: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        assignee: {
-          id: '3',
-          name: 'Michael Chen',
-          email: 'consultant2@demo.com'
-        },
-        taskComments: [],
-        taskTimeLogs: [],
-        taskAttachments: [],
-        taskAssignments: []
-      }
-    ]
+        orderBy: [
+          { priority: 'desc' },
+          { dueDate: 'asc' },
+          { createdAt: 'desc' }
+        ],
+        skip: (page - 1) * limit,
+        take: limit
+      }),
+      db.task.count({ where })
+    ])
 
     return NextResponse.json({
-      tasks: mockTasks,
+      tasks,
       pagination: {
-        page: 1,
-        limit: 20,
-        total: mockTasks.length,
-        pages: 1
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
       }
     })
   } catch (error) {
@@ -90,21 +123,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Simple subdomain extraction from URL path (same as GET method)
-    const url = new URL(request.url)
-    const pathname = url.pathname
-    const pathParts = pathname.split('/').filter(Boolean)
-    let subdomain = null
+    const subdomain = getSubdomainForAPI(request)
     
-    // Extract subdomain from path like /api/testagency/tasks
-    if (pathParts.length > 1 && pathParts[0] === 'api') {
-      subdomain = pathParts[1]
-    }
-    
-    console.log('Tasks API POST - Path:', pathname, 'Subdomain:', subdomain)
+    console.log('Tasks API POST - Subdomain:', subdomain)
     
     if (!subdomain) {
-      return NextResponse.json({ error: 'Subdomain required', debug: { pathname, pathParts } }, { status: 400 })
+      return NextResponse.json({ error: 'Subdomain required' }, { status: 400 })
+    }
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
     }
 
     const body = await request.json()
@@ -135,15 +167,6 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
-    }
-
-    // Get agency
-    const agency = await db.agency.findUnique({
-      where: { subdomain }
-    })
-
-    if (!agency) {
-      return NextResponse.json({ error: 'Agency not found' }, { status: 404 })
     }
 
     // Validate foreign key references if provided
@@ -331,6 +354,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(task, { status: 201 })
   } catch (error) {
     console.error('Error creating task:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 })
   }
 }

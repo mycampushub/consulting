@@ -24,49 +24,76 @@ import {
 interface AnalyticsData {
   students: {
     total: number
-    active: number
-    newThisMonth: number
-    conversionRate: number
     byStatus: Record<string, number>
     byStage: Record<string, number>
-    byCountry: Record<string, number>
+    thisMonth: number
+    lastMonth: number
   }
   applications: {
     total: number
-    active: number
-    completed: number
-    avgProcessingTime: number
-    successRate: number
     byStatus: Record<string, number>
-    byUniversity: Record<string, number>
+    thisMonth: number
+    lastMonth: number
   }
-  marketing: {
-    totalLeads: number
-    conversionRate: number
-    costPerLead: number
-    roi: number
-    campaigns: {
-      active: number
-      totalSent: number
-      openRate: number
-      clickRate: number
-    }
+  universities: {
+    total: number
+    partners: number
+    byPartnershipLevel: Record<string, number>
+    avgRanking: number
   }
-  financial: {
+  users: {
+    total: number
+    byRole: Record<string, number>
+    byStatus: Record<string, number>
+    activeThisMonth: number
+  }
+  tasks: {
+    total: number
+    byStatus: Record<string, number>
+    byPriority: Record<string, number>
+    overdue: number
+    completedThisWeek: number
+  }
+  revenue: {
     totalRevenue: number
-    monthlyRevenue: number
-    avgTransactionValue: number
-    outstandingInvoices: number
-    revenueByMonth: Array<{
-      month: string
-      revenue: number
-    }>
+    thisMonthRevenue: number
+    lastMonthRevenue: number
+    byStatus: Record<string, number>
   }
   performance: {
-    studentSatisfaction: number
-    applicationProcessing: number
-    teamEfficiency: number
-    overall: number
+    conversionRate: number
+    applicationSuccessRate: number
+    avgProcessingTime: number
+    studentGrowthRate: number
+    revenueGrowthRate: number
+  }
+  realTimeMetrics: {
+    activeUsers: number
+    activeApplications: number
+    todayActivities: number
+    systemHealth: string
+  }
+  recentActivities: Array<{
+    id: string
+    type: string
+    action: string
+    user: string
+    timestamp: Date
+    details: any
+  }>
+  summary: {
+    totalStudents: number
+    activeApplications: number
+    totalUniversities: number
+    partnerUniversities: number
+    monthlyRevenue: number
+    teamMembers: number
+    conversionRate: number
+    avgProcessingTime: number
+    totalTasks: number
+    pendingTasks: number
+    overdueTasks: number
+    completedTasksThisWeek: number
   }
 }
 
@@ -190,7 +217,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{analytics.students.total}</div>
                 <p className="text-xs text-muted-foreground">
-                  +{analytics.students.newThisMonth} this month
+                  +{analytics.students.thisMonth} this month
                 </p>
               </CardContent>
             </Card>
@@ -203,7 +230,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{analytics.applications.total}</div>
                 <p className="text-xs text-muted-foreground">
-                  {analytics.applications.successRate}% success rate
+                  {analytics.performance.applicationSuccessRate}% success rate
                 </p>
               </CardContent>
             </Card>
@@ -215,10 +242,10 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${(analytics.financial.totalRevenue / 1000).toFixed(1)}K
+                  ${(analytics.revenue.totalRevenue / 1000).toFixed(1)}K
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  ${analytics.financial.monthlyRevenue.toLocaleString()} this month
+                  ${analytics.revenue.thisMonthRevenue.toLocaleString()} this month
                 </p>
               </CardContent>
             </Card>
@@ -229,7 +256,7 @@ export default function AnalyticsPage() {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analytics.students.conversionRate}%</div>
+                <div className="text-2xl font-bold">{analytics.performance.conversionRate}%</div>
                 <p className="text-xs text-muted-foreground">
                   Student conversion
                 </p>
@@ -241,12 +268,12 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Student Satisfaction</CardTitle>
+                <CardTitle className="text-base">Active Users</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
-                    <div className="text-2xl font-bold">{analytics.performance.studentSatisfaction}%</div>
+                    <div className="text-2xl font-bold">{analytics.realTimeMetrics.activeUsers}</div>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-500" />
                 </div>
@@ -260,7 +287,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
-                    <div className="text-2xl font-bold">{analytics.performance.applicationProcessing}%</div>
+                    <div className="text-2xl font-bold">{analytics.performance.avgProcessingTime} days</div>
                   </div>
                   <TrendingUp className="h-8 w-8 text-blue-500" />
                 </div>
@@ -274,7 +301,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
-                    <div className="text-2xl font-bold">{analytics.performance.teamEfficiency}%</div>
+                    <div className="text-2xl font-bold">{analytics.performance.studentGrowthRate}%</div>
                   </div>
                   <Users className="h-8 w-8 text-purple-500" />
                 </div>
@@ -283,12 +310,12 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Overall Performance</CardTitle>
+                <CardTitle className="text-base">Revenue Growth</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center space-x-2">
                   <div className="flex-1">
-                    <div className="text-2xl font-bold">{analytics.performance.overall}%</div>
+                    <div className="text-2xl font-bold">{analytics.performance.revenueGrowthRate}%</div>
                   </div>
                   <BarChart3 className="h-8 w-8 text-orange-500" />
                 </div>
@@ -365,17 +392,25 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Universities</CardTitle>
-                <CardDescription>Most popular universities by application count</CardDescription>
+                <CardTitle>Application Overview</CardTitle>
+                <CardDescription>Application processing metrics</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Object.entries(analytics.applications.byUniversity).slice(0, 5).map(([university, count]) => (
-                    <div key={university} className="flex items-center justify-between">
-                      <span>{university}</span>
-                      <Badge variant="secondary">{count}</Badge>
-                    </div>
-                  ))}
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span>This Month</span>
+                  <Badge>{analytics.applications.thisMonth}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Month</span>
+                  <Badge>{analytics.applications.lastMonth}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Success Rate</span>
+                  <Badge>{analytics.performance.applicationSuccessRate}%</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Avg Processing Time</span>
+                  <Badge>{analytics.performance.avgProcessingTime} days</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -386,51 +421,43 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Marketing Performance</CardTitle>
-                <CardDescription>Key marketing metrics and ROI</CardDescription>
+                <CardTitle>Revenue Overview</CardTitle>
+                <CardDescription>Financial performance metrics</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
-                  <span>Total Leads</span>
-                  <Badge>{analytics.marketing.totalLeads}</Badge>
+                  <span>Total Revenue</span>
+                  <Badge>${analytics.revenue.totalRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Conversion Rate</span>
-                  <Badge>{analytics.marketing.conversionRate}%</Badge>
+                  <span>This Month</span>
+                  <Badge>${analytics.revenue.thisMonthRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Cost Per Lead</span>
-                  <Badge>${analytics.marketing.costPerLead}</Badge>
+                  <span>Last Month</span>
+                  <Badge>${analytics.revenue.lastMonthRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>ROI</span>
-                  <Badge className="bg-green-100 text-green-800">{analytics.marketing.roi}x</Badge>
+                  <span>Growth Rate</span>
+                  <Badge className={analytics.performance.revenueGrowthRate >= 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                    {analytics.performance.revenueGrowthRate >= 0 ? '+' : ''}{analytics.performance.revenueGrowthRate}%
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Campaign Performance</CardTitle>
-                <CardDescription>Email and campaign metrics</CardDescription>
+                <CardTitle>Revenue by Status</CardTitle>
+                <CardDescription>Breakdown of revenue by invoice status</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Active Campaigns</span>
-                  <Badge>{analytics.marketing.campaigns.active}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Sent</span>
-                  <Badge>{analytics.marketing.campaigns.totalSent}</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>Open Rate</span>
-                  <Badge>{analytics.marketing.campaigns.openRate}%</Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span>Click Rate</span>
-                  <Badge>{analytics.marketing.campaigns.clickRate}%</Badge>
-                </div>
+                {Object.entries(analytics.revenue.byStatus).map(([status, amount]) => (
+                  <div key={status} className="flex justify-between">
+                    <span className="capitalize">{status.replace('_', ' ')}</span>
+                    <Badge variant="secondary">${amount.toLocaleString()}</Badge>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -446,37 +473,37 @@ export default function AnalyticsPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span>Total Revenue</span>
-                  <Badge>${analytics.financial.totalRevenue.toLocaleString()}</Badge>
+                  <Badge>${analytics.revenue.totalRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Monthly Revenue</span>
-                  <Badge>${analytics.financial.monthlyRevenue.toLocaleString()}</Badge>
+                  <span>This Month</span>
+                  <Badge>${analytics.revenue.thisMonthRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Avg Transaction Value</span>
-                  <Badge>${analytics.financial.avgTransactionValue}</Badge>
+                  <span>Last Month</span>
+                  <Badge>${analytics.revenue.lastMonthRevenue.toLocaleString()}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span>Outstanding Invoices</span>
-                  <Badge variant="destructive">{analytics.financial.outstandingInvoices}</Badge>
+                  <span>Growth Rate</span>
+                  <Badge className={analytics.performance.revenueGrowthRate >= 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                    {analytics.performance.revenueGrowthRate >= 0 ? '+' : ''}{analytics.performance.revenueGrowthRate}%
+                  </Badge>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Revenue Trend</CardTitle>
-                <CardDescription>Monthly revenue over time</CardDescription>
+                <CardTitle>Revenue by Status</CardTitle>
+                <CardDescription>Invoice status breakdown</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {analytics.financial.revenueByMonth.slice(-6).map((item) => (
-                    <div key={item.month} className="flex justify-between">
-                      <span>{item.month}</span>
-                      <Badge>${item.revenue.toLocaleString()}</Badge>
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="space-y-4">
+                {Object.entries(analytics.revenue.byStatus).map(([status, amount]) => (
+                  <div key={status} className="flex justify-between">
+                    <span className="capitalize">{status.replace('_', ' ')}</span>
+                    <Badge variant="secondary">${amount.toLocaleString()}</Badge>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -492,54 +519,81 @@ export default function AnalyticsPage() {
               <CardContent className="space-y-6">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span>Student Satisfaction</span>
-                    <Badge>{analytics.performance.studentSatisfaction}%</Badge>
+                    <span>Conversion Rate</span>
+                    <Badge>{analytics.performance.conversionRate}%</Badge>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-green-500 h-2 rounded-full" 
-                      style={{ width: `${analytics.performance.studentSatisfaction}%` }}
+                      style={{ width: `${Math.min(analytics.performance.conversionRate, 100)}%` }}
                     ></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span>Application Processing</span>
-                    <Badge>{analytics.performance.applicationProcessing}%</Badge>
+                    <span>Application Success Rate</span>
+                    <Badge>{analytics.performance.applicationSuccessRate}%</Badge>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-500 h-2 rounded-full" 
-                      style={{ width: `${analytics.performance.applicationProcessing}%` }}
+                      style={{ width: `${Math.min(analytics.performance.applicationSuccessRate, 100)}%` }}
                     ></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span>Team Efficiency</span>
-                    <Badge>{analytics.performance.teamEfficiency}%</Badge>
+                    <span>Student Growth</span>
+                    <Badge>{analytics.performance.studentGrowthRate}%</Badge>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-purple-500 h-2 rounded-full" 
-                      style={{ width: `${analytics.performance.teamEfficiency}%` }}
+                      style={{ width: `${Math.min(Math.max(analytics.performance.studentGrowthRate + 50, 0), 100)}%` }}
                     ></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span>Overall Performance</span>
-                    <Badge>{analytics.performance.overall}%</Badge>
+                    <span>Revenue Growth</span>
+                    <Badge>{analytics.performance.revenueGrowthRate}%</Badge>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-orange-500 h-2 rounded-full" 
-                      style={{ width: `${analytics.performance.overall}%` }}
+                      style={{ width: `${Math.min(Math.max(analytics.performance.revenueGrowthRate + 50, 0), 100)}%` }}
                     ></div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Real-time Metrics</CardTitle>
+                <CardDescription>Current system status</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span>Active Users</span>
+                  <Badge>{analytics.realTimeMetrics.activeUsers}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Active Applications</span>
+                  <Badge>{analytics.realTimeMetrics.activeApplications}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>Today's Activities</span>
+                  <Badge>{analytics.realTimeMetrics.todayActivities}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span>System Health</span>
+                  <Badge className={analytics.realTimeMetrics.systemHealth === 'HEALTHY' ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                    {analytics.realTimeMetrics.systemHealth}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -225,6 +225,8 @@ import ReactFlow, {
   Panel,
   useReactFlow,
   ReactFlowProvider,
+  MarkerType,
+  Position,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
@@ -247,10 +249,20 @@ interface WorkflowEdge {
   id: string
   source: string
   target: string
+  sourceHandle?: string
+  targetHandle?: string
   label?: string
-  type?: string
+  type?: 'smoothstep' | 'bezier' | 'straight' | 'step'
   animated?: boolean
   style?: any
+  markerEnd?: any
+  data?: {
+    condition?: string
+    validation?: boolean
+    errorHandling?: string
+    priority?: number
+    description?: string
+  }
 }
 
 // Custom Node Component
@@ -277,8 +289,18 @@ const CustomNode = ({ data, selected }: { data: any; selected: boolean }) => {
     }
   }
 
+  const getStatusIndicator = () => {
+    if (data.status === 'error') return 'bg-red-500'
+    if (data.status === 'success') return 'bg-green-500'
+    if (data.status === 'running') return 'bg-yellow-500'
+    return 'bg-gray-400'
+  }
+
   return (
     <div className={`relative group ${selected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+      {/* Status indicator */}
+      <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${getStatusIndicator()} border-2 border-white`}></div>
+      
       <div className={`${getNodeStyle(data.type)} text-white border-2 rounded-lg p-4 min-w-[200px] shadow-lg transform transition-all duration-200 hover:scale-105 hover:shadow-xl`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -303,10 +325,32 @@ const CustomNode = ({ data, selected }: { data: any; selected: boolean }) => {
           </Badge>
         )}
         
-        {/* Connection handles */}
-        <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair"></div>
-        <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair"></div>
+        {/* Enhanced Connection Handles */}
+        {data.inputs && data.inputs.map((input: string, index: number) => (
+          <div
+            key={`input-${index}`}
+            className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
+            data-handleid={`input-${index}`}
+            data-handlepos="left"
+          ></div>
+        ))}
+        
+        {data.outputs && data.outputs.map((output: string, index: number) => (
+          <div
+            key={`output-${index}`}
+            className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-current cursor-crosshair hover:scale-110 transition-transform"
+            data-handleid={`output-${index}`}
+            data-handlepos="right"
+          ></div>
+        ))}
       </div>
+      
+      {/* Node validation indicator */}
+      {data.validationError && (
+        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+          {data.validationError}
+        </div>
+      )}
     </div>
   )
 }
@@ -332,6 +376,7 @@ const WorkflowBuilder = ({
   const safeInitialNodes = Array.isArray(initialNodes) ? initialNodes : []
   const safeInitialEdges = Array.isArray(initialEdges) ? initialEdges : []
   
+  // State management
   const [nodes, setNodes] = useState<Node[]>(safeInitialNodes.map(node => ({
     id: node.id,
     type: 'custom',
@@ -342,37 +387,175 @@ const WorkflowBuilder = ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
+    sourceHandle: edge.sourceHandle,
+    targetHandle: edge.targetHandle,
     label: edge.label,
     type: edge.type || 'smoothstep',
     animated: edge.animated || false,
-    style: edge.style
+    style: edge.style || { stroke: '#3b82f6', strokeWidth: 2 },
+    markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed },
+    data: edge.data
   })))
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null)
+  const [history, setHistory] = useState<{ nodes: Node[]; edges: Edge[] }[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [edgeType, setEdgeType] = useState<'smoothstep' | 'bezier' | 'straight' | 'step'>('smoothstep')
+  
   const reactFlowInstance = useReactFlow()
 
+  // Save current state to history
+  const saveToHistory = useCallback(() => {
+    const currentState = { nodes: [...nodes], edges: [...edges] }
+    const newHistory = history.slice(0, historyIndex + 1)
+    newHistory.push(currentState)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }, [nodes, edges, history, historyIndex])
+
+  // Undo functionality
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const previousState = history[historyIndex - 1]
+      setNodes(previousState.nodes)
+      setEdges(previousState.edges)
+      setHistoryIndex(historyIndex - 1)
+    }
+  }, [history, historyIndex])
+
+  // Redo functionality
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const nextState = history[historyIndex + 1]
+      setNodes(nextState.nodes)
+      setEdges(nextState.edges)
+      setHistoryIndex(historyIndex + 1)
+    }
+  }, [history, historyIndex])
+
+  // Initialize history on mount
+  useEffect(() => {
+    saveToHistory()
+  }, [])
+
+  // Validate workflow
+  const validateWorkflow = useCallback(() => {
+    const errors: string[] = []
+    
+    // Check for orphaned nodes
+    const connectedNodeIds = new Set()
+    edges.forEach(edge => {
+      connectedNodeIds.add(edge.source)
+      connectedNodeIds.add(edge.target)
+    })
+    
+    nodes.forEach(node => {
+      if (node.data.type === 'trigger' && !edges.some(edge => edge.source === node.id)) {
+        errors.push(`Trigger node "${node.data.label}" has no outgoing connections`)
+      }
+      if (node.data.type !== 'trigger' && !edges.some(edge => edge.target === node.id)) {
+        errors.push(`Node "${node.data.label}" has no incoming connections`)
+      }
+    })
+
+    // Check for circular connections
+    const visited = new Set()
+    const recursionStack = new Set()
+    
+    const hasCycle = (nodeId: string): boolean => {
+      if (recursionStack.has(nodeId)) return true
+      if (visited.has(nodeId)) return false
+      
+      visited.add(nodeId)
+      recursionStack.add(nodeId)
+      
+      const outgoingEdges = edges.filter(edge => edge.source === nodeId)
+      for (const edge of outgoingEdges) {
+        if (hasCycle(edge.target)) return true
+      }
+      
+      recursionStack.delete(nodeId)
+      return false
+    }
+    
+    nodes.forEach(node => {
+      if (hasCycle(node.id)) {
+        errors.push(`Circular dependency detected involving node "${node.data.label}"`)
+      }
+    })
+
+    setValidationErrors(errors)
+    return errors.length === 0
+  }, [nodes, edges])
+
+  // Auto-validate on changes
+  useEffect(() => {
+    validateWorkflow()
+  }, [nodes, edges, validateWorkflow])
+
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
+    (changes: NodeChange[]) => {
+      setNodes((nds) => applyNodeChanges(changes, nds))
+      saveToHistory()
+    },
+    [saveToHistory]
   )
+  
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+    (changes: EdgeChange[]) => {
+      setEdges((eds) => applyEdgeChanges(changes, eds))
+      saveToHistory()
+    },
+    [saveToHistory]
   )
+
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
-        const newEdge = {
-          id: `edge-${connection.source}-${connection.target}`,
-          source: connection.source,
-          target: connection.target,
-          type: 'smoothstep',
-          animated: true,
-          style: { stroke: '#3b82f6', strokeWidth: 2 }
+        const sourceNode = nodes.find(n => n.id === connection.source)
+        const targetNode = nodes.find(n => n.id === connection.target)
+        
+        if (sourceNode && targetNode) {
+          // Validate connection
+          const sourceOutputs = sourceNode.data.outputs || []
+          const targetInputs = targetNode.data.inputs || []
+          
+          if (sourceOutputs.length === 0) {
+            alert('Source node has no outputs')
+            return
+          }
+          
+          if (targetInputs.length === 0) {
+            alert('Target node has no inputs')
+            return
+          }
+          
+          const newEdge: Edge = {
+            id: `edge-${connection.source}-${connection.target}-${Date.now()}`,
+            source: connection.source,
+            target: connection.target,
+            sourceHandle: connection.sourceHandle,
+            targetHandle: connection.targetHandle,
+            type: edgeType,
+            animated: true,
+            style: { stroke: '#3b82f6', strokeWidth: 2 },
+            markerEnd: { type: MarkerType.ArrowClosed },
+            data: {
+              condition: '',
+              validation: true,
+              errorHandling: 'stop',
+              priority: 1,
+              description: ''
+            }
+          }
+          
+          setEdges((eds) => addEdge(newEdge, eds))
+          saveToHistory()
         }
-        setEdges((eds) => addEdge(newEdge, eds))
       }
     },
-    []
+    [nodes, edgeType, saveToHistory]
   )
 
   const addNode = (type: WorkflowNode['type'], config: any = {}) => {
@@ -383,7 +566,12 @@ const WorkflowBuilder = ({
         icon: Zap,
         category: 'Triggers',
         inputs: [],
-        outputs: ['trigger']
+        outputs: ['trigger'],
+        config: {
+          triggerType: 'manual',
+          schedule: '',
+          webhookUrl: ''
+        }
       },
       action: {
         label: 'Action',
@@ -391,7 +579,11 @@ const WorkflowBuilder = ({
         icon: Play,
         category: 'Actions',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          actionType: 'custom',
+          parameters: {}
+        }
       },
       condition: {
         label: 'Condition',
@@ -399,7 +591,12 @@ const WorkflowBuilder = ({
         icon: GitBranch,
         category: 'Logic',
         inputs: ['input'],
-        outputs: ['true', 'false']
+        outputs: ['true', 'false'],
+        config: {
+          condition: '',
+          truePath: '',
+          falsePath: ''
+        }
       },
       delay: {
         label: 'Delay',
@@ -407,7 +604,11 @@ const WorkflowBuilder = ({
         icon: Clock,
         category: 'Timing',
         inputs: ['input'],
-        outputs: ['output']
+        outputs: ['output'],
+        config: {
+          duration: 0,
+          unit: 'seconds'
+        }
       },
       notification: {
         label: 'Notification',
@@ -415,7 +616,12 @@ const WorkflowBuilder = ({
         icon: Bell,
         category: 'Communication',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          type: 'in-app',
+          message: '',
+          recipients: []
+        }
       },
       email: {
         label: 'Email',
@@ -423,7 +629,13 @@ const WorkflowBuilder = ({
         icon: Mail,
         category: 'Communication',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          to: '',
+          subject: '',
+          body: '',
+          template: ''
+        }
       },
       api: {
         label: 'API Call',
@@ -431,7 +643,13 @@ const WorkflowBuilder = ({
         icon: Code,
         category: 'Integration',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          url: '',
+          method: 'POST',
+          headers: {},
+          body: {}
+        }
       },
       database: {
         label: 'Database',
@@ -439,7 +657,12 @@ const WorkflowBuilder = ({
         icon: DatabaseIcon,
         category: 'Data',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          operation: 'select',
+          table: '',
+          query: ''
+        }
       },
       webhook: {
         label: 'Webhook',
@@ -447,7 +670,11 @@ const WorkflowBuilder = ({
         icon: Radio,
         category: 'Triggers',
         inputs: [],
-        outputs: ['data']
+        outputs: ['data'],
+        config: {
+          endpoint: '',
+          secret: ''
+        }
       },
       transform: {
         label: 'Transform',
@@ -455,7 +682,11 @@ const WorkflowBuilder = ({
         icon: RefreshCw,
         category: 'Data',
         inputs: ['input'],
-        outputs: ['output']
+        outputs: ['output'],
+        config: {
+          transformation: '',
+          mapping: {}
+        }
       },
       filter: {
         label: 'Filter',
@@ -463,7 +694,11 @@ const WorkflowBuilder = ({
         icon: Filter,
         category: 'Data',
         inputs: ['input'],
-        outputs: ['matched', 'unmatched']
+        outputs: ['matched', 'unmatched'],
+        config: {
+          criteria: '',
+          condition: ''
+        }
       },
       loop: {
         label: 'Loop',
@@ -471,7 +706,12 @@ const WorkflowBuilder = ({
         icon: Repeat,
         category: 'Logic',
         inputs: ['input'],
-        outputs: ['each', 'complete']
+        outputs: ['each', 'complete'],
+        config: {
+          collection: '',
+          variable: '',
+          maxIterations: 100
+        }
       },
       parallel: {
         label: 'Parallel',
@@ -479,7 +719,11 @@ const WorkflowBuilder = ({
         icon: GitBranch,
         category: 'Logic',
         inputs: ['input'],
-        outputs: ['output1', 'output2', 'output3']
+        outputs: ['output1', 'output2', 'output3'],
+        config: {
+          branches: 3,
+          waitForAll: true
+        }
       },
       http: {
         label: 'HTTP Request',
@@ -487,7 +731,13 @@ const WorkflowBuilder = ({
         icon: Globe,
         category: 'Integration',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          url: '',
+          method: 'GET',
+          headers: {},
+          body: {}
+        }
       },
       ai: {
         label: 'AI Processing',
@@ -495,7 +745,12 @@ const WorkflowBuilder = ({
         icon: Brain,
         category: 'AI',
         inputs: ['input'],
-        outputs: ['result', 'error']
+        outputs: ['result', 'error'],
+        config: {
+          model: 'gpt-4',
+          prompt: '',
+          temperature: 0.7
+        }
       },
       integration: {
         label: 'Integration',
@@ -503,7 +758,12 @@ const WorkflowBuilder = ({
         icon: Plug,
         category: 'Integration',
         inputs: ['input'],
-        outputs: ['success', 'error']
+        outputs: ['success', 'error'],
+        config: {
+          service: '',
+          action: '',
+          credentials: {}
+        }
       }
     }
 
@@ -515,14 +775,22 @@ const WorkflowBuilder = ({
       data: {
         ...nodeConfig,
         ...config,
-        type
+        type,
+        status: 'idle',
+        validationError: null
       }
     }
 
     setNodes((nds) => [...nds, newNode])
+    saveToHistory()
   }
 
   const saveWorkflow = () => {
+    if (!validateWorkflow()) {
+      alert('Please fix validation errors before saving')
+      return
+    }
+
     const workflowNodes: WorkflowNode[] = nodes.map(node => ({
       id: node.id,
       type: node.data.type,
@@ -533,10 +801,14 @@ const WorkflowBuilder = ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
       label: edge.label,
       type: edge.type,
       animated: edge.animated,
-      style: edge.style
+      style: edge.style,
+      markerEnd: edge.markerEnd,
+      data: edge.data
     }))
     onSave(workflowNodes, workflowEdges)
   }
@@ -545,6 +817,9 @@ const WorkflowBuilder = ({
     setNodes([])
     setEdges([])
     setSelectedNode(null)
+    setSelectedEdge(null)
+    setValidationErrors([])
+    saveToHistory()
   }
 
   const exportWorkflow = () => {
@@ -559,10 +834,14 @@ const WorkflowBuilder = ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
         label: edge.label,
         type: edge.type,
         animated: edge.animated,
-        style: edge.style
+        style: edge.style,
+        markerEnd: edge.markerEnd,
+        data: edge.data
       }))
     }
     
@@ -575,6 +854,79 @@ const WorkflowBuilder = ({
     URL.revokeObjectURL(url)
   }
 
+  const importWorkflow = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const workflowData = JSON.parse(e.target?.result as string)
+        
+        if (workflowData.nodes && Array.isArray(workflowData.nodes)) {
+          const importedNodes = workflowData.nodes.map((node: any) => ({
+            id: node.id,
+            type: 'custom',
+            position: node.position,
+            data: node.data
+          }))
+          
+          const importedEdges = (workflowData.edges || []).map((edge: any) => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+            label: edge.label,
+            type: edge.type || 'smoothstep',
+            animated: edge.animated || false,
+            style: edge.style || { stroke: '#3b82f6', strokeWidth: 2 },
+            markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed },
+            data: edge.data
+          }))
+          
+          setNodes(importedNodes)
+          setEdges(importedEdges)
+          saveToHistory()
+        }
+      } catch (error) {
+        alert('Invalid workflow file')
+      }
+    }
+    reader.readAsText(file)
+    event.target.value = ''
+  }
+
+  const simulateWorkflow = () => {
+    if (!validateWorkflow()) {
+      alert('Please fix validation errors before simulation')
+      return
+    }
+
+    // Simulate workflow execution
+    const updatedNodes = nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        status: 'running'
+      }
+    }))
+    
+    setNodes(updatedNodes)
+    
+    // Simulate execution steps
+    setTimeout(() => {
+      const finalNodes = updatedNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          status: Math.random() > 0.2 ? 'success' : 'error'
+        }
+      }))
+      setNodes(finalNodes)
+    }, 2000)
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -583,12 +935,36 @@ const WorkflowBuilder = ({
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">Workflow Builder</h2>
             <Badge variant="outline">{nodes.length} nodes, {edges.length} connections</Badge>
+            {validationErrors.length > 0 && (
+              <Badge variant="destructive">{validationErrors.length} errors</Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex <= 0}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Undo
+            </Button>
+            <Button variant="outline" size="sm" onClick={redo} disabled={historyIndex >= history.length - 1}>
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Redo
+            </Button>
+            <Button variant="outline" size="sm" onClick={simulateWorkflow}>
+              <Play className="w-4 h-4 mr-2" />
+              Simulate
+            </Button>
             <Button variant="outline" size="sm" onClick={exportWorkflow}>
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
+            <label className="cursor-pointer">
+              <Button variant="outline" size="sm" asChild>
+                <span>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import
+                </span>
+              </Button>
+              <input type="file" accept=".json" onChange={importWorkflow} className="hidden" />
+            </label>
             <Button variant="outline" size="sm" onClick={clearCanvas}>
               <Trash2 className="w-4 h-4 mr-2" />
               Clear
@@ -604,6 +980,20 @@ const WorkflowBuilder = ({
           </div>
         </div>
       </div>
+
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="border-b bg-destructive/10 p-4">
+          <div className="max-w-4xl">
+            <h4 className="font-medium text-sm text-destructive mb-2">Validation Errors:</h4>
+            <ul className="text-xs text-destructive space-y-1">
+              {validationErrors.map((error, index) => (
+                <li key={index}>• {error}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex">
         {/* Node Palette */}
@@ -642,6 +1032,22 @@ const WorkflowBuilder = ({
             ))}
           </div>
 
+          {/* Edge Type Selector */}
+          <div className="mt-6">
+            <h3 className="font-medium mb-3">Connection Style</h3>
+            <Select value={edgeType} onValueChange={(value: any) => setEdgeType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="smoothstep">Smooth Step</SelectItem>
+                <SelectItem value="bezier">Bezier</SelectItem>
+                <SelectItem value="straight">Straight</SelectItem>
+                <SelectItem value="step">Step</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Selected Node Configuration */}
           {selectedNode && (
             <div className="mt-6">
@@ -664,6 +1070,7 @@ const WorkflowBuilder = ({
                             ? { ...node, data: { ...node.data, label: e.target.value } }
                             : node
                         ))
+                        saveToHistory()
                       }}
                       className="h-8 text-xs"
                     />
@@ -679,11 +1086,37 @@ const WorkflowBuilder = ({
                             ? { ...node, data: { ...node.data, description: e.target.value } }
                             : node
                         ))
+                        saveToHistory()
                       }}
                       rows={2}
                       className="text-xs"
                     />
                   </div>
+
+                  {/* Dynamic configuration based on node type */}
+                  {selectedNode.data.config && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Configuration</Label>
+                      <Textarea 
+                        value={JSON.stringify(selectedNode.data.config, null, 2)} 
+                        onChange={(e) => {
+                          try {
+                            const config = JSON.parse(e.target.value)
+                            setNodes(nodes.map(node => 
+                              node.id === selectedNode.id 
+                                ? { ...node, data: { ...node.data, config } }
+                                : node
+                            ))
+                            saveToHistory()
+                          } catch {
+                            // Invalid JSON, ignore
+                          }
+                        }}
+                        rows={4}
+                        className="text-xs font-mono"
+                      />
+                    </div>
+                  )}
 
                   <Button
                     variant="destructive"
@@ -693,10 +1126,96 @@ const WorkflowBuilder = ({
                       setNodes(nodes.filter(node => node.id !== selectedNode.id))
                       setEdges(edges.filter(edge => edge.source !== selectedNode.id && edge.target !== selectedNode.id))
                       setSelectedNode(null)
+                      saveToHistory()
                     }}
                   >
                     <Trash2 className="w-3 h-3 mr-2" />
                     Delete Node
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Edge Configuration */}
+          {selectedEdge && (
+            <div className="mt-6">
+              <h3 className="font-medium mb-3">Edge Configuration</h3>
+              <div className="border rounded-lg p-3 bg-muted/50">
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs">Label</Label>
+                    <Input 
+                      value={selectedEdge.label || ''} 
+                      onChange={(e) => {
+                        setEdges(edges.map(edge => 
+                          edge.id === selectedEdge.id 
+                            ? { ...edge, label: e.target.value }
+                            : edge
+                        ))
+                        saveToHistory()
+                      }}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Condition (for conditional edges)</Label>
+                    <Input 
+                      value={selectedEdge.data?.condition || ''} 
+                      onChange={(e) => {
+                        setEdges(edges.map(edge => 
+                          edge.id === selectedEdge.id 
+                            ? { 
+                                ...edge, 
+                                data: { 
+                                  ...edge.data, 
+                                  condition: e.target.value 
+                                } 
+                              }
+                            : edge
+                        ))
+                        saveToHistory()
+                      }}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs">Priority</Label>
+                    <Input 
+                      type="number"
+                      value={selectedEdge.data?.priority || 1} 
+                      onChange={(e) => {
+                        setEdges(edges.map(edge => 
+                          edge.id === selectedEdge.id 
+                            ? { 
+                                ...edge, 
+                                data: { 
+                                  ...edge.data, 
+                                  priority: parseInt(e.target.value) || 1 
+                                } 
+                              }
+                            : edge
+                        ))
+                        saveToHistory()
+                      }}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      setEdges(edges.filter(edge => edge.id !== selectedEdge.id))
+                      setSelectedEdge(null)
+                      saveToHistory()
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3 mr-2" />
+                    Delete Connection
                   </Button>
                 </div>
               </div>
@@ -712,20 +1231,39 @@ const WorkflowBuilder = ({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, node) => setSelectedNode(node)}
-            onPaneClick={() => setSelectedNode(null)}
+            onNodeClick={(_, node) => {
+              setSelectedNode(node)
+              setSelectedEdge(null)
+            }}
+            onEdgeClick={(_, edge) => {
+              setSelectedEdge(edge)
+              setSelectedNode(null)
+            }}
+            onPaneClick={() => {
+              setSelectedNode(null)
+              setSelectedEdge(null)
+            }}
             nodeTypes={nodeTypes}
             fitView
             attributionPosition="bottom-left"
+            connectionMode="loose"
           >
             <Controls />
             <MiniMap />
             <Background variant="dots" gap={12} size={1} />
             <Panel position="top-right">
-              <div className="bg-background/95 backdrop-blur border rounded-lg p-2">
+              <div className="bg-background/95 backdrop-blur border rounded-lg p-2 space-y-1">
                 <div className="text-xs text-muted-foreground">
                   Drag nodes to connect them
                 </div>
+                <div className="text-xs text-muted-foreground">
+                  Click nodes/edges to configure
+                </div>
+                {validationErrors.length > 0 && (
+                  <div className="text-xs text-destructive">
+                    {validationErrors.length} validation errors
+                  </div>
+                )}
               </div>
             </Panel>
           </ReactFlow>
