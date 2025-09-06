@@ -43,7 +43,8 @@ import {
   Save,
   X,
   GripVertical,
-  Loader2
+  Loader2,
+  Minus
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -244,7 +245,7 @@ export default function LandingPagesPage() {
       case "features": return <Grid className="h-4 w-4" />
       case "cta": return <BarChart3 className="h-4 w-4" />
       case "divider": return <Minus className="h-4 w-4" />
-      case "spacer": return <Spacer className="h-4 w-4" />
+      case "spacer": return <div className="h-4 w-4 border-2 border-dashed border-gray-300" />
       default: return <Layout className="h-4 w-4" />
     }
   }
@@ -455,7 +456,7 @@ export default function LandingPagesPage() {
                     <SelectValue placeholder="Select a form" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No form</SelectItem>
+                    <SelectItem value="none">No form</SelectItem>
                     {forms.map((form) => (
                       <SelectItem key={form.id} value={form.id}>
                         {form.name}

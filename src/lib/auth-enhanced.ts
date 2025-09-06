@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { EnhancedRBACService, type EnhancedPermissionCheck, type EnhancedAccessDecision, type EnhancedBranchAccessLevel } from './rbac-enhanced'
 import { db } from './db'
+import jwt from 'jsonwebtoken'
 
 // ============================================================================
 // Enhanced Types and Interfaces
@@ -441,7 +442,6 @@ export class EnhancedAuth {
       const token = authHeader.substring(7)
       
       // Verify JWT token
-      const jwt = require('jsonwebtoken')
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
       
       if (!decoded || !decoded.userId) {

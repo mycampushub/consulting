@@ -170,6 +170,98 @@ async function main() {
 
   console.log('Created default roles')
 
+  // Create sample branches first
+  console.log('Creating sample branches...')
+  
+  let mainBranch = await prisma.branch.create({
+    data: {
+      agencyId: agency.id,
+      name: 'Main Office',
+      code: 'MAIN',
+      type: 'MAIN',
+      status: 'ACTIVE',
+      email: 'main@demo.com',
+      phone: '+1-555-0001',
+      address: '123 Education Street',
+      city: 'San Francisco',
+      state: 'CA',
+      country: 'United States',
+      postalCode: '94105',
+      businessHours: JSON.stringify({
+        monday: { open: '09:00', close: '18:00' },
+        tuesday: { open: '09:00', close: '18:00' },
+        wednesday: { open: '09:00', close: '18:00' },
+        thursday: { open: '09:00', close: '18:00' },
+        friday: { open: '09:00', close: '18:00' },
+        saturday: { open: '10:00', close: '14:00' },
+        sunday: { open: 'closed' }
+      }),
+      description: 'Main headquarters and administrative center',
+      maxStudents: 1000,
+      maxStaff: 50,
+    },
+  })
+
+  const branch2 = await prisma.branch.create({
+    data: {
+      agencyId: agency.id,
+      name: 'Downtown Branch',
+      code: 'DT',
+      type: 'BRANCH',
+      status: 'ACTIVE',
+      email: 'downtown@demo.com',
+      phone: '+1-555-0002',
+      address: '456 Learning Avenue',
+      city: 'San Francisco',
+      state: 'CA',
+      country: 'United States',
+      postalCode: '94102',
+      businessHours: JSON.stringify({
+        monday: { open: '09:00', close: '18:00' },
+        tuesday: { open: '09:00', close: '18:00' },
+        wednesday: { open: '09:00', close: '18:00' },
+        thursday: { open: '09:00', close: '18:00' },
+        friday: { open: '09:00', close: '18:00' },
+        saturday: { open: 'closed' },
+        sunday: { open: 'closed' }
+      }),
+      description: 'Downtown satellite office focusing on student consultations',
+      maxStudents: 500,
+      maxStaff: 25,
+    },
+  })
+
+  const branch3 = await prisma.branch.create({
+    data: {
+      agencyId: agency.id,
+      name: 'North Campus',
+      code: 'NORTH',
+      type: 'BRANCH',
+      status: 'ACTIVE',
+      email: 'north@demo.com',
+      phone: '+1-555-0003',
+      address: '789 University Boulevard',
+      city: 'Berkeley',
+      state: 'CA',
+      country: 'United States',
+      postalCode: '94720',
+      businessHours: JSON.stringify({
+        monday: { open: '08:00', close: '20:00' },
+        tuesday: { open: '08:00', close: '20:00' },
+        wednesday: { open: '08:00', close: '20:00' },
+        thursday: { open: '08:00', close: '20:00' },
+        friday: { open: '08:00', close: '20:00' },
+        saturday: { open: '10:00', close: '16:00' },
+        sunday: { open: 'closed' }
+      }),
+      description: 'Large campus facility near University of California',
+      maxStudents: 1500,
+      maxStaff: 75,
+    },
+  })
+
+  console.log('Created branches:', [mainBranch.name, branch2.name, branch3.name])
+
   // Assign permissions to roles
   console.log('Assigning permissions to roles...')
   
@@ -185,7 +277,7 @@ async function main() {
           roleId: agencyAdminRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: ""
+          branchId: mainBranch.id
         }
       },
       update: {},
@@ -193,7 +285,7 @@ async function main() {
         roleId: agencyAdminRole.id,
         permissionId: permission.id,
         agencyId: agency.id,
-        branchId: "",
+        branchId: null,
         accessLevel: 'FULL',
         isActive: true,
       },
@@ -218,7 +310,7 @@ async function main() {
             roleId: consultantRole.id,
             permissionId: permission.id,
             agencyId: agency.id,
-            branchId: ""
+            branchId: mainBranch.id
           }
         },
         update: {},
@@ -226,7 +318,7 @@ async function main() {
           roleId: consultantRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: "",
+          branchId: "agency-wide",
           accessLevel: 'FULL',
           isActive: true,
         },
@@ -252,7 +344,7 @@ async function main() {
             roleId: supportRole.id,
             permissionId: permission.id,
             agencyId: agency.id,
-            branchId: ""
+            branchId: mainBranch.id
           }
         },
         update: {},
@@ -260,7 +352,7 @@ async function main() {
           roleId: supportRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: "",
+          branchId: "agency-wide",
           accessLevel: 'EDIT',
           isActive: true,
         },
@@ -284,7 +376,7 @@ async function main() {
             roleId: studentRole.id,
             permissionId: permission.id,
             agencyId: agency.id,
-            branchId: ""
+            branchId: mainBranch.id
           }
         },
         update: {},
@@ -292,7 +384,7 @@ async function main() {
           roleId: studentRole.id,
           permissionId: permission.id,
           agencyId: agency.id,
-          branchId: "",
+          branchId: "agency-wide",
           accessLevel: 'VIEW',
           isActive: true,
         },
@@ -326,7 +418,7 @@ async function main() {
         userId: user.id,
         roleId: agencyAdminRole.id,
         agencyId: agency.id,
-        branchId: ""
+        branchId: mainBranch.id
       }
     },
     update: {},
@@ -334,7 +426,7 @@ async function main() {
       userId: user.id,
       roleId: agencyAdminRole.id,
       agencyId: agency.id,
-      branchId: "",
+      branchId: mainBranch.id,
       assignedBy: user.id,
       isActive: true,
     },
@@ -493,116 +585,6 @@ async function main() {
   })
 
   console.log('Created workflows:', [workflow1.name, workflow2.name])
-
-  let mainBranch, branch2, branch3
-  
-  // Check if branches already exist, if not create sample branches
-  const existingBranches = await prisma.branch.findMany({
-    where: { agencyId: agency.id }
-  })
-
-  if (existingBranches.length === 0) {
-    console.log('Creating sample branches...')
-    
-    mainBranch = await prisma.branch.create({
-      data: {
-        agencyId: agency.id,
-        name: 'Main Office',
-        code: 'MAIN',
-        type: 'MAIN',
-        status: 'ACTIVE',
-        email: 'main@demo.com',
-        phone: '+1-555-0001',
-        address: '123 Education Street',
-        city: 'San Francisco',
-        state: 'CA',
-        country: 'United States',
-        postalCode: '94105',
-        businessHours: JSON.stringify({
-          monday: { open: '09:00', close: '18:00' },
-          tuesday: { open: '09:00', close: '18:00' },
-          wednesday: { open: '09:00', close: '18:00' },
-          thursday: { open: '09:00', close: '18:00' },
-          friday: { open: '09:00', close: '18:00' },
-          saturday: { open: '10:00', close: '16:00' },
-          sunday: { open: 'Closed' }
-        }),
-        maxStudents: 500,
-        maxStaff: 20,
-        description: 'Main headquarters and administrative office',
-        features: JSON.stringify(['all']),
-        managerId: user.id,
-      },
-    })
-
-    branch2 = await prisma.branch.create({
-      data: {
-        agencyId: agency.id,
-        name: 'New York Branch',
-        code: 'NYC',
-        type: 'BRANCH',
-        status: 'ACTIVE',
-        email: 'nyc@demo.com',
-        phone: '+1-555-0002',
-        address: '456 Manhattan Avenue',
-        city: 'New York',
-        state: 'NY',
-        country: 'United States',
-        postalCode: '10001',
-        businessHours: JSON.stringify({
-          monday: { open: '09:00', close: '18:00' },
-          tuesday: { open: '09:00', close: '18:00' },
-          wednesday: { open: '09:00', close: '18:00' },
-          thursday: { open: '09:00', close: '18:00' },
-          friday: { open: '09:00', close: '18:00' },
-          saturday: { open: 'Closed' },
-          sunday: { open: 'Closed' }
-        }),
-        maxStudents: 300,
-        maxStaff: 15,
-        description: 'East Coast regional branch',
-        features: JSON.stringify(['consulting', 'applications']),
-      },
-    })
-
-    branch3 = await prisma.branch.create({
-      data: {
-        agencyId: agency.id,
-        name: 'London Office',
-        code: 'LON',
-        type: 'BRANCH',
-        status: 'PENDING',
-        email: 'london@demo.com',
-        phone: '+44-20-0000-0001',
-        address: '789 Oxford Street',
-        city: 'London',
-        state: 'England',
-        country: 'United Kingdom',
-        postalCode: 'W1D 1BS',
-        businessHours: JSON.stringify({
-          monday: { open: '09:00', close: '17:00' },
-          tuesday: { open: '09:00', close: '17:00' },
-          wednesday: { open: '09:00', close: '17:00' },
-          thursday: { open: '09:00', close: '17:00' },
-          friday: { open: '09:00', close: '17:00' },
-          saturday: { open: 'Closed' },
-          sunday: { open: 'Closed' }
-        }),
-        maxStudents: 200,
-        maxStaff: 10,
-        description: 'UK regional office',
-        features: JSON.stringify(['consulting']),
-      },
-    })
-
-    console.log('Created branches:', [mainBranch.name, branch2.name, branch3.name])
-  } else {
-    console.log('Branches already exist:', existingBranches.map(b => b.name))
-    // Use existing branches
-    mainBranch = existingBranches.find(b => b.code === 'MAIN') || existingBranches[0]
-    branch2 = existingBranches.find(b => b.code === 'NYC') || existingBranches[1]
-    branch3 = existingBranches.find(b => b.code === 'LON') || existingBranches[2]
-  }
 
   // Create sample universities
   const universities = await Promise.all([

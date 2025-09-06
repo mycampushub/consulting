@@ -98,7 +98,6 @@ export class RBACMiddleware {
    * Main RBAC middleware with enhanced access control
    */
   static middleware(options: RBACMiddlewareOptions = {}) {
-    const self = this // Capture the class instance
     return function <T extends MiddlewareHandler>(handler: T) {
       return async (request: NextRequest, context: any = {}): Promise<NextResponse> => {
         try {
@@ -113,7 +112,7 @@ export class RBACMiddleware {
 
           // Build request metadata
           const requestMetadata = {
-            ip: this.getClientIP(request),
+            ip: RBACMiddleware.getClientIP(request),
             userAgent: request.headers.get('user-agent') || '',
             timestamp: new Date()
           }
@@ -139,7 +138,7 @@ export class RBACMiddleware {
 
           // Check minimum access level
           if (options.minAccessLevel) {
-            const hasRequiredLevel = self.checkAccessLevel(userContext.accessLevel, options.minAccessLevel)
+            const hasRequiredLevel = RBACMiddleware.checkAccessLevel(userContext.accessLevel, options.minAccessLevel)
             if (!hasRequiredLevel) {
               return NextResponse.json(
                 { error: `Insufficient access level. Required: ${options.minAccessLevel}, Current: ${userContext.accessLevel}` },

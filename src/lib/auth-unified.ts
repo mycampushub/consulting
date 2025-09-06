@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { UnifiedRBAC, type PermissionCheck, type AccessDecision, type BranchAccessLevel } from './rbac-unified'
 import { db } from './db'
+import jwt from 'jsonwebtoken'
 
 // ============================================================================
 // Types and Interfaces
@@ -305,7 +306,6 @@ export class UnifiedAuth {
       const token = authHeader.substring(7)
       
       // Verify JWT token (you'll need to implement this based on your JWT setup)
-      const jwt = require('jsonwebtoken')
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret')
       
       if (!decoded || !decoded.userId) {

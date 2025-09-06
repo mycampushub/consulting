@@ -64,20 +64,22 @@ export const GET = requireAgency(
         currency: "USD", // Default or stored in settings
         language: "en", // Default or stored in settings
         address: {
-          street: "123 Business Avenue", // Mock data - should be stored in database
-          city: "New York",
-          state: "NY",
-          zip: "10001",
-          country: "US"
+          street: settings.brandSettings?.address?.street || "123 Business Avenue",
+          city: settings.brandSettings?.address?.city || "New York",
+          state: settings.brandSettings?.address?.state || "NY",
+          zip: settings.brandSettings?.address?.zip || "10001",
+          country: settings.brandSettings?.address?.country || "US"
         },
         contact: {
-          email: "info@agency.com", // Mock data - should be stored in database
-          phone: "+1 (555) 123-4567",
-          website: "https://agency.com"
+          email: settings.brandSettings?.contact?.email || "info@agency.com",
+          phone: settings.brandSettings?.contact?.phone || "+1 (555) 123-4567",
+          website: settings.brandSettings?.contact?.website || "https://agency.com"
         },
         social: {
-          facebook: "https://facebook.com/agency",
-          linkedin: "https://linkedin.com/company/agency"
+          facebook: settings.brandSettings?.social?.facebook || "https://facebook.com/agency",
+          twitter: settings.brandSettings?.social?.twitter || "https://twitter.com/agency",
+          linkedin: settings.brandSettings?.social?.linkedin || "https://linkedin.com/company/agency",
+          instagram: settings.brandSettings?.social?.instagram || "https://instagram.com/agency"
         }
       }
 
@@ -112,18 +114,22 @@ export const POST = requireAgency(
         }
       })
 
+      // Prepare brand settings data
+      const brandSettingsData = {
+        primaryColor: validatedData.primaryColor,
+        secondaryColor: validatedData.secondaryColor,
+        address: validatedData.address ? JSON.stringify(validatedData.address) : null,
+        contact: validatedData.contact ? JSON.stringify(validatedData.contact) : null,
+        social: validatedData.social ? JSON.stringify(validatedData.social) : null,
+      }
+
       // Update or create brand settings
       await db.brandSettings.upsert({
         where: { agencyId: agency.id },
-        update: {
-          primaryColor: validatedData.primaryColor,
-          secondaryColor: validatedData.secondaryColor,
-          // Logo and other branding would be handled separately
-        },
+        update: brandSettingsData,
         create: {
           agencyId: agency.id,
-          primaryColor: validatedData.primaryColor,
-          secondaryColor: validatedData.secondaryColor,
+          ...brandSettingsData
         }
       })
 
@@ -139,7 +145,10 @@ export const POST = requireAgency(
             name: validatedData.name,
             subdomain: validatedData.subdomain,
             primaryColor: validatedData.primaryColor,
-            secondaryColor: validatedData.secondaryColor
+            secondaryColor: validatedData.secondaryColor,
+            address: validatedData.address,
+            contact: validatedData.contact,
+            social: validatedData.social
           })
         }
       })
@@ -152,7 +161,10 @@ export const POST = requireAgency(
           subdomain: updatedAgency.subdomain,
           customDomain: updatedAgency.customDomain,
           primaryColor: validatedData.primaryColor,
-          secondaryColor: validatedData.secondaryColor
+          secondaryColor: validatedData.secondaryColor,
+          address: validatedData.address,
+          contact: validatedData.contact,
+          social: validatedData.social
         }
       })
     } catch (error) {

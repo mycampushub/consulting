@@ -374,7 +374,7 @@ export default function BranchFeaturesManagement() {
                     <SelectValue placeholder="Select agency" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Agencies</SelectItem>
+                    <SelectItem value="all">All Agencies</SelectItem>
                     {agencies.map((agency) => (
                       <SelectItem key={agency.id} value={agency.id}>
                         {agency.name}
@@ -391,7 +391,7 @@ export default function BranchFeaturesManagement() {
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Branches</SelectItem>
+                    <SelectItem value="all">All Branches</SelectItem>
                     {filteredBranches.map((branch) => (
                       <SelectItem key={branch.id} value={branch.id}>
                         {branch.name}

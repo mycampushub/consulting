@@ -492,7 +492,7 @@ export default function LandingPageBuilder() {
     switch (type) {
       case "header": return <Type className="h-4 w-4" />
       case "text": return <FileText className="h-4 w-4" />
-      case "image": return <Image className="h-4 w-4" alt="" />
+      case "image": return <Image className="h-4 w-4" />
       case "video": return <Video className="h-4 w-4" />
       case "button": return <Square className="h-4 w-4" />
       case "form": return <FileText className="h-4 w-4" />
@@ -1031,7 +1031,7 @@ export default function LandingPageBuilder() {
                 </div>
                 <Input
                   type="color"
-                  value={selectedElement.styles.color || "#000000"}
+                  value={selectedElement.styles.color || "#000000"
                   onChange={(e) => updateElement(selectedElement.id, {
                     styles: { ...selectedElement.styles, color: e.target.value }
                   })}
@@ -1044,7 +1044,7 @@ export default function LandingPageBuilder() {
                 <Input
                   type="color"
                   placeholder="Background color"
-                  value={selectedElement.styles.backgroundColor || "#3B82F6"}
+                  value={selectedElement.styles.backgroundColor || "#3B82F6"
                   onChange={(e) => updateElement(selectedElement.id, {
                     styles: { ...selectedElement.styles, backgroundColor: e.target.value }
                   })}
@@ -1052,7 +1052,7 @@ export default function LandingPageBuilder() {
                 <Input
                   type="color"
                   placeholder="Text color"
-                  value={selectedElement.styles.color || "#ffffff"}
+                  value={selectedElement.styles.color || "#ffffff"
                   onChange={(e) => updateElement(selectedElement.id, {
                     styles: { ...selectedElement.styles, color: e.target.value }
                   })}
@@ -1305,7 +1305,7 @@ export default function LandingPageBuilder() {
                     onClick={() => addElement("image")}
                     className="justify-start"
                   >
-                    <Image className="h-4 w-4 mr-2" alt="" />
+                    <Image className="h-4 w-4 mr-2" />
                     Image
                   </Button>
                 </div>
