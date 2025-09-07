@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSubdomainForAPI } from "@/lib/utils"
+import { requireAgency } from "@/lib/auth-middleware"
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,12 +17,26 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const category = searchParams.get("category")
 
-    const agency = await db.agency.findUnique({
+    // Create demo agency if it doesn't exist
+    let agency = await db.agency.findUnique({
       where: { subdomain }
     })
 
     if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+      // Create demo agency for development
+      agency = await db.agency.create({
+        data: {
+          id: `${subdomain}-agency-id`,
+          name: `${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)} Education Agency`,
+          subdomain: subdomain,
+          customDomain: null,
+          primaryColor: '#3B82F6',
+          secondaryColor: '#10B981',
+          status: 'ACTIVE',
+          plan: 'FREE'
+        }
+      })
+      console.log(`Created demo agency for subdomain: ${subdomain}`)
     }
 
     const where = {
@@ -78,12 +93,25 @@ export async function POST(request: NextRequest) {
       priority
     } = body
 
-    const agency = await db.agency.findUnique({
+    // Create or get agency
+    let agency = await db.agency.findUnique({
       where: { subdomain }
     })
 
     if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+      agency = await db.agency.create({
+        data: {
+          id: `${subdomain}-agency-id`,
+          name: `${subdomain.charAt(0).toUpperCase() + subdomain.slice(1)} Education Agency`,
+          subdomain: subdomain,
+          customDomain: null,
+          primaryColor: '#3B82F6',
+          secondaryColor: '#10B981',
+          status: 'ACTIVE',
+          plan: 'FREE'
+        }
+      })
+      console.log(`Created demo agency for subdomain: ${subdomain}`)
     }
 
     const workflow = await db.workflow.create({

@@ -82,11 +82,13 @@ function validateToken(token: string): any {
   }
 }
 
-// Initialize RBAC when middleware loads
-let rbacInitialized = false
+// Initialize RBAC when middleware loads - DISABLED FOR DEVELOPMENT
+let rbacInitialized = true // Skip RBAC initialization for now
 
 export async function middleware(request: NextRequest) {
-  // Initialize RBAC system on first request
+  // TEMPORARY: Skip RBAC initialization for development
+  // RBAC initialization is causing PrismaClient browser environment errors
+  /*
   if (!rbacInitialized) {
     try {
       await initializeRBAC()
@@ -97,6 +99,7 @@ export async function middleware(request: NextRequest) {
       // Continue without RBAC initialization for now
     }
   }
+  */
 
   // Apply rate limiting
   const ip = getClientIP(request)

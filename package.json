@@ -13,6 +13,7 @@
     "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:rbac": "tsx prisma/rbac-seed.ts",
+    "db:seed:demo": "tsx prisma/demo-seed.ts",
     "server": "nodemon --exec \"npx tsx server.ts\" --watch server.ts --watch src --ext ts,tsx,js,jsx"
   },
   "dependencies": {
