@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getSubdomainForAPI } from "@/lib/utils"
-import { requireEnhancedPermissions } from "@/lib/auth-middleware"
-import { RBAC } from "@/lib/rbac-utils"
-import { logCreation, logUpdate } from "@/lib/activity-logger"
-import { requirePermissions } from "@/lib/auth-middleware"
 import { z } from "zod"
 
 const studentSchema = z.object({
@@ -28,19 +24,22 @@ const studentSchema = z.object({
   notes: z.string().optional(),
 })
 
-const updateStudentSchema = studentSchema.partial()
-
-// Get all students for the agency with enhanced branch-based scoping
-export const GET = requireEnhancedPermissions([
-  RBAC.permissions.STUDENT_READ()
-], {
-  resourceType: "students",
-  enableDataFiltering: true,
-  auditLevel: "DETAILED",
-  requireBranch: true
-})(async (request: NextRequest, context) => {
+// Get all students for the agency
+export async function GET(request: NextRequest) {
   try {
-    const { agency, user, accessibleBranches, branchAccessLevel } = context
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "20")
@@ -50,7 +49,7 @@ export const GET = requireEnhancedPermissions([
     const assignedTo = searchParams.get("assignedTo")
     const branchId = searchParams.get("branchId")
 
-    // Build base where clause with agency scope
+    // Build where clause
     const where: any = {
       agencyId: agency.id,
       ...(search && {
@@ -62,30 +61,13 @@ export const GET = requireEnhancedPermissions([
       }),
       ...(status && { status: status }),
       ...(stage && { stage: stage }),
-      ...(assignedTo && { assignedTo: assignedTo })
+      ...(assignedTo && { assignedTo: assignedTo }),
+      ...(branchId && { branchId: branchId })
     }
-
-    // Apply enhanced branch-based filtering using new RBAC utils
-    const enhancedWhere = await RBAC.dataFilter.applyBranchFilter(user.id, "students", where, {
-      action: "read",
-      includeAssigned: true
-    })
-
-    // Apply additional branch filtering if specified and user has permission
-    if (branchId && accessibleBranches?.includes(branchId)) {
-      enhancedWhere.branchId = branchId
-    }
-
-    // Calculate pagination
-    const skip = (page - 1) * limit
-    const orderBy: any = {}
-    const sortBy = searchParams.get("sortBy") || "createdAt"
-    const sortOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc"
-    orderBy[sortBy] = sortOrder
 
     const [students, total] = await Promise.all([
       db.student.findMany({
-        where: enhancedWhere,
+        where,
         include: {
           branch: {
             select: {
@@ -152,60 +134,21 @@ export const GET = requireEnhancedPermissions([
             }
           }
         },
-        orderBy,
-        skip,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
         take: limit
       }),
-      db.student.count({ where: enhancedWhere })
+      db.student.count({ where })
     ])
 
-    // Parse JSON fields and apply field-level filtering
-    const processedStudents = students.map(student => {
-      const studentData = {
-        ...student,
-        preferredCountries: student.preferredCountries ? JSON.parse(student.preferredCountries) : [],
-        preferredCourses: student.preferredCourses ? JSON.parse(student.preferredCourses) : [],
-        testScores: student.testScores ? JSON.parse(student.testScores) : null,
-        documents: student.documents ? JSON.parse(student.documents) : []
-      }
-
-      // Apply field-level filtering based on user permissions
-      if (context.fieldPermissions?.length) {
-        // Filter out fields that user doesn't have access to
-        const allowedFields = ['id', 'firstName', 'lastName', 'email', 'status', 'stage', 'createdAt', 'updatedAt', ...context.fieldPermissions]
-        const filteredStudent: any = {}
-        allowedFields.forEach(field => {
-          if (studentData[field] !== undefined) {
-            filteredStudent[field] = studentData[field]
-          }
-        })
-        return filteredStudent
-      }
-      
-      return studentData
-    })
-
-    // Log the activity with branch context
-    await logCreation({
-      userId: user.id,
-      agencyId: agency.id,
-      branchId: user.branchId,
-      entityType: "Student",
-      resourceType: "students",
-      changes: {
-        action: "LIST_STUDENTS",
-        filterCount: total,
-        branchScope: branchAccessLevel,
-        accessibleBranches: accessibleBranches?.length || 0,
-        appliedFilters: Object.keys(enhancedWhere).filter(key => key !== 'agencyId')
-      },
-      ipAddress: context.requestMetadata?.ip,
-      userAgent: context.requestMetadata?.userAgent
-    }, {
-      includeBranchContext: true,
-      includeRBACContext: true,
-      auditLevel: "DETAILED"
-    })
+    // Parse JSON fields
+    const processedStudents = students.map(student => ({
+      ...student,
+      preferredCountries: student.preferredCountries ? JSON.parse(student.preferredCountries) : [],
+      preferredCourses: student.preferredCourses ? JSON.parse(student.preferredCourses) : [],
+      testScores: student.testScores ? JSON.parse(student.testScores) : null,
+      documents: student.documents ? JSON.parse(student.documents) : []
+    }))
 
     return NextResponse.json({
       students: processedStudents,
@@ -214,70 +157,32 @@ export const GET = requireEnhancedPermissions([
         limit,
         total,
         pages: Math.ceil(total / limit)
-      },
-      metadata: {
-        branchScope: branchAccessLevel,
-        accessibleBranches,
-        appliedFilters: Object.keys(enhancedWhere).filter(key => key !== 'agencyId'),
-        fieldPermissions: context.fieldPermissions || []
       }
     })
   } catch (error) {
     console.error("Error fetching students:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-})
+}
 
-// Create a new student with enhanced RBAC checks
-export const POST = requirePermissions([
-  { resource: "students", action: "create" }
-], {
-  resourceType: "students",
-  auditLevel: "COMPREHENSIVE",
-  requireBranch: true
-})(async (request: NextRequest, context) => {
+// Create a new student
+export async function POST(request: NextRequest) {
   try {
-    const { agency, user, accessibleBranches, branchAccessLevel } = context
+    const subdomain = getSubdomainForAPI(request)
+    if (!subdomain) {
+      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    }
+
+    const agency = await db.agency.findUnique({
+      where: { subdomain }
+    })
+
+    if (!agency) {
+      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    }
+
     const body = await request.json()
     const validatedData = studentSchema.parse(body)
-
-    // Validate branch access using enhanced RBAC validation
-    if (validatedData.branchId) {
-      const branchAccess = await RBAC.validateBranchAccess(
-        user.id,
-        validatedData.branchId,
-        "manage"
-      )
-
-      if (!branchAccess.valid) {
-        return NextResponse.json({ 
-          error: "Branch access denied", 
-          details: branchAccess.reason 
-        }, { status: 403 })
-      }
-    } else {
-      // If no branch specified, use the current user's branch
-      validatedData.branchId = user.branchId
-    }
-
-    // Validate assigned user if provided
-    if (validatedData.assignedTo) {
-      const assignedUserAccess = await RBAC.validateBranchAccess(
-        user.id,
-        user.branchId, // Check if user can assign to users in their branch
-        "manage"
-      )
-
-      if (!assignedUserAccess.valid) {
-        return NextResponse.json({ 
-          error: "Cannot assign to specified user", 
-          details: "User assignment access denied" 
-        }, { status: 403 })
-      }
-    } else {
-      // If no assigned user, assign to current user
-      validatedData.assignedTo = user.id
-    }
 
     // Check if email already exists within the agency
     const existingStudent = await db.student.findFirst({
@@ -351,32 +256,6 @@ export const POST = requirePermissions([
       documents: student.documents ? JSON.parse(student.documents) : []
     }
 
-    // Log enhanced activity with RBAC context
-    await logCreation({
-      userId: user.id,
-      agencyId: agency.id,
-      branchId: validatedData.branchId,
-      entityType: "Student",
-      entityId: student.id,
-      resourceType: "students",
-      resourceName: `${validatedData.firstName} ${validatedData.lastName}`,
-      newValues: {
-        firstName: student.firstName,
-        lastName: student.lastName,
-        email: student.email,
-        branchId: student.branchId,
-        assignedTo: student.assignedTo,
-        status: student.status,
-        stage: student.stage
-      },
-      ipAddress: context.requestMetadata?.ip,
-      userAgent: context.requestMetadata?.userAgent
-    }, {
-      includeBranchContext: true,
-      includeRBACContext: true,
-      auditLevel: "COMPREHENSIVE"
-    })
-
     return NextResponse.json(processedStudent, { status: 201 })
   } catch (error) {
     console.error("Error creating student:", error)
@@ -390,4 +269,4 @@ export const POST = requirePermissions([
 
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-})
+}

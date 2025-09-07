@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   Settings, 
   User, 
@@ -231,6 +232,24 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("general")
+  
+  // Invite member dialog state
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    name: '',
+    role: 'CONSULTANT',
+    phone: '',
+    title: '',
+    department: '',
+    branchId: ''
+  })
+  const [inviteLoading, setInviteLoading] = useState(false)
+  
+  // Edit user dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [editLoading, setEditLoading] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -355,20 +374,118 @@ export default function SettingsPage() {
   }
 
   const handleEditUser = (user: any) => {
-    // TODO: Implement edit user functionality
-    console.log('Edit user:', user)
-    alert(`Edit user functionality for ${user.firstName} ${user.lastName} - To be implemented`)
+    setEditingUser(user)
+    setIsEditDialogOpen(true)
   }
 
-  const handleViewPermissions = (user: any) => {
-    // TODO: Implement view permissions functionality
-    console.log('View permissions for:', user)
-    alert(`View permissions functionality for ${user.firstName} ${user.lastName} - To be implemented`)
+  const handleSaveEditUser = async () => {
+    if (!editingUser) return
+
+    setEditLoading(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: `${editingUser.firstName} ${editingUser.lastName}`,
+          email: editingUser.email,
+          role: editingUser.role,
+          phone: editingUser.phone,
+          title: editingUser.title,
+          department: editingUser.department,
+          status: editingUser.status
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update user')
+      }
+
+      const result = await response.json()
+      
+      // Close dialog and refresh team members
+      setIsEditDialogOpen(false)
+      setEditingUser(null)
+      fetchTeamMembers()
+      
+      // Show success message
+      alert(`Successfully updated ${result.firstName} ${result.lastName}!`)
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update user')
+    } finally {
+      setEditLoading(false)
+    }
   }
 
-  const handleInviteMember = () => {
-    // TODO: Implement invite member functionality
-    alert('Invite member functionality - To be implemented')
+  const handleViewPermissions = async (user: any) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/rbac/permissions?userId=${user.id}`)
+      const data = await response.json()
+      
+      if (data.permissions && data.permissions.length > 0) {
+        const permissionList = data.permissions.map((p: any) => 
+          `${p.permission.name} - ${p.permission.resource}:${p.permission.action}`
+        ).join('\n')
+        alert(`Current permissions for ${user.firstName} ${user.lastName}:\n\n${permissionList}\n\nFull permission management interface to be implemented in next iteration.`)
+      } else {
+        alert(`No custom permissions assigned to ${user.firstName} ${user.lastName}. User has default permissions based on role: ${user.role}`)
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error)
+      alert('Error fetching permissions. Please try again.')
+    }
+  }
+
+  const handleInviteMember = async () => {
+    if (!inviteForm.email || !inviteForm.name) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setInviteLoading(true)
+    try {
+      const response = await fetch(`/api/${subdomain}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inviteForm),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to invite member')
+      }
+
+      const result = await response.json()
+      
+      // Reset form and close dialog
+      setInviteForm({
+        email: '',
+        name: '',
+        role: 'CONSULTANT',
+        phone: '',
+        title: '',
+        department: '',
+        branchId: ''
+      })
+      setIsInviteDialogOpen(false)
+      
+      // Refresh team members
+      fetchTeamMembers()
+      
+      // Show success message
+      alert(`Successfully invited ${result.firstName} ${result.lastName}!`)
+    } catch (error) {
+      console.error('Error inviting member:', error)
+      alert(error instanceof Error ? error.message : 'Failed to invite member')
+    } finally {
+      setInviteLoading(false)
+    }
   }
 
   const handleViewRoleDetails = (role: any) => {
@@ -999,7 +1116,7 @@ export default function SettingsPage() {
                   <h3 className="text-lg font-medium">Team Members</h3>
                   <p className="text-sm text-muted-foreground">Manage user roles and permissions</p>
                 </div>
-                <Button onClick={handleInviteMember}>
+                <Button onClick={() => setIsInviteDialogOpen(true)}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Invite Member
                 </Button>
@@ -1834,78 +1951,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="team" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Team Management
-              </CardTitle>
-              <CardDescription>Manage your team members and their permissions</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-medium">Team Members</h3>
-                  <p className="text-sm text-muted-foreground">Manage user roles and access</p>
-                </div>
-                <Button>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Invite Member
-                </Button>
-              </div>
-              
-              <div className="space-y-3">
-                {[
-                  { name: "Sarah Johnson", email: "sarah@agency.com", role: "Agency Admin", status: "Active" },
-                  { name: "Michael Chen", email: "michael@agency.com", role: "Consultant", status: "Active" },
-                  { name: "Emma Rodriguez", email: "emma@agency.com", role: "Consultant", status: "Active" },
-                  { name: "David Kim", email: "david@agency.com", role: "Support", status: "Active" }
-                ].map((member, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-sm text-muted-foreground">{member.email}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{member.role}</Badge>
-                      <Badge className="bg-green-100 text-green-800">{member.status}</Badge>
-                      <Button variant="ghost" size="sm">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="mt-6">
-                <h3 className="text-lg font-medium mb-4">Role Permissions</h3>
-                <div className="grid gap-4">
-                  {[
-                    { role: "Agency Admin", permissions: "Full access to all features and settings", users: 1 },
-                    { role: "Consultant", permissions: "Manage students, applications, and communications", users: 2 },
-                    { role: "Support", permissions: "View data and manage support tickets", users: 1 }
-                  ].map((role, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{role.role}</div>
-                        <div className="text-sm text-muted-foreground">{role.permissions}</div>
-                        <div className="text-xs text-muted-foreground">{role.users} user(s)</div>
-                      </div>
-                      <Button variant="outline" size="sm">Edit Permissions</Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="billing" className="space-y-6">
           <Card>
             <CardHeader>
@@ -2030,6 +2075,243 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Invite Member Dialog */}
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Invite Team Member</DialogTitle>
+            <DialogDescription>
+              Send an invitation to a new team member to join your agency.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email*
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm({...inviteForm, email: e.target.value})}
+                className="col-span-3"
+                placeholder="member@example.com"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Full Name*
+              </Label>
+              <Input
+                id="name"
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm({...inviteForm, name: e.target.value})}
+                className="col-span-3"
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="role" className="text-right">
+                Role*
+              </Label>
+              <Select
+                value={inviteForm.role}
+                onValueChange={(value) => setInviteForm({...inviteForm, role: value})}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AGENCY_ADMIN">Agency Admin</SelectItem>
+                  <SelectItem value="CONSULTANT">Consultant</SelectItem>
+                  <SelectItem value="SUPPORT">Support</SelectItem>
+                  <SelectItem value="MANAGER">Manager</SelectItem>
+                  <SelectItem value="INTERN">Intern</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phone" className="text-right">
+                Phone
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={inviteForm.phone}
+                onChange={(e) => setInviteForm({...inviteForm, phone: e.target.value})}
+                className="col-span-3"
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="title" className="text-right">
+                Title
+              </Label>
+              <Input
+                id="title"
+                value={inviteForm.title}
+                onChange={(e) => setInviteForm({...inviteForm, title: e.target.value})}
+                className="col-span-3"
+                placeholder="Education Consultant"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="department" className="text-right">
+                Department
+              </Label>
+              <Input
+                id="department"
+                value={inviteForm.department}
+                onChange={(e) => setInviteForm({...inviteForm, department: e.target.value})}
+                className="col-span-3"
+                placeholder="Consulting"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleInviteMember} disabled={inviteLoading}>
+              {inviteLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
+              Send Invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Team Member</DialogTitle>
+            <DialogDescription>
+              Update team member information and settings.
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email*
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editingUser.email}
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-firstName" className="text-right">
+                  First Name*
+                </Label>
+                <Input
+                  id="edit-firstName"
+                  value={editingUser.firstName}
+                  onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-lastName" className="text-right">
+                  Last Name*
+                </Label>
+                <Input
+                  id="edit-lastName"
+                  value={editingUser.lastName}
+                  onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">
+                  Role*
+                </Label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={(value) => setEditingUser({...editingUser, role: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AGENCY_ADMIN">Agency Admin</SelectItem>
+                    <SelectItem value="CONSULTANT">Consultant</SelectItem>
+                    <SelectItem value="SUPPORT">Support</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
+                    <SelectItem value="INTERN">Intern</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-phone" className="text-right">
+                  Phone
+                </Label>
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  value={editingUser.phone || ''}
+                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-title" className="text-right">
+                  Title
+                </Label>
+                <Input
+                  id="edit-title"
+                  value={editingUser.title || ''}
+                  onChange={(e) => setEditingUser({...editingUser, title: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-department" className="text-right">
+                  Department
+                </Label>
+                <Input
+                  id="edit-department"
+                  value={editingUser.department || ''}
+                  onChange={(e) => setEditingUser({...editingUser, department: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-status" className="text-right">
+                  Status
+                </Label>
+                <Select
+                  value={editingUser.status}
+                  onValueChange={(value) => setEditingUser({...editingUser, status: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEditUser} disabled={editLoading}>
+              {editLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

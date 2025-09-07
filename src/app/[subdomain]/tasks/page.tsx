@@ -959,13 +959,211 @@ export default function TasksPage() {
           <Card>
             <CardHeader>
               <CardTitle>Kanban Board</CardTitle>
-              <CardDescription>Drag and drop tasks between columns</CardDescription>
+              <CardDescription>Drag and drop tasks between columns to update status</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Kanban board coming soon</p>
-                <p className="text-sm">This feature is under development</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* To Do Column */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-700">To Do</h3>
+                    <Badge variant="secondary">
+                      {tasks.filter(t => t.status === 'PENDING').length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-3 min-h-[400px]">
+                    {tasks.filter(t => t.status === 'PENDING').map(task => (
+                      <Card key={task.id} className="bg-white shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+                            <Badge className={getPriorityColor(task.priority)}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {task.assignee && (
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback className="text-xs">
+                                    {task.assignee.name.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                              {task.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {getTypeIcon(task.type)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {tasks.filter(t => t.status === 'PENDING').length === 0 && (
+                      <div className="text-center py-8 text-gray-400">
+                        <p className="text-sm">No tasks in this column</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* In Progress Column */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-blue-700">In Progress</h3>
+                    <Badge variant="secondary">
+                      {tasks.filter(t => t.status === 'IN_PROGRESS').length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-3 min-h-[400px]">
+                    {tasks.filter(t => t.status === 'IN_PROGRESS').map(task => (
+                      <Card key={task.id} className="bg-white shadow-sm border border-blue-200 cursor-move hover:shadow-md transition-shadow">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+                            <Badge className={getPriorityColor(task.priority)}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {task.assignee && (
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback className="text-xs">
+                                    {task.assignee.name.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                              {task.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {getTypeIcon(task.type)}
+                          </div>
+                          {task.progress > 0 && (
+                            <div className="mt-2">
+                              <Progress value={task.progress} className="h-1" />
+                              <span className="text-xs text-gray-500">{task.progress}% complete</span>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {tasks.filter(t => t.status === 'IN_PROGRESS').length === 0 && (
+                      <div className="text-center py-8 text-blue-400">
+                        <p className="text-sm">No tasks in progress</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review Column */}
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-yellow-700">Review</h3>
+                    <Badge variant="secondary">
+                      {tasks.filter(t => t.status === 'DEFERRED').length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-3 min-h-[400px]">
+                    {tasks.filter(t => t.status === 'DEFERRED').map(task => (
+                      <Card key={task.id} className="bg-white shadow-sm border border-yellow-200 cursor-move hover:shadow-md transition-shadow">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+                            <Badge className={getPriorityColor(task.priority)}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {task.assignee && (
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback className="text-xs">
+                                    {task.assignee.name.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                              {task.dueDate && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {getTypeIcon(task.type)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {tasks.filter(t => t.status === 'DEFERRED').length === 0 && (
+                      <div className="text-center py-8 text-yellow-400">
+                        <p className="text-sm">No tasks in review</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Completed Column */}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-green-700">Completed</h3>
+                    <Badge variant="secondary">
+                      {tasks.filter(t => t.status === 'COMPLETED').length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-3 min-h-[400px]">
+                    {tasks.filter(t => t.status === 'COMPLETED').map(task => (
+                      <Card key={task.id} className="bg-white shadow-sm border border-green-200 cursor-move hover:shadow-md transition-shadow">
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+                            <Badge className="bg-green-100 text-green-800">
+                              Completed
+                            </Badge>
+                          </div>
+                          {task.description && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {task.assignee && (
+                                <Avatar className="h-6 w-6">
+                                  <AvatarFallback className="text-xs">
+                                    {task.assignee.name.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
+                              {task.completedAt && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(task.completedAt).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {tasks.filter(t => t.status === 'COMPLETED').length === 0 && (
+                      <div className="text-center py-8 text-green-400">
+                        <p className="text-sm">No completed tasks</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
