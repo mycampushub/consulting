@@ -225,6 +225,8 @@ export default function SettingsPage() {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(mockNotificationSettings)
   const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(mockSecuritySettings)
   const [integrationSettings, setIntegrationSettings] = useState<IntegrationSettings>(mockIntegrationSettings)
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [roles, setRoles] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -232,6 +234,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings()
+    fetchTeamMembers()
+    fetchRoles()
+    fetchIntegrations()
+    fetchNotificationSettings()
   }, [subdomain])
 
   const fetchSettings = async () => {
@@ -251,6 +257,66 @@ export default function SettingsPage() {
       // Keep mock data as fallback
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/users`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch team members')
+      }
+      
+      const data = await response.json()
+      setTeamMembers(data.users || [])
+    } catch (err) {
+      console.error('Error fetching team members:', err)
+      // Keep empty array as fallback
+    }
+  }
+
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/rbac/roles`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch roles')
+      }
+      
+      const data = await response.json()
+      setRoles(data.roles || [])
+    } catch (err) {
+      console.error('Error fetching roles:', err)
+      // Keep empty array as fallback
+    }
+  }
+
+  const fetchIntegrations = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/integrations`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch integrations')
+      }
+      
+      const data = await response.json()
+      setIntegrationSettings(data.integrations || mockIntegrationSettings)
+    } catch (err) {
+      console.error('Error fetching integrations:', err)
+      // Keep mock data as fallback
+    }
+  }
+
+  const fetchNotificationSettings = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/notifications/settings`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch notification settings')
+      }
+      
+      const data = await response.json()
+      setNotificationSettings(data.notificationSettings || mockNotificationSettings)
+    } catch (err) {
+      console.error('Error fetching notification settings:', err)
+      // Keep mock data as fallback
     }
   }
 
@@ -285,6 +351,145 @@ export default function SettingsPage() {
     if (file) {
       // Handle logo upload
       console.log('Logo uploaded:', file.name)
+    }
+  }
+
+  const handleEditUser = (user: any) => {
+    // TODO: Implement edit user functionality
+    console.log('Edit user:', user)
+    alert(`Edit user functionality for ${user.firstName} ${user.lastName} - To be implemented`)
+  }
+
+  const handleViewPermissions = (user: any) => {
+    // TODO: Implement view permissions functionality
+    console.log('View permissions for:', user)
+    alert(`View permissions functionality for ${user.firstName} ${user.lastName} - To be implemented`)
+  }
+
+  const handleInviteMember = () => {
+    // TODO: Implement invite member functionality
+    alert('Invite member functionality - To be implemented')
+  }
+
+  const handleViewRoleDetails = (role: any) => {
+    // TODO: Implement view role details functionality
+    console.log('View role details:', role)
+    alert(`View role details functionality for ${role.name} - To be implemented`)
+  }
+
+  const handleAssignRole = async (user: any) => {
+    try {
+      // Fetch available roles
+      const response = await fetch(`/api/${subdomain}/rbac/roles`)
+      const data = await response.json()
+      
+      if (data.roles && data.roles.length > 0) {
+        const roleNames = data.roles.map((r: any) => `${r.name} (${r.slug})`).join('\n')
+        alert(`Available roles for ${user.firstName} ${user.lastName}:\n\n${roleNames}\n\nRole assignment interface to be implemented.`)
+      } else {
+        alert('No roles available. Please create roles first.')
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error)
+      alert('Error fetching roles. Please try again.')
+    }
+  }
+
+  const handleManagePermissions = async (user: any) => {
+    try {
+      // Fetch user permissions
+      const response = await fetch(`/api/${subdomain}/rbac/permissions?userId=${user.id}`)
+      const data = await response.json()
+      
+      if (data.permissions && data.permissions.length > 0) {
+        const permissionList = data.permissions.map((p: any) => 
+          `${p.permission.name} - ${p.permission.resource}:${p.permission.action}`
+        ).join('\n')
+        alert(`Current permissions for ${user.firstName} ${user.lastName}:\n\n${permissionList}\n\nPermission management interface to be implemented.`)
+      } else {
+        alert(`No custom permissions assigned to ${user.firstName} ${user.lastName}.`)
+      }
+    } catch (error) {
+      console.error('Error fetching permissions:', error)
+      alert('Error fetching permissions. Please try again.')
+    }
+  }
+
+  const handleUpdateIntegration = async (type: string, provider: string, config: any = {}) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/integrations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type,
+          provider,
+          config,
+          isConnected: provider !== 'NONE'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update integration')
+      }
+
+      const result = await response.json()
+      alert(`${type} integration updated successfully!`)
+      
+      // Refresh integrations
+      fetchIntegrations()
+    } catch (error) {
+      console.error('Error updating integration:', error)
+      alert('Failed to update integration. Please try again.')
+    }
+  }
+
+  const handleTestIntegration = async (type: string, provider: string) => {
+    try {
+      const response = await fetch(`/api/${subdomain}/integrations`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type,
+          provider,
+          config: {}
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to test integration')
+      }
+
+      const result = await response.json()
+      alert(result.message || 'Integration test completed')
+    } catch (error) {
+      console.error('Error testing integration:', error)
+      alert('Failed to test integration. Please try again.')
+    }
+  }
+
+  const handleSaveNotificationSettings = async () => {
+    try {
+      const response = await fetch(`/api/${subdomain}/notifications/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationSettings),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save notification settings')
+      }
+
+      const result = await response.json()
+      alert('Notification settings saved successfully!')
+    } catch (error) {
+      console.error('Error saving notification settings:', error)
+      alert('Failed to save notification settings. Please try again.')
     }
   }
 
@@ -794,7 +999,7 @@ export default function SettingsPage() {
                   <h3 className="text-lg font-medium">Team Members</h3>
                   <p className="text-sm text-muted-foreground">Manage user roles and permissions</p>
                 </div>
-                <Button>
+                <Button onClick={handleInviteMember}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Invite Member
                 </Button>
@@ -802,29 +1007,28 @@ export default function SettingsPage() {
 
               {/* Team Members List */}
               <div className="space-y-3">
-                {[
-                  { name: "Sarah Johnson", email: "sarah@agency.com", role: "AGENCY_ADMIN", status: "ACTIVE", lastLogin: "2 hours ago" },
-                  { name: "Michael Chen", email: "michael@agency.com", role: "CONSULTANT", status: "ACTIVE", lastLogin: "4 hours ago" },
-                  { name: "Emma Rodriguez", email: "emma@agency.com", role: "CONSULTANT", status: "ACTIVE", lastLogin: "1 day ago" },
-                  { name: "David Kim", email: "david@agency.com", role: "SUPPORT", status: "ACTIVE", lastLogin: "3 days ago" }
-                ].map((member, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                {teamMembers.map((member, index) => (
+                  <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <Avatar>
-                        <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarImage src={member.avatar} />
+                        <AvatarFallback>
+                          {(member.firstName || member.name || '').split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{member.name}</div>
+                        <div className="font-medium">{member.firstName} {member.lastName}</div>
                         <div className="text-sm text-muted-foreground">{member.email}</div>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge className={
                             member.role === "AGENCY_ADMIN" ? "bg-purple-100 text-purple-800" :
                             member.role === "CONSULTANT" ? "bg-blue-100 text-blue-800" :
-                            "bg-green-100 text-green-800"
+                            member.role === "SUPPORT" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
                           }>
                             {member.role.replace('_', ' ')}
                           </Badge>
-                          <Badge className="bg-green-100 text-green-800">
+                          <Badge className={member.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
                             {member.status}
                           </Badge>
                         </div>
@@ -832,14 +1036,20 @@ export default function SettingsPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-muted-foreground">Last login</div>
-                      <div className="text-sm">{member.lastLogin}</div>
+                      <div className="text-sm">{member.lastLogin ? new Date(member.lastLogin).toLocaleString() : 'Never'}</div>
                       <div className="flex gap-1 mt-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm">Permissions</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleEditUser(member)}>Edit</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleAssignRole(member)}>Assign Role</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleManagePermissions(member)}>Permissions</Button>
                       </div>
                     </div>
                   </div>
                 ))}
+                {teamMembers.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No team members found. Click "Invite Member" to add your first team member.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -855,21 +1065,28 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-4">
-                {[
-                  { name: "Agency Admin", description: "Full access to all features", color: "bg-purple-100 text-purple-800" },
-                  { name: "Consultant", description: "Student and application management", color: "bg-blue-100 text-blue-800" },
-                  { name: "Support", description: "Customer support and help desk", color: "bg-green-100 text-green-800" }
-                ].map((role, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
+                {roles.length > 0 ? roles.map((role, index) => (
+                  <div key={role.id} className="p-4 border rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge className={role.color}>{role.name}</Badge>
+                      <Badge className={
+                        role.level === 0 ? "bg-purple-100 text-purple-800" :
+                        role.level === 1 ? "bg-blue-100 text-blue-800" :
+                        role.level === 2 ? "bg-green-100 text-green-800" :
+                        "bg-gray-100 text-gray-800"
+                      }>
+                        {role.name}
+                      </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">{role.description}</p>
-                    <Button variant="outline" size="sm" className="w-full">
+                    <p className="text-sm text-muted-foreground mb-3">{role.description || 'No description available'}</p>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => handleViewRoleDetails(role)}>
                       View Permissions
                     </Button>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-3 text-center py-8 text-muted-foreground">
+                    No roles found. Roles will be created automatically when you add team members.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1057,6 +1274,13 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button onClick={handleSaveNotificationSettings}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Notification Settings
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1248,19 +1472,13 @@ export default function SettingsPage() {
                     {integrationSettings.crm?.connected ? (
                       <>
                         <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                        <Button variant="outline" size="sm">Configure</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleTestIntegration('CRM', integrationSettings.crm?.provider || '')}>Test</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleUpdateIntegration('CRM', 'NONE')}>Disconnect</Button>
                       </>
                     ) : (
                       <Select
                         value={integrationSettings.crm?.provider || 'NONE'}
-                        onValueChange={(value) => setIntegrationSettings({
-                          ...integrationSettings,
-                          crm: {
-                            ...integrationSettings.crm!,
-                            provider: value as any,
-                            connected: value !== 'NONE'
-                          }
-                        })}
+                        onValueChange={(value) => handleUpdateIntegration('CRM', value)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue />
@@ -1295,19 +1513,13 @@ export default function SettingsPage() {
                     {integrationSettings.email?.connected ? (
                       <>
                         <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                        <Button variant="outline" size="sm">Configure</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleTestIntegration('EMAIL', integrationSettings.email?.provider || '')}>Test</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleUpdateIntegration('EMAIL', 'NONE')}>Disconnect</Button>
                       </>
                     ) : (
                       <Select
                         value={integrationSettings.email?.provider || 'NONE'}
-                        onValueChange={(value) => setIntegrationSettings({
-                          ...integrationSettings,
-                          email: {
-                            ...integrationSettings.email!,
-                            provider: value as any,
-                            connected: value !== 'NONE'
-                          }
-                        })}
+                        onValueChange={(value) => handleUpdateIntegration('EMAIL', value)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue />
@@ -1342,19 +1554,13 @@ export default function SettingsPage() {
                     {integrationSettings.payment?.connected ? (
                       <>
                         <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                        <Button variant="outline" size="sm">Configure</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleTestIntegration('PAYMENT', integrationSettings.payment?.provider || '')}>Test</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleUpdateIntegration('PAYMENT', 'NONE')}>Disconnect</Button>
                       </>
                     ) : (
                       <Select
                         value={integrationSettings.payment?.provider || 'NONE'}
-                        onValueChange={(value) => setIntegrationSettings({
-                          ...integrationSettings,
-                          payment: {
-                            ...integrationSettings.payment!,
-                            provider: value as any,
-                            connected: value !== 'NONE'
-                          }
-                        })}
+                        onValueChange={(value) => handleUpdateIntegration('PAYMENT', value)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue />
@@ -1389,19 +1595,13 @@ export default function SettingsPage() {
                     {integrationSettings.analytics?.connected ? (
                       <>
                         <Badge className="bg-green-100 text-green-800">Connected</Badge>
-                        <Button variant="outline" size="sm">Configure</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleTestIntegration('ANALYTICS', integrationSettings.analytics?.provider || '')}>Test</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleUpdateIntegration('ANALYTICS', 'NONE')}>Disconnect</Button>
                       </>
                     ) : (
                       <Select
                         value={integrationSettings.analytics?.provider || 'NONE'}
-                        onValueChange={(value) => setIntegrationSettings({
-                          ...integrationSettings,
-                          analytics: {
-                            ...integrationSettings.analytics!,
-                            provider: value as any,
-                            connected: value !== 'NONE'
-                          }
-                        })}
+                        onValueChange={(value) => handleUpdateIntegration('ANALYTICS', value)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue />

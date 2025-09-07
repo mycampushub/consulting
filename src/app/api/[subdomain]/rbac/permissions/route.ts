@@ -1,57 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { RBACService } from '@/lib/rbac'
 import { requireAuth, requireAgency } from '@/lib/auth-middleware'
+import { z } from 'zod'
+
+const permissionSchema = z.object({
+  name: z.string().min(1, 'Permission name is required'),
+  description: z.string().optional(),
+  resource: z.string().min(1, 'Resource is required'),
+  action: z.string().min(1, 'Action is required'),
+  scope: z.enum(['AGENCY', 'BRANCH', 'TEAM']).default('AGENCY')
+})
 
 // Get all permissions for the agency
 export const GET = requireAgency(async (request: NextRequest, context) => {
   try {
     const { agency } = context
     const { searchParams } = new URL(request.url)
-    const category = searchParams.get('category')
-    const resource = searchParams.get('resource')
+    const userId = searchParams.get('userId')
 
     const where: any = {
-      isActive: true
+      agencyId: agency.id
     }
 
-    if (category) {
-      where.category = category
+    if (userId) {
+      where.userId = userId
     }
 
-    if (resource) {
-      where.resource = resource
-    }
-
-    const permissions = await db.permission.findMany({
+    const permissions = await db.userPermission.findMany({
       where,
       include: {
-        rolePermissions: {
-          where: {
-            role: {
-              agencyId: agency.id
-            }
-          },
-          include: {
-            role: true
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
           }
         },
-        userPermissions: {
-          where: {
-            user: {
-              agencyId: agency.id
-            }
-          },
-          include: {
-            user: true
+        permission: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            resource: true,
+            action: true
           }
         }
       },
-      orderBy: [
-        { category: 'asc' },
-        { resource: 'asc' },
-        { action: 'asc' }
-      ]
+      orderBy: { grantedAt: 'desc' }
     })
 
     return NextResponse.json({ permissions })
@@ -64,62 +59,182 @@ export const GET = requireAgency(async (request: NextRequest, context) => {
   }
 })
 
-// Create a new permission (system-wide)
-export const POST = requireAuth(async (request: NextRequest, context) => {
+// Grant a permission to a user
+export const POST = requireAgency(async (request: NextRequest, context) => {
   try {
-    const { user } = context
+    const { agency, user } = context
     const body = await request.json()
 
-    const { name, slug, description, category, resource, action, dependencies } = body
+    const { userId, permissionId, grantedBy } = body
 
-    // Validate required fields
-    if (!name || !slug || !category || !resource || !action) {
+    if (!userId || !permissionId) {
       return NextResponse.json(
-        { error: 'Name, slug, category, resource, and action are required' },
+        { error: 'User ID and Permission ID are required' },
         { status: 400 }
       )
     }
 
-    // Check if slug is unique
-    const existingPermission = await db.permission.findUnique({
-      where: { slug }
+    // Check if user exists and belongs to the agency
+    const targetUser = await db.user.findFirst({
+      where: {
+        id: userId,
+        agencyId: agency.id
+      }
+    })
+
+    if (!targetUser) {
+      return NextResponse.json(
+        { error: 'User not found or does not belong to this agency' },
+        { status: 404 }
+      )
+    }
+
+    // Check if permission exists
+    const permission = await db.permission.findFirst({
+      where: {
+        id: permissionId
+      }
+    })
+
+    if (!permission) {
+      return NextResponse.json(
+        { error: 'Permission not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if user already has this permission
+    const existingPermission = await db.userPermission.findFirst({
+      where: {
+        userId,
+        permissionId,
+        revokedAt: null
+      }
     })
 
     if (existingPermission) {
       return NextResponse.json(
-        { error: 'Permission with this slug already exists' },
+        { error: 'User already has this permission' },
         { status: 400 }
       )
     }
 
-    const permission = await db.permission.create({
+    // Grant the permission
+    const userPermission = await db.userPermission.create({
       data: {
-        name,
-        slug,
-        description,
-        category,
-        resource,
-        action,
-        dependencies: dependencies ? JSON.stringify(dependencies) : null
+        userId,
+        permissionId,
+        grantedBy: grantedBy || user.id,
+        grantedAt: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        permission: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            resource: true,
+            action: true
+          }
+        }
       }
     })
 
-    // Log the action
-    await RBACService.logAccess({
-      userId: user.id,
-      resource: 'permissions',
-      action: 'create',
-      resourceId: permission.id,
-      result: 'ALLOWED',
-      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
+    // Log the permission grant
+    await db.activityLog.create({
+      data: {
+        agencyId: agency.id,
+        userId: user.id,
+        action: 'PERMISSION_GRANTED',
+        entityType: 'UserPermission',
+        entityId: userPermission.id,
+        changes: JSON.stringify({
+          userId,
+          permissionId,
+          grantedBy: user.id
+        })
+      }
     })
 
-    return NextResponse.json({ permission }, { status: 201 })
+    return NextResponse.json(userPermission, { status: 201 })
   } catch (error) {
-    console.error('Error creating permission:', error)
+    console.error('Error granting permission:', error)
     return NextResponse.json(
-      { error: 'Failed to create permission' },
+      { error: 'Failed to grant permission' },
+      { status: 500 }
+    )
+  }
+})
+
+// Revoke a permission from a user
+export const DELETE = requireAgency(async (request: NextRequest, context) => {
+  try {
+    const { agency, user } = context
+    const { searchParams } = new URL(request.url)
+    const permissionId = searchParams.get('permissionId')
+
+    if (!permissionId) {
+      return NextResponse.json(
+        { error: 'Permission ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Find the permission
+    const permission = await db.userPermission.findFirst({
+      where: {
+        id: permissionId,
+        agencyId: agency.id
+      }
+    })
+
+    if (!permission) {
+      return NextResponse.json(
+        { error: 'Permission not found' },
+        { status: 404 }
+      )
+    }
+
+    // Revoke the permission (soft delete)
+    const revokedPermission = await db.userPermission.update({
+      where: { id: permissionId },
+      data: {
+        revokedAt: new Date(),
+        revokedBy: user.id
+      }
+    })
+
+    // Log the revocation
+    await db.activityLog.create({
+      data: {
+        agencyId: agency.id,
+        userId: user.id,
+        action: 'PERMISSION_REVOKED',
+        entityType: 'UserPermission',
+        entityId: permissionId,
+        changes: JSON.stringify({
+          userId: permission.userId,
+          permissionId: permission.permissionId,
+          revokedBy: user.id
+        })
+      }
+    })
+
+    return NextResponse.json({
+      message: 'Permission revoked successfully',
+      permission: revokedPermission
+    })
+  } catch (error) {
+    console.error('Error revoking permission:', error)
+    return NextResponse.json(
+      { error: 'Failed to revoke permission' },
       { status: 500 }
     )
   }

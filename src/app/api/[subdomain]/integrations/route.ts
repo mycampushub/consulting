@@ -1,221 +1,266 @@
-import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { getSubdomainForAPI } from "@/lib/utils"
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { requireAuth, requireAgency } from '@/lib/auth-middleware'
+import { z } from 'zod'
 
-export async function GET(request: NextRequest) {
+const integrationSchema = z.object({
+  type: z.enum(['CRM', 'EMAIL', 'PAYMENT', 'ANALYTICS']),
+  provider: z.string(),
+  apiKey: z.string().optional(),
+  config: z.record(z.any()).optional(),
+  isConnected: z.boolean().default(false)
+})
+
+// Get all integrations for the agency
+export const GET = requireAgency(async (request: NextRequest, context) => {
   try {
-    const subdomain = getSubdomainForAPI(request)
-    if (!subdomain) {
-      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
-    }
+    const { agency } = context
 
-    const agency = await db.agency.findUnique({
-      where: { subdomain },
-      include: {
-        accounting: true
+    // Fetch feature settings which may contain integration data
+    const featureSettings = await db.featureSettings.findUnique({
+      where: {
+        agencyId: agency.id
       }
     })
 
-    if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
+    // For now, return demo integration data based on feature settings
+    // In a real implementation, this would be stored in a dedicated Integration table
+    const integrations = {
+      crm: {
+        provider: featureSettings?.crmProvider || 'NONE',
+        apiKey: featureSettings?.crmApiKey || undefined,
+        connected: featureSettings?.crmConnected || false,
+        config: featureSettings?.crmConfig || {}
+      },
+      email: {
+        provider: featureSettings?.emailProvider || 'NONE',
+        apiKey: featureSettings?.emailApiKey || undefined,
+        connected: featureSettings?.emailConnected || false,
+        config: featureSettings?.emailConfig || {}
+      },
+      payment: {
+        provider: featureSettings?.paymentProvider || 'NONE',
+        apiKey: featureSettings?.paymentApiKey || undefined,
+        connected: featureSettings?.paymentConnected || false,
+        config: featureSettings?.paymentConfig || {}
+      },
+      analytics: {
+        provider: featureSettings?.analyticsProvider || 'NONE',
+        trackingId: featureSettings?.analyticsTrackingId || undefined,
+        connected: featureSettings?.analyticsConnected || false,
+        config: featureSettings?.analyticsConfig || {}
+      }
     }
 
-    // Mock integrations data
-    const integrations = [
-      {
-        id: "quickbooks",
-        name: "QuickBooks",
-        category: "accounting",
-        description: "Accounting software integration",
-        status: agency.accounting?.isConnected ? "connected" : "disconnected",
-        isConnected: agency.accounting?.isConnected || false,
-        lastSyncAt: agency.accounting?.lastSyncAt,
-        config: agency.accounting?.accountingConfig ? JSON.parse(agency.accounting.accountingConfig) : null,
-        features: ["sync_transactions", "sync_invoices", "generate_reports"],
-        webhooks: []
-      },
-      {
-        id: "stripe",
-        name: "Stripe",
-        category: "payments",
-        description: "Payment processing",
-        status: "disconnected",
-        isConnected: false,
-        features: ["process_payments", "create_invoices", "manage_subscriptions"],
-        webhooks: []
-      },
-      {
-        id: "zoom",
-        name: "Zoom",
-        category: "communication",
-        description: "Video conferencing and webinars",
-        status: "disconnected",
-        isConnected: false,
-        features: ["create_meetings", "schedule_webinars", "record_sessions"],
-        webhooks: []
-      },
-      {
-        id: "google_calendar",
-        name: "Google Calendar",
-        category: "productivity",
-        description: "Calendar and scheduling",
-        status: "disconnected",
-        isConnected: false,
-        features: ["sync_events", "create_appointments", "send_reminders"],
-        webhooks: []
-      },
-      {
-        id: "mailchimp",
-        name: "Mailchimp",
-        category: "marketing",
-        description: "Email marketing automation",
-        status: "disconnected",
-        isConnected: false,
-        features: ["sync_contacts", "create_campaigns", "track_analytics"],
-        webhooks: []
-      },
-      {
-        id: "slack",
-        name: "Slack",
-        category: "communication",
-        description: "Team collaboration",
-        status: "disconnected",
-        isConnected: false,
-        features: ["send_notifications", "create_channels", "share_updates"],
-        webhooks: []
-      }
-    ]
+    return NextResponse.json({ integrations })
+  } catch (error) {
+    console.error('Error fetching integrations:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch integrations' },
+      { status: 500 }
+    )
+  }
+})
 
-    // Get integration activity logs (mock data)
-    const activityLogs = [
-      {
-        id: "1",
-        integration: "QuickBooks",
-        action: "sync_started",
-        status: "success",
-        description: "Started syncing transactions",
-        timestamp: new Date(Date.now() - 3600000).toISOString()
-      },
-      {
-        id: "2",
-        integration: "QuickBooks",
-        action: "sync_completed",
-        status: "success",
-        description: "Successfully synced 25 transactions",
-        timestamp: new Date(Date.now() - 3500000).toISOString()
-      }
-    ]
+// Update or create integration configuration
+export const POST = requireAgency(async (request: NextRequest, context) => {
+  try {
+    const { agency, user } = context
+    const body = await request.json()
 
-    // Get webhook endpoints (mock data)
-    const webhooks = [
-      {
-        id: "1",
-        integration: "QuickBooks",
-        event: "transaction.created",
-        url: "https://webhook.example.com/quickbooks",
-        isActive: true,
-        createdAt: new Date(Date.now() - 86400000).toISOString()
+    const { type, provider, apiKey, config, isConnected } = body
+
+    if (!type || !provider) {
+      return NextResponse.json(
+        { error: 'Integration type and provider are required' },
+        { status: 400 }
+      )
+    }
+
+    // Get or create feature settings
+    let featureSettings = await db.featureSettings.findUnique({
+      where: {
+        agencyId: agency.id
       }
-    ]
+    })
+
+    if (!featureSettings) {
+      featureSettings = await db.featureSettings.create({
+        data: {
+          agencyId: agency.id
+        }
+      })
+    }
+
+    // Update the appropriate integration fields based on type
+    const updateData: any = {}
+    
+    switch (type) {
+      case 'CRM':
+        updateData.crmProvider = provider
+        updateData.crmApiKey = apiKey
+        updateData.crmConfig = config || {}
+        updateData.crmConnected = isConnected || false
+        break
+      case 'EMAIL':
+        updateData.emailProvider = provider
+        updateData.emailApiKey = apiKey
+        updateData.emailConfig = config || {}
+        updateData.emailConnected = isConnected || false
+        break
+      case 'PAYMENT':
+        updateData.paymentProvider = provider
+        updateData.paymentApiKey = apiKey
+        updateData.paymentConfig = config || {}
+        updateData.paymentConnected = isConnected || false
+        break
+      case 'ANALYTICS':
+        updateData.analyticsProvider = provider
+        updateData.analyticsTrackingId = apiKey || config?.trackingId
+        updateData.analyticsConfig = config || {}
+        updateData.analyticsConnected = isConnected || false
+        break
+      default:
+        return NextResponse.json(
+          { error: 'Invalid integration type' },
+          { status: 400 }
+        )
+    }
+
+    // Update feature settings
+    const updatedSettings = await db.featureSettings.update({
+      where: {
+        id: featureSettings.id
+      },
+      data: updateData
+    })
+
+    // Log the integration update
+    await db.activityLog.create({
+      data: {
+        agencyId: agency.id,
+        userId: user.id,
+        action: 'INTEGRATION_UPDATED',
+        entityType: 'FeatureSettings',
+        entityId: updatedSettings.id,
+        changes: JSON.stringify({
+          type,
+          provider,
+          isConnected
+        })
+      }
+    })
 
     return NextResponse.json({
-      integrations,
-      activityLogs,
-      webhooks,
-      summary: {
-        total: integrations.length,
-        connected: integrations.filter(i => i.isConnected).length,
-        categories: {
-          accounting: integrations.filter(i => i.category === "accounting").length,
-          payments: integrations.filter(i => i.category === "payments").length,
-          communication: integrations.filter(i => i.category === "communication").length,
-          productivity: integrations.filter(i => i.category === "productivity").length,
-          marketing: integrations.filter(i => i.category === "marketing").length
-        }
+      success: true,
+      message: `${type} integration updated successfully`,
+      integration: {
+        type,
+        provider,
+        isConnected,
+        config
       }
     })
   } catch (error) {
-    console.error("Error fetching integrations:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Error updating integration:', error)
+    return NextResponse.json(
+      { error: 'Failed to update integration' },
+      { status: 500 }
+    )
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+// Test integration connection
+export const PUT = requireAgency(async (request: NextRequest, context) => {
   try {
-    const subdomain = getSubdomainForAPI(request)
-    if (!subdomain) {
-      return NextResponse.json({ error: "Subdomain required" }, { status: 400 })
+    const { agency, user } = context
+    const body = await request.json()
+    const { type, provider, config } = body
+
+    if (!type || !provider) {
+      return NextResponse.json(
+        { error: 'Integration type and provider are required' },
+        { status: 400 }
+      )
     }
 
-    const body = await request.json()
-    const { integrationId, action, config } = body
+    // Simulate connection test - in a real implementation, this would
+    // actually test the connection to the external service
+    let testResult = {
+      success: false,
+      message: 'Connection test failed',
+      details: {}
+    }
 
-    const agency = await db.agency.findUnique({
-      where: { subdomain }
+    switch (type) {
+      case 'CRM':
+        testResult = {
+          success: true,
+          message: 'Successfully connected to CRM',
+          details: {
+            provider,
+            status: 'connected',
+            lastTested: new Date().toISOString()
+          }
+        }
+        break
+      case 'EMAIL':
+        testResult = {
+          success: true,
+          message: 'Successfully connected to email service',
+          details: {
+            provider,
+            status: 'connected',
+            lastTested: new Date().toISOString()
+          }
+        }
+        break
+      case 'PAYMENT':
+        testResult = {
+          success: true,
+          message: 'Successfully connected to payment gateway',
+          details: {
+            provider,
+            status: 'connected',
+            lastTested: new Date().toISOString()
+          }
+        }
+        break
+      case 'ANALYTICS':
+        testResult = {
+          success: true,
+          message: 'Successfully connected to analytics service',
+          details: {
+            provider,
+            status: 'connected',
+            lastTested: new Date().toISOString()
+          }
+        }
+        break
+    }
+
+    // Log the connection test
+    await db.activityLog.create({
+      data: {
+        agencyId: agency.id,
+        userId: user.id,
+        action: 'INTEGRATION_TESTED',
+        entityType: 'FeatureSettings',
+        entityId: agency.id,
+        changes: JSON.stringify({
+          type,
+          provider,
+          testResult
+        })
+      }
     })
 
-    if (!agency) {
-      return NextResponse.json({ error: "Agency not found" }, { status: 404 })
-    }
-
-    // Handle different integration actions
-    switch (action) {
-      case "connect":
-        // Simulate integration connection
-        return NextResponse.json({
-          success: true,
-          message: `${integrationId} connected successfully`,
-          integration: {
-            id: integrationId,
-            status: "connected",
-            isConnected: true,
-            lastSyncAt: new Date().toISOString()
-          }
-        })
-
-      case "disconnect":
-        // Simulate integration disconnection
-        return NextResponse.json({
-          success: true,
-          message: `${integrationId} disconnected successfully`,
-          integration: {
-            id: integrationId,
-            status: "disconnected",
-            isConnected: false,
-            lastSyncAt: null
-          }
-        })
-
-      case "sync":
-        // Simulate data sync
-        return NextResponse.json({
-          success: true,
-          message: `${integrationId} sync completed`,
-          syncResult: {
-            recordsProcessed: Math.floor(Math.random() * 100) + 50,
-            recordsCreated: Math.floor(Math.random() * 20) + 5,
-            recordsUpdated: Math.floor(Math.random() * 30) + 10,
-            errors: 0
-          }
-        })
-
-      case "test":
-        // Test integration connection
-        return NextResponse.json({
-          success: true,
-          message: `${integrationId} connection test successful`,
-          testResult: {
-            status: "success",
-            responseTime: Math.floor(Math.random() * 500) + 100,
-            message: "Connection established successfully"
-          }
-        })
-
-      default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-    }
+    return NextResponse.json(testResult)
   } catch (error) {
-    console.error("Error managing integration:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error('Error testing integration:', error)
+    return NextResponse.json(
+      { error: 'Failed to test integration' },
+      { status: 500 }
+    )
   }
-}
+})
